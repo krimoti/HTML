@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תצוגה מקדימה חיה של HTML</title>
+<style>
+  :root{
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d2130;
+    --line: #2a2f3f;
+    --text: #e7e9ee;
+    --muted: #8b91a3;
+    --accent: #5eead4;
+    --accent-dim: #2e5a52;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+  }
+
+  header{
+    padding:14px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    background:var(--panel);
+  }
+  header h1{
+    font-size:16px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:.2px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  header h1 .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .segmented{
+    display:flex;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:3px;
+    gap:2px;
+  }
+  .segmented button{
+    border:none;
+    background:transparent;
+    color:var(--muted);
+    padding:6px 12px;
+    font-size:13px;
+    border-radius:6px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    transition: background .15s, color .15s;
+  }
+  .segmented button.active{
+    background:var(--accent-dim);
+    color:var(--accent);
+  }
+  .segmented button:hover:not(.active){
+    color:var(--text);
+  }
+
+  button.run{
+    background:var(--accent);
+    color:#0b1310;
+    border:none;
+    font-weight:600;
+    padding:8px 16px;
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+    transition: filter .15s;
+  }
+  button.run:hover{ filter:brightness(1.08); }
+  button.run:active{ filter:brightness(0.95); }
+
+  main{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+
+  .pane{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .pane-head{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    padding:10px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel);
+  }
+
+  #editor{
+    flex:1;
+    width:100%;
+    resize:none;
+    border:none;
+    outline:none;
+    background:#0b0d12;
+    color:#d7dae2;
+    font-family:var(--mono);
+    font-size:13px;
+    line-height:1.55;
+    padding:16px;
+    direction:ltr;
+    text-align:left;
+    tab-size:2;
+  }
+
+  .divider{
+    width:6px;
+    background:var(--line);
+    cursor:col-resize;
+    position:relative;
+    flex-shrink:0;
+    transition: background .15s;
+    touch-action:none;
+  }
+  .divider:hover, .divider.dragging{
+    background:var(--accent-dim);
+  }
+  .divider::after{
+    content:"";
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:2px;
+    height:32px;
+    border-radius:2px;
+    background:var(--muted);
+  }
+  .divider:hover::after, .divider.dragging::after{
+    background:var(--accent);
+  }
+  main.dragging{
+    cursor:col-resize;
+    user-select:none;
+  }
+  main.dragging iframe{
+    pointer-events:none;
+  }
+
+
+
+  .preview-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      linear-gradient(45deg, #14161d 25%, transparent 25%),
+      linear-gradient(-45deg, #14161d 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #14161d 75%),
+      linear-gradient(-45deg, transparent 75%, #14161d 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-color:#0d0f14;
+    padding:20px;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .frame-shell{
+    background:#000;
+    border-radius:4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    transition: width .25s ease, height .25s ease, border-radius .25s ease, padding .25s ease;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* desktop mode */
+  .frame-shell.desktop{
+    width:100%;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+    border-radius:6px;
+    padding:0;
+    border:1px solid var(--line);
+  }
+  .frame-shell.desktop .browser-bar{
+    display:flex;
+  }
+
+  /* phone mode */
+  .frame-shell.phone{
+    width:375px;
+    height:780px;
+    max-width:100%;
+    max-height:100%;
+    border-radius:38px;
+    padding:12px 12px 22px 12px;
+    border:1px solid #2c2f36;
+  }
+  .frame-shell.phone .browser-bar{
+    display:none;
+  }
+  .frame-shell.phone .notch{
+    display:block;
+  }
+
+  .browser-bar{
+    display:none;
+    align-items:center;
+    gap:6px;
+    padding:8px 10px;
+    background:#1c1f28;
+    border-bottom:1px solid var(--line);
+  }
+  .browser-bar .traffic{
+    display:flex;
+    gap:6px;
+    padding-inline-end:8px;
+  }
+  .browser-bar .traffic span{
+    width:10px;height:10px;border-radius:50%;
+    display:inline-block;
+  }
+  .browser-bar .traffic span:nth-child(1){background:#ff5f57;}
+  .browser-bar .traffic span:nth-child(2){background:#febc2e;}
+  .browser-bar .traffic span:nth-child(3){background:#28c840;}
+  .browser-bar .url{
+    flex:1;
+    background:#12141b;
+    border-radius:6px;
+    padding:4px 10px;
+    font-size:11px;
+    color:var(--muted);
+    font-family:var(--mono);
+    direction:ltr;
+    text-align:left;
+  }
+
+  .notch{
+    display:none;
+    width:110px;
+    height:18px;
+    background:#000;
+    border-radius:12px;
+    margin:0 auto 8px auto;
+  }
+
+  iframe{
+    flex:1;
+    width:100%;
+    border:none;
+    background:#fff;
+    border-radius:0 0 4px 4px;
+  }
+  .frame-shell.desktop iframe{ border-radius: 0 0 6px 6px; }
+  .frame-shell.phone iframe{ border-radius:26px; }
+
+  footer{
+    padding:8px 20px;
+    border-top:1px solid var(--line);
+    font-size:11px;
+    color:var(--muted);
+    background:var(--panel);
+  }
+
+  @media (max-width: 800px){
+    html,body{ height:auto; min-height:100%; }
+    body{ overflow-y:auto; }
+    main{ flex-direction:column; height:auto; }
+    .divider{ width:auto; height:6px; cursor:row-resize; }
+    .divider::after{ width:32px; height:2px; }
+    main.dragging{ cursor:row-resize; }
+    #editor{ min-height:260px; }
+    .pane{ min-height:320px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="dot"></span> תצוגה מקדימה חיה</h1>
+  <div class="controls">
+    <div class="segmented" id="deviceToggle">
+      <button data-mode="desktop" class="active">🖥️ מחשב</button>
+      <button data-mode="phone">📱 טלפון</button>
+    </div>
+    <button class="run" id="runBtn">▶ הרץ (Ctrl+Enter)</button>
+  </div>
+</header>
+
+<main id="mainArea">
+  <div class="pane" id="leftPane">
+    <div class="pane-head">קוד HTML</div>
+    <textarea id="editor" spellcheck="false">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;style&gt;
+  body{
+    font-family: sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background: linear-gradient(135deg,#5eead4,#2563eb);
+    color:#fff;
+  }
+  h1{ text-align:center; }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;שלום! ✨&lt;br&gt;ערוך כאן את הקוד&lt;/h1&gt;
+&lt;/body&gt;
+&lt;/html&gt;</textarea>
+  </div>
+
+  <div class="divider" id="divider"></div>
+
+  <div class="pane" id="rightPane">
+    <div class="pane-head">תצוגה מקדימה</div>
+    <div class="preview-wrap">
+      <div class="frame-shell desktop" id="frameShell">
+        <div class="browser-bar">
+          <div class="traffic"><span></span><span></span><span></span></div>
+          <div class="url">preview.local</div>
+        </div>
+        <div class="notch"></div>
+        <iframe id="previewFrame" title="preview"></iframe>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>הקוד רץ בארגז חול (sandbox) מבודד בתוך הדף — אין שיתוף עוגיות או אחסון עם שאר הדפדפן.</footer>
+
+<script>
+  const editor = document.getElementById('editor');
+  const iframe = document.getElementById('previewFrame');
+  const runBtn = document.getElementById('runBtn');
+  const shell = document.getElementById('frameShell');
+  const toggle = document.getElementById('deviceToggle');
+
+  function render(){
+    const code = editor.value;
+    iframe.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms');
+    iframe.srcdoc = code;
+  }
+
+  runBtn.addEventListener('click', render);
+
+  editor.addEventListener('keydown', (e) => {
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+      e.preventDefault();
+      render();
+    }
+    // allow tab key to insert tab char
+    if(e.key === 'Tab'){
+      e.preventDefault();
+      const start = editor.selectionStart, end = editor.selectionEnd;
+      editor.value = editor.value.substring(0,start) + '  ' + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = start + 2;
+    }
+  });
+
+  toggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    [...toggle.children].forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.dataset.mode;
+    shell.classList.remove('desktop','phone');
+    shell.classList.add(mode);
+  });
+
+  // debounce auto-render while typing
+  let debounceTimer;
+  editor.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(render, 600);
+  });
+
+  render();
+
+  // ---- resizable panes (CodePen-style drag divider) ----
+  const mainArea = document.getElementById('mainArea');
+  const leftPane = document.getElementById('leftPane');
+  const rightPane = document.getElementById('rightPane');
+  const divider = document.getElementById('divider');
+
+  leftPane.style.flex = '1 1 0';
+  rightPane.style.flex = '1 1 0';
+
+  let dragging = false;
+
+  function isColumnLayout(){
+    return window.matchMedia('(max-width: 800px)').matches;
+  }
+
+  function onPointerDown(e){
+    dragging = true;
+    divider.classList.add('dragging');
+    mainArea.classList.add('dragging');
+    e.preventDefault();
+  }
+
+  function onPointerMove(e){
+    if(!dragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = mainArea.getBoundingClientRect();
+
+    if(isColumnLayout()){
+      let ratio = (clientY - rect.top) / rect.height;
+      ratio = Math.min(0.85, Math.max(0.15, ratio));
+      leftPane.style.flex = `${ratio} 1 0`;
+      rightPane.style.flex = `${1 - ratio} 1 0`;
+    } else {
+      // page is RTL, so the first pane (code) renders visually on the right
+      let ratio = 1 - (clientX - rect.left) / rect.width;
+      ratio = Math.min(0.85, Math.max(0.15, ratio));
+      leftPane.style.flex = `${ratio} 1 0`;
+      rightPane.style.flex = `${1 - ratio} 1 0`;
+    }
+  }
+
+  function onPointerUp(){
+    if(!dragging) return;
+    dragging = false;
+    divider.classList.remove('dragging');
+    mainArea.classList.remove('dragging');
+  }
+
+  divider.addEventListener('mousedown', onPointerDown);
+  divider.addEventListener('touchstart', onPointerDown, {passive:false});
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('touchmove', onPointerMove, {passive:false});
+  window.addEventListener('mouseup', onPointerUp);
+  window.addEventListener('touchend', onPointerUp);
+
+  // reset split ratio when switching between row/column layout
+  window.addEventListener('resize', () => {
+    leftPane.style.flex = '1 1 0';
+    rightPane.style.flex = '1 1 0';
+  });
+</script>
+
+</body>
+</html>
