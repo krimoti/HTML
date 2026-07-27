@@ -102,6 +102,47 @@
   button.run:hover{ filter:brightness(1.08); }
   button.run:active{ filter:brightness(0.95); }
 
+  .zoom-control{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:5px 10px;
+  }
+  .zoom-control button{
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    font-size:15px;
+    width:22px;
+    height:22px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    border-radius:5px;
+    transition: background .15s, color .15s;
+  }
+  .zoom-control button:hover{
+    background:var(--accent-dim);
+    color:var(--accent);
+  }
+  .zoom-control input[type="range"]{
+    width:80px;
+    accent-color: var(--accent);
+    cursor:pointer;
+  }
+  .zoom-control span{
+    font-size:12px;
+    color:var(--muted);
+    font-family:var(--mono);
+    min-width:38px;
+    text-align:center;
+  }
+
   main{
     flex:1;
     display:flex;
@@ -202,6 +243,9 @@
     transition: width .25s ease, height .25s ease, border-radius .25s ease, padding .25s ease;
     display:flex;
     flex-direction:column;
+    transform: scale(var(--zoom, 1));
+    transform-origin: center center;
+    flex-shrink:0;
   }
 
   /* desktop mode */
@@ -303,6 +347,8 @@
     main.dragging{ cursor:row-resize; }
     #editor{ min-height:260px; }
     .pane{ min-height:320px; }
+    .zoom-control input[type="range"]{ width:60px; }
+    header{ gap:10px; }
   }
 </style>
 </head>
@@ -314,6 +360,13 @@
     <div class="segmented" id="deviceToggle">
       <button data-mode="desktop" class="active">🖥️ מחשב</button>
       <button data-mode="phone">📱 טלפון</button>
+    </div>
+    <div class="zoom-control">
+      <button id="zoomOut" title="הקטן">–</button>
+      <input type="range" id="zoomSlider" min="25" max="150" step="5" value="100">
+      <span id="zoomLabel">100%</span>
+      <button id="zoomIn" title="הגדל">+</button>
+      <button id="zoomReset" title="איפוס">↺</button>
     </div>
     <button class="run" id="runBtn">▶ הרץ (Ctrl+Enter)</button>
   </div>
@@ -402,6 +455,27 @@
     shell.classList.remove('desktop','phone');
     shell.classList.add(mode);
   });
+
+  // ---- zoom control (like CodePen's preview zoom, down to 25%) ----
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const zoomOut = document.getElementById('zoomOut');
+  const zoomIn = document.getElementById('zoomIn');
+  const zoomReset = document.getElementById('zoomReset');
+
+  function setZoom(percent){
+    percent = Math.min(150, Math.max(25, percent));
+    zoomSlider.value = percent;
+    zoomLabel.textContent = percent + '%';
+    shell.style.setProperty('--zoom', percent / 100);
+  }
+
+  zoomSlider.addEventListener('input', () => setZoom(Number(zoomSlider.value)));
+  zoomOut.addEventListener('click', () => setZoom(Number(zoomSlider.value) - 5));
+  zoomIn.addEventListener('click', () => setZoom(Number(zoomSlider.value) + 5));
+  zoomReset.addEventListener('click', () => setZoom(100));
+
+  setZoom(100);
 
   // debounce auto-render while typing
   let debounceTimer;
