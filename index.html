@@ -1,880 +1,386 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>LabelCraft Pro — מחולל מדבקות ושילוט</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&family=Heebo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
-<style>
-:root{
-  --ink:#1B1F24; --paper:#F3F4F1; --panel:#FFFFFF;
-  --charcoal:#1C222B; --charcoal-2:#252D38; --charcoal-line:#333D4B;
-  --steel:#2F5D8A; --steel-dark:#234a72;
-  --amber:#F5A623; --amber-bg:#FEF3DC; --amber-ink:#5A3B00;
-  --red:#C1272D; --red-bg:#FBEAEA;
-  --green:#3A8659; --muted:#6B7280; --line:#E1E1DC; --radius:10px;
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;height:100%;background:var(--paper);color:var(--ink);font-family:'Heebo',sans-serif;font-size:15px;}
-body{height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
-h1,h2,h3,h4{font-family:'Rubik',sans-serif;margin:0;}
-.mono{font-family:'JetBrains Mono',monospace;}
-button{font-family:'Heebo',sans-serif;cursor:pointer;border:none;}
-input,textarea,select{font-family:'Heebo',sans-serif;font-size:15px;}
-::-webkit-scrollbar{width:10px;height:10px;}
-::-webkit-scrollbar-thumb{background:#c9c9c2;border-radius:6px;}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עורך שרטוטים ועדכוני מדבקות - Offline Studio</title>
+    <!-- Fabric.js library for Canvas manipulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1e1e2e;
+            --panel-bg: #2b2b3d;
+            --accent-color: #007acc;
+            --text-color: #f3f3f3;
+            --border-color: #44445e;
+        }
 
-.topbar{background:var(--charcoal);color:#fff;display:flex;align-items:center;gap:10px;padding:9px 14px;flex-shrink:0;border-bottom:3px solid var(--amber);overflow-x:auto;}
-.brand{display:flex;align-items:center;gap:9px;flex-shrink:0;}
-.brand .plate{background:var(--amber);color:var(--ink);font-family:'JetBrains Mono',monospace;font-weight:700;padding:3px 8px;border-radius:4px;font-size:12px;letter-spacing:1px;}
-.brand h1{font-size:17px;color:#fff;}
-.brand .sub{font-size:10.5px;color:#9aa4b2;margin-top:1px;}
-.topbar .spacer{flex:1;}
-.modetabs{display:flex;background:var(--charcoal-2);border-radius:8px;padding:3px;flex-shrink:0;}
-.modetabs button{background:transparent;color:#9aa4b2;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;}
-.modetabs button.active{background:var(--steel);color:#fff;}
-.tbtn{background:var(--charcoal-2);color:#EDEEF0;border:1px solid var(--charcoal-line);padding:8px 13px;border-radius:8px;font-size:12.5px;font-weight:500;white-space:nowrap;display:flex;align-items:center;gap:6px;}
-.tbtn:hover{background:#31394a;}
-.tbtn.primary{background:var(--steel);border-color:var(--steel-dark);}
-.tbtn.danger{background:#3a1f21;border-color:#5c2a2e;color:#ff9ea1;}
-.tbtn:disabled{opacity:.35;cursor:not-allowed;}
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; }
 
-.wrap{flex:1;display:flex;min-height:0;}
-.sidebar{width:250px;flex-shrink:0;background:var(--charcoal);color:#EDEEF0;display:flex;flex-direction:column;border-left:1px solid var(--charcoal-line);}
-.sidebar-head{padding:12px;border-bottom:1px solid var(--charcoal-line);}
-.search{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--charcoal-line);background:var(--charcoal-2);color:#fff;}
-.search::placeholder{color:#7f8896;}
-.tpllist{flex:1;overflow-y:auto;padding:8px;}
-.tplcard{padding:10px 11px;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;}
-.tplcard:hover{background:var(--charcoal-2);}
-.tplcard.active{background:var(--steel);border-color:var(--steel-dark);}
-.tplcard .tn{font-weight:600;font-size:13.5px;}
-.tplcard .tm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--amber);margin-top:2px;}
-.tplcard.active .tm{color:#ffe1a3;}
-.empty-lib{padding:26px 14px;text-align:center;color:#8b93a1;font-size:12.5px;line-height:1.7;}
+        /* Sidebar Controls */
+        #sidebar {
+            width: 320px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 15px;
+            overflow-y: auto;
+        }
 
-.main{flex:1;overflow:hidden;min-width:0;position:relative;display:flex;}
-.welcome{display:flex;align-items:center;justify-content:center;height:100%;width:100%;text-align:center;color:var(--muted);}
-.welcome .wbox{max-width:420px;padding:20px;}
-.welcome .plate-big{display:inline-block;background:var(--amber);color:var(--ink);font-family:'JetBrains Mono',monospace;font-weight:700;padding:6px 14px;border-radius:6px;margin-bottom:14px;letter-spacing:1px;font-size:13px;}
-.welcome h2{font-size:21px;margin-bottom:10px;color:var(--ink);}
-.welcome p{font-size:13.5px;line-height:1.7;}
+        h2, h3 { color: #fff; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; margin-bottom: 5px; font-size: 1.1rem; }
 
-/* ===== Editor layout ===== */
-.editor{flex:1;display:flex;min-width:0;overflow:hidden;}
-.canvaswrap{flex:1;overflow:auto;background:#e5e6e1;display:flex;align-items:flex-start;justify-content:center;padding:40px;}
-.canvaswrap.dotbg{background-image:radial-gradient(#cfd0c9 1px,transparent 1px);background-size:14px 14px;}
-.stagebox{position:relative;box-shadow:0 4px 20px rgba(0,0,0,.18);}
-.lc-canvas{position:relative;overflow:hidden;}
-.lc-el{position:absolute;cursor:move;display:flex;box-sizing:border-box;}
-.lc-el.selected{outline:2px solid var(--steel);outline-offset:1px;z-index:5;}
-.lc-el .rzhandle{position:absolute;width:14px;height:14px;background:var(--steel);border:2px solid #fff;border-radius:50%;bottom:-7px;left:-7px;cursor:nwse-resize;z-index:6;}
-.lc-el .eltag{position:absolute;top:-19px;right:0;background:var(--steel);color:#fff;font-size:9.5px;padding:1px 6px;border-radius:4px 4px 0 0;white-space:nowrap;}
-.lc-text{width:100%;height:100%;display:flex;align-items:center;overflow:hidden;white-space:pre-wrap;word-break:break-word;line-height:1.15;}
-.lc-img{width:100%;height:100%;object-fit:contain;}
-.lc-bar{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;}
-.lc-bar canvas,.lc-bar img{max-width:100%;max-height:100%;}
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #222230;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
 
-.editor-side{width:270px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px;}
-.et-tools{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
-.et-tools button{flex:1;min-width:74px;background:#eef1f5;color:var(--ink);padding:9px 6px;border-radius:8px;font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.et-tools button:hover{background:#e2e6ec;}
-.et-tools button span.ic{font-size:16px;}
+        label { font-size: 0.85rem; color: #aaa; }
+        
+        button, input, select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: #333348;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-label.pl{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;}
-.pfield{margin-bottom:10px;}
-input[type=text],input[type=number],input[type=color],textarea,select.sel{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:#fcfcfb;color:var(--ink);font-size:13px;}
-input[type=color]{padding:2px;height:34px;}
-textarea{resize:vertical;min-height:50px;}
-.pgrid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.psec{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
-.psec h4{font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px;}
-.zoomrow{display:flex;align-items:center;gap:6px;justify-content:center;padding:8px;border-bottom:1px solid var(--line);background:#fafaf8;}
-.zoomrow button{width:28px;height:28px;border-radius:6px;background:#eee;font-weight:700;}
-.chkrow{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px;}
+        button:hover { background: var(--accent-color); }
+        .btn-danger { background: #b00020; }
+        .btn-danger:hover { background: #dc3545; }
+        .btn-success { background: #2e7d32; }
+        .btn-success:hover { background: #388e3c; }
 
-/* ===== Produce layout ===== */
-.produce{flex:1;display:flex;min-width:0;overflow:hidden;}
-.produce-form{width:320px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:16px;}
-.produce-preview{flex:1;overflow:auto;background:#e5e6e1;display:flex;flex-direction:column;align-items:center;padding:30px;}
-.produce-form h3{font-size:14px;margin-bottom:12px;}
-.fieldrow{margin-bottom:12px;}
-.fieldrow label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;font-weight:600;}
-.serialbox{background:var(--amber-bg);border:1px solid #f2ddb0;border-radius:8px;padding:10px;margin-bottom:14px;}
-.serialbox .sv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--amber-ink);margin:6px 0;}
-.outtabs{display:flex;background:#eef1f5;border-radius:8px;padding:3px;margin-bottom:14px;}
-.outtabs button{flex:1;background:transparent;padding:8px;border-radius:6px;font-size:12.5px;font-weight:600;color:var(--muted);}
-.outtabs button.active{background:var(--steel);color:#fff;}
-.gridcfg{background:#fafaf8;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:14px;}
-.hintbox{background:#eaf1fb;border:1px solid #cfe0f2;border-radius:8px;padding:10px;font-size:11.5px;color:#1f4266;line-height:1.6;margin-top:10px;}
+        .row { display: flex; gap: 8px; }
+        .row > * { flex: 1; }
 
-.printpage{background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18);position:relative;}
+        /* Canvas Workspace Area */
+        #workspace {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #12121c;
+            overflow: auto;
+            position: relative;
+            padding: 20px;
+        }
 
-/* ===== modal ===== */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
-.modal{background:#fff;border-radius:12px;max-width:440px;width:100%;padding:22px;max-height:88vh;overflow-y:auto;}
-.modal h3{margin-bottom:10px;font-size:16px;}
-.modal p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
-.mbtn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;}
-.mbtn.cancel{background:#eee;color:#333;}
-.mbtn.ok{background:var(--steel);color:#fff;}
-.mbtn.ok.danger{background:var(--red);}
-.presetrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
-.presetrow button{background:#eef1f5;padding:6px 10px;border-radius:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace;}
-.presetrow button:hover{background:#e2e6ec;}
+        .canvas-container-wrapper {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #ffffff;
+        }
 
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--charcoal);color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.25);border:1px solid var(--amber);}
-
-@media print{
-  .topbar,.sidebar,.editor-side,.produce-form,.no-print{display:none !important;}
-  body,.main,.produce,.produce-preview{overflow:visible !important;height:auto !important;background:#fff !important;padding:0 !important;display:block !important;}
-  .stagebox,.printpage{box-shadow:none !important;}
-}
-@media (max-width:900px){
-  .sidebar{position:fixed;top:0;bottom:0;right:0;z-index:150;transform:translateX(100%);transition:transform .2s;width:80vw;max-width:300px;}
-  .sidebar.open{transform:translateX(0);}
-  .editor-side{position:fixed;top:0;bottom:0;left:0;z-index:150;transform:translateX(-100%);transition:transform .2s;width:82vw;max-width:300px;}
-  .editor-side.open{transform:translateX(0);}
-  .produce-form{position:fixed;top:0;bottom:0;left:0;z-index:150;transform:translateX(-100%);transition:transform .2s;width:88vw;max-width:340px;}
-  .produce-form.open{transform:translateX(0);}
-}
-</style>
+        /* Status bar */
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+    </style>
 </head>
 <body>
 
-<div class="topbar no-print" id="topbar">
-  <div class="brand">
-    <span class="plate">LC</span>
-    <div><h1>LabelCraft Pro</h1><div class="sub">מדבקות ושילוט הנדסי · אופליין</div></div>
-  </div>
-  <button class="tbtn" id="menuBtn" style="display:none">☰ תבניות</button>
-  <div class="modetabs" id="modeTabs">
-    <button data-m="edit" id="tabEdit">✎ עריכת תבנית</button>
-    <button data-m="produce" id="tabProduce">🏷 הפקת מדבקה</button>
-  </div>
-  <div class="spacer"></div>
-  <button class="tbtn" id="panelBtn" style="display:none">⚙</button>
-  <button class="tbtn" id="newTplBtn">+ תבנית חדשה</button>
-  <button class="tbtn" id="backupBtn">⭳ גיבוי/ייבוא</button>
-</div>
-
-<div class="wrap">
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-head"><input type="text" class="search" id="searchBox" placeholder="חיפוש תבנית..."></div>
-    <div class="tpllist" id="tplList"></div>
-  </div>
-  <div class="main" id="main"></div>
-</div>
-
-<div id="modalRoot"></div>
-<div id="toastRoot"></div>
-
-<script>
-/* ============================= STATE ============================= */
-const STORE_KEY = 'labelcraftpro_v1';
-let state = { templates: [], currentId: null, mode:'edit', selectedElId:null, zoom:6, produceValues:{}, outMode:'single', grid:{pageW:210,pageH:297,marginX:8,marginY:8,gapX:3,gapY:3,cols:0,rows:0,autoInc:false} };
-
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-
-function loadState(){
-  try{ const raw = localStorage.getItem(STORE_KEY); if(raw){ const d=JSON.parse(raw); if(Array.isArray(d.templates)) state.templates=d.templates; } }
-  catch(e){ console.error(e); }
-  if(state.templates.length===0){ state.templates.push(presetDeviceNameplate()); }
-}
-let saveTimer=null;
-function persist(){
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify({templates:state.templates})); }
-    catch(e){ toast('שגיאה בשמירה — יתכן שהאחסון מלא'); }
-  },250);
-}
-function toast(msg){
-  const root=document.getElementById('toastRoot');
-  root.innerHTML='<div class="toast">'+esc(msg)+'</div>';
-  setTimeout(()=>{root.innerHTML='';},2300);
-}
-
-/* ============================= PRESET TEMPLATE ============================= */
-function presetDeviceNameplate(){
-  return {
-    id: uid(), name:'Device Nameplate (דוגמה)', widthMM:58, heightMM:25.4, bgColor:'#000000',
-    elements:[
-      {id:uid(), type:'text', x:2, y:2, w:54, h:8, fieldKey:'TITLE', text:'MOTOR#3 ASSEMBLY', fontSizeMM:4.2, color:'#ffffff', align:'center', bold:true},
-      {id:uid(), type:'text', x:2, y:11, w:14, h:6, fieldKey:'', text:'P/N:', fontSizeMM:3.2, color:'#ffffff', align:'right', bold:false},
-      {id:uid(), type:'text', x:16, y:11, w:28, h:6, fieldKey:'PN', text:'15A-03-0494-01', fontSizeMM:3.2, color:'#ffffff', align:'center', bold:true},
-      {id:uid(), type:'text', x:45, y:11, w:11, h:6, fieldKey:'', text:'REV', fontSizeMM:2.6, color:'#ffffff', align:'center', bold:false},
-      {id:uid(), type:'text', x:45, y:14.2, w:11, h:5, fieldKey:'REV', text:'02', fontSizeMM:3.2, color:'#ffffff', align:'center', bold:true},
-      {id:uid(), type:'text', x:2, y:18, w:12, h:5.5, fieldKey:'', text:'S/N:', fontSizeMM:3.2, color:'#ffffff', align:'right', bold:false},
-      {id:uid(), type:'text', x:15, y:18, w:41, h:5.5, fieldKey:'SN', text:'ATA-2402001', fontSizeMM:3.2, color:'#ffffff', align:'center', bold:true, isSerial:true, serialConfig:{prefix:'ATA-', runningDigits:3, runningNext:1}}
-    ]
-  };
-}
-const LABEL_PRESETS = [
-  {label:'58×25.4', w:58, h:25.4}, {label:'50×20', w:50, h:20}, {label:'80×40', w:80, h:40},
-  {label:'100×50', w:100, h:50}, {label:'25×10', w:25, h:10}, {label:'40×15', w:40, h:15}
-];
-
-function getTpl(id){ return state.templates.find(t=>t.id===id); }
-function touch(){ persist(); }
-
-/* ============================= FIELD EXTRACTION ============================= */
-function extractFields(tpl){
-  const seen = new Set(); const fields=[];
-  tpl.elements.forEach(el=>{
-    if(el.type==='text' && el.fieldKey){
-      if(!seen.has(el.fieldKey)){ seen.add(el.fieldKey); fields.push({key:el.fieldKey, isSerial: !!el.isSerial, el}); }
-    }
-    if(el.type==='barcode' && el.fieldKey){
-      if(!seen.has(el.fieldKey)){ seen.add(el.fieldKey); fields.push({key:el.fieldKey, isSerial:false, el}); }
-    }
-  });
-  return fields;
-}
-
-function computeSerialValue(el){
-  const cfg = el.serialConfig || {prefix:'', runningDigits:3, runningNext:1};
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const run = String(cfg.runningNext).padStart(cfg.runningDigits||3,'0');
-  return `${cfg.prefix||''}${yy}${mm}${run}`;
-}
-
-/* ============================= RENDER DISPATCH ============================= */
-function render(){
-  renderTopTabs();
-  renderSidebar();
-  const main = document.getElementById('main');
-  const tpl = getTpl(state.currentId);
-  document.getElementById('menuBtn').style.display = window.innerWidth<=900 ? 'block':'none';
-  document.getElementById('panelBtn').style.display = (window.innerWidth<=900 && tpl) ? 'block':'none';
-
-  if(!tpl){
-    main.innerHTML = `<div class="welcome"><div class="wbox">
-      <div class="plate-big">LabelCraft Pro</div>
-      <h2>מדבקות ושילוט הנדסי</h2>
-      <p>בחרו תבנית מהרשימה בצד או צרו תבנית חדשה. עצבו את המדבקה במידות מדויקות במ״מ, עם שדות טקסט קבועים/משתנים, לוגו, ברקוד/QR ומספור סידורי חכם — ואז הפיקו מדבקה בודדת או גיליון להדפסה.</p>
-    </div></div>`;
-    return;
-  }
-  if(state.mode==='edit') renderEditor(tpl); else renderProduce(tpl);
-}
-
-function renderTopTabs(){
-  document.getElementById('tabEdit').classList.toggle('active', state.mode==='edit');
-  document.getElementById('tabProduce').classList.toggle('active', state.mode==='produce');
-}
-
-/* ============================= SIDEBAR ============================= */
-function renderSidebar(){
-  const list = document.getElementById('tplList');
-  const q = (document.getElementById('searchBox').value||'').trim().toLowerCase();
-  let tpls = state.templates.slice();
-  if(q) tpls = tpls.filter(t=>t.name.toLowerCase().includes(q));
-  if(tpls.length===0){ list.innerHTML = `<div class="empty-lib">אין תבניות תואמות.</div>`; return; }
-  list.innerHTML = tpls.map(t=>`
-    <div class="tplcard ${t.id===state.currentId?'active':''}" data-id="${t.id}">
-      <div class="tn">${esc(t.name)}</div>
-      <div class="tm">${t.widthMM}×${t.heightMM} מ״מ</div>
-    </div>`).join('');
-  list.querySelectorAll('.tplcard').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      state.currentId = el.dataset.id; state.selectedElId=null; state.produceValues={};
-      render();
-      if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
-    });
-  });
-}
-
-/* ============================= EDITOR MODE ============================= */
-function renderEditor(tpl){
-  const main = document.getElementById('main');
-  main.innerHTML = `<div class="editor">
-    <div class="editor-side" id="editorSide"></div>
-    <div style="flex:1;display:flex;flex-direction:column;min-width:0">
-      <div class="zoomrow no-print">
-        <button id="zoomOut">−</button><span class="mono" id="zoomLbl" style="min-width:52px;text-align:center;font-size:12px">×${state.zoom}</span><button id="zoomIn">+</button>
-        <span style="width:1px;height:20px;background:var(--line);margin:0 8px"></span>
-        <button class="tbtn" id="tplSettingsBtn" style="background:#eef1f5;color:var(--ink)">⚙ הגדרות תבנית</button>
-        <button class="tbtn" id="dupTplBtn" style="background:#eef1f5;color:var(--ink)">⧉ שכפול</button>
-        <button class="tbtn" id="delTplBtn" style="background:var(--red-bg);color:var(--red)">מחיקה</button>
-      </div>
-      <div class="canvaswrap dotbg" id="canvasWrap">
-        <div class="stagebox">
-          <div class="lc-canvas" id="lcCanvas" style="width:${tpl.widthMM*state.zoom}px;height:${tpl.heightMM*state.zoom}px;background:${tpl.bgColor}"></div>
+    <!-- Workspace Panel -->
+    <div id="workspace">
+        <div class="canvas-container-wrapper">
+            <canvas id="drawingCanvas"></canvas>
         </div>
-      </div>
+        <div id="status">מצב: מוכן | גודל: A4 לרוחב (842x595px)</div>
     </div>
-  </div>`;
 
-  renderEditorTools(tpl);
-  renderCanvasElements(tpl);
+    <!-- Right Controls Sidebar -->
+    <div id="sidebar">
+        <h2>🛠️ כלי שרטוט ותבניות</h2>
 
-  document.getElementById('zoomIn').onclick = ()=>{ state.zoom=Math.min(14,state.zoom+1); render(); };
-  document.getElementById('zoomOut').onclick = ()=>{ state.zoom=Math.max(3,state.zoom-1); render(); };
-  document.getElementById('tplSettingsBtn').onclick = ()=>openTplSettings(tpl);
-  document.getElementById('dupTplBtn').onclick = ()=>duplicateTpl(tpl);
-  document.getElementById('delTplBtn').onclick = ()=>confirmDeleteTpl(tpl);
-}
-
-function renderEditorTools(tpl){
-  const side = document.getElementById('editorSide');
-  const el = tpl.elements.find(e=>e.id===state.selectedElId);
-  side.innerHTML = `
-    <div class="et-tools no-print">
-      <button id="addTextBtn"><span class="ic">🔤</span>טקסט</button>
-      <button id="addImgBtn"><span class="ic">🖼</span>לוגו</button>
-      <button id="addBarBtn"><span class="ic">▦</span>ברקוד/QR</button>
-    </div>
-    <div id="propsPanel"></div>
-  `;
-  document.getElementById('addTextBtn').onclick = ()=>{
-    const e = {id:uid(), type:'text', x:4,y:4,w:24,h:6, fieldKey:'', text:'טקסט חדש', fontSizeMM:3.2, color:tpl.bgColor==='#ffffff'?'#000000':'#ffffff', align:'center', bold:false};
-    tpl.elements.push(e); state.selectedElId=e.id; touch(); renderEditor(tpl);
-  };
-  document.getElementById('addImgBtn').onclick = ()=>{
-    const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
-    inp.onchange = async ()=>{
-      const f = inp.files[0]; if(!f) return;
-      const data = await compressImage(f);
-      const e = {id:uid(), type:'image', x:4,y:4,w:14,h:14, imgData:data};
-      tpl.elements.push(e); state.selectedElId=e.id; touch(); renderEditor(tpl);
-    };
-    inp.click();
-  };
-  document.getElementById('addBarBtn').onclick = ()=>{
-    const e = {id:uid(), type:'barcode', x:4,y:4,w:18,h:18, barType:'qr', fieldKey:'', text:'12345', barColor:'#000000'};
-    tpl.elements.push(e); state.selectedElId=e.id; touch(); renderEditor(tpl);
-  };
-  renderPropsPanel(tpl, el);
-}
-
-function renderPropsPanel(tpl, el){
-  const panel = document.getElementById('propsPanel');
-  if(!el){ panel.innerHTML = `<div class="empty-lib" style="padding:14px 4px">בחרו רכיב על המדבקה כדי לערוך אותו, או הוסיפו רכיב חדש למעלה.</div>`; return; }
-
-  let html = `<div class="psec"><h4>רכיב נבחר — ${el.type==='text'?'טקסט':el.type==='image'?'תמונה':'ברקוד/QR'}</h4>`;
-  html += `<div class="pgrid2">
-    <div class="pfield"><label class="pl">X (מ״מ)</label><input type="number" step="0.1" id="p_x" value="${el.x}"></div>
-    <div class="pfield"><label class="pl">Y (מ״מ)</label><input type="number" step="0.1" id="p_y" value="${el.y}"></div>
-    <div class="pfield"><label class="pl">רוחב (מ״מ)</label><input type="number" step="0.1" id="p_w" value="${el.w}"></div>
-    <div class="pfield"><label class="pl">גובה (מ״מ)</label><input type="number" step="0.1" id="p_h" value="${el.h}"></div>
-  </div>`;
-
-  if(el.type==='text'){
-    html += `
-      <div class="pfield"><label class="pl">שם שדה (השאירו ריק לטקסט קבוע)</label><input type="text" id="p_fieldKey" value="${esc(el.fieldKey||'')}" placeholder="לדוגמה: PN, REV, SN, DESC"></div>
-      <div class="pfield"><label class="pl">תוכן / טקסט לדוגמה</label><textarea id="p_text">${esc(el.text||'')}</textarea></div>
-      <div class="pgrid2">
-        <div class="pfield"><label class="pl">גודל גופן (מ״מ)</label><input type="number" step="0.1" id="p_font" value="${el.fontSizeMM}"></div>
-        <div class="pfield"><label class="pl">צבע טקסט</label><input type="color" id="p_color" value="${el.color}"></div>
-      </div>
-      <div class="pgrid2">
-        <div class="pfield"><label class="pl">יישור</label><select class="sel" id="p_align">
-          <option value="right" ${el.align==='right'?'selected':''}>ימין</option>
-          <option value="center" ${el.align==='center'?'selected':''}>מרכז</option>
-          <option value="left" ${el.align==='left'?'selected':''}>שמאל</option>
-        </select></div>
-        <div class="pfield"><label class="pl">משקל</label><select class="sel" id="p_bold">
-          <option value="0" ${!el.bold?'selected':''}>רגיל</option>
-          <option value="1" ${el.bold?'selected':''}>מודגש</option>
-        </select></div>
-      </div>
-      <div class="psec">
-        <div class="chkrow"><input type="checkbox" id="p_isSerial" ${el.isSerial?'checked':''}><label for="p_isSerial">שדה מספר סידורי חכם (Prefix + שנה+חודש + מונה רץ)</label></div>
-        ${el.isSerial ? `
-        <div class="pgrid2">
-          <div class="pfield"><label class="pl">קידומת (Prefix)</label><input type="text" id="p_serPrefix" value="${esc(el.serialConfig?.prefix||'')}"></div>
-          <div class="pfield"><label class="pl">ספרות מונה</label><input type="number" id="p_serDigits" value="${el.serialConfig?.runningDigits||3}"></div>
+        <!-- Templates -->
+        <div class="control-group">
+            <h3>תבניות בסיס</h3>
+            <button onclick="loadTemplateA4()">📄 תבנית A4 הנדסית (Title Block)</button>
+            <button onclick="addSampleLabel()">🏷️ הוסף מדבקת דוגמה (Nameplate)</button>
         </div>
-        <div class="pfield"><label class="pl">המספר הבא במונה</label><input type="number" id="p_serNext" value="${el.serialConfig?.runningNext||1}"></div>
-        ` : ''}
-      </div>
-    `;
-  }
-  if(el.type==='image'){
-    html += `<div class="pfield"><button class="tbtn" style="background:#eef1f5;color:var(--ink)" id="p_replaceImg">↺ החלף תמונה</button></div>`;
-  }
-  if(el.type==='barcode'){
-    html += `
-      <div class="pfield"><label class="pl">סוג</label><select class="sel" id="p_bartype">
-        <option value="qr" ${el.barType==='qr'?'selected':''}>QR Code</option>
-        <option value="code128" ${el.barType==='code128'?'selected':''}>ברקוד Code128</option>
-      </select></div>
-      <div class="pfield"><label class="pl">שם שדה (השאירו ריק לערך קבוע)</label><input type="text" id="p_fieldKey" value="${esc(el.fieldKey||'')}"></div>
-      <div class="pfield"><label class="pl">ערך לדוגמה</label><input type="text" id="p_text" value="${esc(el.text||'')}"></div>
-    `;
-  }
-  html += `<div class="pfield" style="margin-top:14px"><button class="tbtn danger" id="p_delete" style="width:100%;justify-content:center">🗑 מחק רכיב</button></div>`;
-  html += `</div>`;
-  panel.innerHTML = html;
 
-  const bindNum = (id,key)=>{ const inp=document.getElementById(id); if(!inp) return; inp.addEventListener('input', e=>{ el[key]=parseFloat(e.target.value)||0; touch(); refreshCanvasOnly(tpl); }); };
-  const bindStr = (id,key)=>{ const inp=document.getElementById(id); if(!inp) return; inp.addEventListener('input', e=>{ el[key]=e.target.value; touch(); refreshCanvasOnly(tpl); }); };
+        <!-- Element Insertion -->
+        <div class="control-group">
+            <h3>הוספת אלמנטים</h3>
+            <div class="row">
+                <button onclick="addText()">📝 טקסט</button>
+                <button onclick="addBox()">🔲 מלבן</button>
+            </div>
+            <div class="row">
+                <button onclick="addArrow()">➡️ חץ / Leader</button>
+                <button onclick="addLine()">➖ קו ישר</button>
+            </div>
+            <label for="imageLoader">📷 העלאת תמונה/לוגו:</label>
+            <input type="file" id="imageLoader" accept="image/*">
+        </div>
 
-  bindNum('p_x','x'); bindNum('p_y','y'); bindNum('p_w','w'); bindNum('p_h','h');
-  bindStr('p_fieldKey','fieldKey'); bindStr('p_text','text'); bindNum('p_font','fontSizeMM'); bindStr('p_color','color');
-  const alignSel = document.getElementById('p_align'); if(alignSel) alignSel.addEventListener('change', e=>{ el.align=e.target.value; touch(); refreshCanvasOnly(tpl); });
-  const boldSel = document.getElementById('p_bold'); if(boldSel) boldSel.addEventListener('change', e=>{ el.bold = e.target.value==='1'; touch(); refreshCanvasOnly(tpl); });
-  const barSel = document.getElementById('p_bartype'); if(barSel) barSel.addEventListener('change', e=>{ el.barType=e.target.value; touch(); refreshCanvasOnly(tpl); });
+        <!-- Object Properties -->
+        <div class="control-group">
+            <h3>מאפייני אלמנט נבחר</h3>
+            <div class="row">
+                <label>צבע מילוי: <input type="color" id="fillColor" onchange="updateObjectProperty('fill', this.value)"></label>
+                <label>צבע מסגרת: <input type="color" id="strokeColor" onchange="updateObjectProperty('stroke', this.value)"></label>
+            </div>
+            <div class="row">
+                <label>עובי קו: <input type="number" id="strokeWidth" min="1" max="10" value="2" onchange="updateObjectProperty('strokeWidth', parseInt(this.value))"></label>
+                <label>שקיפות: <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="1" onchange="updateObjectProperty('opacity', parseFloat(this.value))"></label>
+            </div>
+            <div class="row">
+                <button onclick="bringToFront()">⬆️ הבא לחזית</button>
+                <button onclick="sendToBack()">⬇️ שלח לאחור</button>
+            </div>
+            <button class="btn-danger" onclick="deleteSelected()">🗑️ מחק אלמנט נבחר</button>
+        </div>
 
-  const isSerialChk = document.getElementById('p_isSerial');
-  if(isSerialChk) isSerialChk.addEventListener('change', e=>{
-    el.isSerial = e.target.checked;
-    if(el.isSerial && !el.serialConfig) el.serialConfig = {prefix:'', runningDigits:3, runningNext:1};
-    touch(); renderEditor(tpl);
-  });
-  const serPrefix = document.getElementById('p_serPrefix'); if(serPrefix) serPrefix.addEventListener('input', e=>{ el.serialConfig.prefix=e.target.value; touch(); });
-  const serDigits = document.getElementById('p_serDigits'); if(serDigits) serDigits.addEventListener('input', e=>{ el.serialConfig.runningDigits=parseInt(e.target.value)||3; touch(); });
-  const serNext = document.getElementById('p_serNext'); if(serNext) serNext.addEventListener('input', e=>{ el.serialConfig.runningNext=parseInt(e.target.value)||1; touch(); });
-
-  const replaceImg = document.getElementById('p_replaceImg');
-  if(replaceImg) replaceImg.onclick = ()=>{
-    const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
-    inp.onchange = async ()=>{ const f=inp.files[0]; if(!f) return; el.imgData = await compressImage(f); touch(); refreshCanvasOnly(tpl); };
-    inp.click();
-  };
-
-  document.getElementById('p_delete').onclick = ()=>{
-    tpl.elements = tpl.elements.filter(e=>e.id!==el.id);
-    state.selectedElId=null; touch(); renderEditor(tpl);
-  };
-}
-
-function refreshCanvasOnly(tpl){ renderCanvasElements(tpl); }
-
-/* ============================= CANVAS ELEMENTS (editor, draggable) ============================= */
-function renderCanvasElements(tpl){
-  const canvas = document.getElementById('lcCanvas');
-  if(!canvas) return;
-  canvas.style.width = (tpl.widthMM*state.zoom)+'px';
-  canvas.style.height = (tpl.heightMM*state.zoom)+'px';
-  canvas.style.background = tpl.bgColor;
-  canvas.innerHTML='';
-  tpl.elements.forEach(el=>{
-    const div = document.createElement('div');
-    div.className = 'lc-el' + (el.id===state.selectedElId?' selected':'');
-    div.style.left = (el.x*state.zoom)+'px';
-    div.style.top = (el.y*state.zoom)+'px';
-    div.style.width = (el.w*state.zoom)+'px';
-    div.style.height = (el.h*state.zoom)+'px';
-    div.dataset.id = el.id;
-
-    if(el.type==='text'){
-      const t = document.createElement('div');
-      t.className='lc-text';
-      t.style.fontSize = (el.fontSizeMM*state.zoom)+'px';
-      t.style.color = el.color;
-      t.style.fontWeight = el.bold?'700':'400';
-      t.style.justifyContent = el.align==='right'?'flex-end':el.align==='left'?'flex-start':'center';
-      t.style.width='100%'; t.style.textAlign = el.align;
-      t.textContent = el.text||'';
-      div.appendChild(t);
-      if(el.fieldKey || el.isSerial){
-        const tag=document.createElement('div'); tag.className='eltag no-print';
-        tag.textContent = el.isSerial ? 'סיריאלי' : ('שדה: '+el.fieldKey);
-        div.appendChild(tag);
-      }
-    } else if(el.type==='image'){
-      const img=document.createElement('img'); img.className='lc-img'; img.src=el.imgData||'';
-      div.appendChild(img);
-    } else if(el.type==='barcode'){
-      const box=document.createElement('div'); box.className='lc-bar';
-      const holder=document.createElement('div'); holder.className='bcHolder'; holder.dataset.id=el.id;
-      box.appendChild(holder); div.appendChild(box);
-    }
-
-    const handle=document.createElement('div'); handle.className='rzhandle no-print';
-    div.appendChild(handle);
-
-    canvas.appendChild(div);
-    wireElementDrag(tpl, el, div, handle);
-  });
-  // render barcodes after DOM insert (need element sizes)
-  tpl.elements.forEach(el=>{ if(el.type==='barcode') renderBarcodeInto(el, el.text, canvas.querySelector(`.bcHolder[data-id="${el.id}"]`)); });
-
-  canvas.addEventListener('pointerdown', (e)=>{ if(e.target===canvas){ state.selectedElId=null; renderEditorTools(tpl); renderCanvasElements(tpl); } });
-}
-
-function renderBarcodeInto(el, value, holder){
-  if(!holder) return;
-  holder.innerHTML='';
-  const val = value && value.length ? value : ' ';
-  try{
-    if(el.barType==='qr'){
-      new QRCode(holder, {text: val, width: 200, height:200, colorDark: el.barColor||'#000000', colorLight:'#ffffff'});
-    } else {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-      holder.appendChild(svg);
-      JsBarcode(svg, val, {format:'CODE128', displayValue:false, margin:0, background:'#ffffff', lineColor: el.barColor||'#000000'});
-    }
-  }catch(err){ holder.textContent='⚠'; }
-}
-
-function wireElementDrag(tpl, el, div, handle){
-  div.addEventListener('pointerdown', (e)=>{
-    if(e.target===handle) return;
-    e.stopPropagation();
-    state.selectedElId = el.id;
-    renderEditorTools(tpl);
-    div.classList.add('selected');
-    document.querySelectorAll('.lc-el').forEach(d=>{ if(d!==div) d.classList.remove('selected'); });
-
-    const startPx = e.clientX, startPy = e.clientY;
-    const startX = el.x, startY = el.y;
-    div.setPointerCapture(e.pointerId);
-    function onMove(ev){
-      const dx = (ev.clientX-startPx)/state.zoom, dy=(ev.clientY-startPy)/state.zoom;
-      el.x = clamp(round1(startX+dx), 0, Math.max(0, tpl.widthMM-el.w));
-      el.y = clamp(round1(startY+dy), 0, Math.max(0, tpl.heightMM-el.h));
-      div.style.left=(el.x*state.zoom)+'px'; div.style.top=(el.y*state.zoom)+'px';
-    }
-    function onUp(ev){
-      div.releasePointerCapture(ev.pointerId);
-      div.removeEventListener('pointermove', onMove);
-      div.removeEventListener('pointerup', onUp);
-      touch();
-      renderPropsPanel(tpl, el);
-    }
-    div.addEventListener('pointermove', onMove);
-    div.addEventListener('pointerup', onUp);
-  });
-
-  handle.addEventListener('pointerdown', (e)=>{
-    e.stopPropagation();
-    state.selectedElId = el.id;
-    const startPx=e.clientX, startPy=e.clientY, startW=el.w, startH=el.h;
-    handle.setPointerCapture(e.pointerId);
-    function onMove(ev){
-      const dx=(ev.clientX-startPx)/state.zoom, dy=(ev.clientY-startPy)/state.zoom;
-      el.w = clamp(round1(startW-dx), 3, tpl.widthMM-el.x);
-      el.h = clamp(round1(startH-dy), 3, tpl.heightMM-el.y);
-      div.style.width=(el.w*state.zoom)+'px'; div.style.height=(el.h*state.zoom)+'px';
-    }
-    function onUp(ev){
-      handle.releasePointerCapture(ev.pointerId);
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      touch();
-      renderPropsPanel(tpl, el);
-      renderCanvasElements(tpl);
-    }
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
-  });
-}
-function round1(n){ return Math.round(n*10)/10; }
-
-/* ============================= IMAGE COMPRESSION ============================= */
-function compressImage(file){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const img=new Image();
-      img.onload=()=>{
-        const maxW=600; let w=img.width,h=img.height;
-        if(w>maxW){ h=Math.round(h*(maxW/w)); w=maxW; }
-        const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
-        const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,w,h);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror=reject; img.src=e.target.result;
-    };
-    reader.onerror=reject; reader.readAsDataURL(file);
-  });
-}
-
-/* ============================= TEMPLATE SETTINGS MODAL ============================= */
-function openTplSettings(tpl){
-  showModal({
-    title:'הגדרות תבנית',
-    bodyHTML:`
-      <div class="pfield"><label class="pl">שם תבנית</label><input type="text" id="m_name" value="${esc(tpl.name)}"></div>
-      <div class="presetrow">${LABEL_PRESETS.map(p=>`<button data-w="${p.w}" data-h="${p.h}" class="presetBtn">${p.label}</button>`).join('')}</div>
-      <div class="pgrid2">
-        <div class="pfield"><label class="pl">רוחב (מ״מ)</label><input type="number" step="0.1" id="m_w" value="${tpl.widthMM}"></div>
-        <div class="pfield"><label class="pl">גובה (מ״מ)</label><input type="number" step="0.1" id="m_h" value="${tpl.heightMM}"></div>
-      </div>
-      <div class="pfield"><label class="pl">צבע רקע</label><input type="color" id="m_bg" value="${tpl.bgColor}"></div>
-    `,
-    okText:'שמור', onOk:()=>{
-      tpl.name = document.getElementById('m_name').value.trim() || tpl.name;
-      tpl.widthMM = parseFloat(document.getElementById('m_w').value)||tpl.widthMM;
-      tpl.heightMM = parseFloat(document.getElementById('m_h').value)||tpl.heightMM;
-      tpl.bgColor = document.getElementById('m_bg').value;
-      touch(); render();
-    }
-  });
-  document.querySelectorAll('.presetBtn').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      document.getElementById('m_w').value = b.dataset.w;
-      document.getElementById('m_h').value = b.dataset.h;
-    });
-  });
-}
-
-function duplicateTpl(tpl){
-  const copy = JSON.parse(JSON.stringify(tpl));
-  copy.id = uid(); copy.name = tpl.name+' (העתק)';
-  copy.elements.forEach(e=>e.id=uid());
-  state.templates.push(copy); state.currentId=copy.id; state.selectedElId=null;
-  persist(); render(); toast('התבנית שוכפלה');
-}
-function confirmDeleteTpl(tpl){
-  showModal({title:'מחיקת תבנית', body:`האם למחוק לצמיתות את "${esc(tpl.name)}"?`, okText:'מחק', danger:true,
-    onOk:()=>{ state.templates=state.templates.filter(t=>t.id!==tpl.id); state.currentId=null; persist(); render(); toast('התבנית נמחקה'); }});
-}
-
-/* ============================= PRODUCE MODE ============================= */
-function renderProduce(tpl){
-  const main = document.getElementById('main');
-  const fields = extractFields(tpl);
-
-  main.innerHTML = `<div class="produce">
-    <div class="produce-form" id="produceForm"></div>
-    <div class="produce-preview" id="producePreview"></div>
-  </div>`;
-
-  const formEl = document.getElementById('produceForm');
-  let fhtml = `<h3>מילוי שדות — ${esc(tpl.name)}</h3>`;
-  if(fields.length===0){ fhtml += `<div class="empty-lib" style="padding:10px 0">אין שדות משתנים בתבנית זו — כל הטקסט קבוע.</div>`; }
-  fields.forEach(f=>{
-    if(f.isSerial){
-      const val = state.produceValues[f.key] ?? computeSerialValue(f.el);
-      state.produceValues[f.key] = val;
-      fhtml += `<div class="serialbox">
-        <div style="font-size:11.5px;font-weight:700;color:var(--amber-ink)">שדה סיריאלי: ${esc(f.key)}</div>
-        <div class="sv">${esc(val)}</div>
-        <button class="tbtn" style="background:var(--amber);color:var(--amber-ink);border-color:#e0a83c" id="advSerial_${f.key}">➜ צור מספר סידורי הבא</button>
-      </div>`;
-    } else {
-      const val = state.produceValues[f.key] ?? f.el.text ?? '';
-      state.produceValues[f.key] = val;
-      fhtml += `<div class="fieldrow"><label>${esc(f.key)}</label><input type="text" id="fv_${f.key}" value="${esc(val)}"></div>`;
-    }
-  });
-
-  fhtml += `<div class="psec">
-    <h4 style="margin-bottom:8px">פלט</h4>
-    <div class="outtabs no-print">
-      <button data-o="single" id="outSingle">מדבקה בודדת</button>
-      <button data-o="grid" id="outGrid">גיליון A4</button>
+        <!-- Project Actions -->
+        <div class="control-group">
+            <h3>שמירה וייצוא</h3>
+            <button class="btn-success" onclick="exportToPNG()">🖼️ ייצא לתמונה (PNG)</button>
+            <div class="row">
+                <button onclick="saveProjectJSON()">💾 שמור פרויקט (JSON)</button>
+                <button onclick="document.getElementById('jsonLoader').click()">📂 טען פרויקט</button>
+            </div>
+            <input type="file" id="jsonLoader" accept=".json" style="display:none;" onchange="loadProjectJSON(event)">
+            <button class="btn-danger" onclick="clearCanvas()">⚠️ נקה משטח עבודה</button>
+        </div>
     </div>
-    <div id="outOptions"></div>
-    <button class="tbtn primary no-print" id="printBtn" style="width:100%;justify-content:center;padding:12px;margin-top:6px">🖨 הדפסה / PDF</button>
-    <div class="hintbox no-print">בהדפסה יש לוודא בהגדרות המדפסת "גודל 100% / ללא התאמה לדף" כדי לשמור על מידות מדויקות במ״מ.</div>
-  </div>`;
-  formEl.innerHTML = fhtml;
 
-  fields.forEach(f=>{
-    if(!f.isSerial){
-      const inp = document.getElementById('fv_'+f.key);
-      inp.addEventListener('input', e=>{ state.produceValues[f.key]=e.target.value; renderPreview(tpl, fields); });
-    } else {
-      document.getElementById('advSerial_'+f.key).addEventListener('click', ()=>{
-        f.el.serialConfig.runningNext = (f.el.serialConfig.runningNext||1)+1;
-        touch();
-        state.produceValues[f.key] = computeSerialValue(f.el);
-        renderProduce(tpl);
-      });
-    }
-  });
+    <script>
+        // Setup Fabric.js Canvas with A4 Landscape Ratio (approx 842x595 pixels at 72DPI)
+        const CANVAS_WIDTH = 842;
+        const CANVAS_HEIGHT = 595;
 
-  document.getElementById('outSingle').classList.toggle('active', state.outMode==='single');
-  document.getElementById('outGrid').classList.toggle('active', state.outMode==='grid');
-  document.getElementById('outSingle').onclick=()=>{ state.outMode='single'; renderProduce(tpl); };
-  document.getElementById('outGrid').onclick=()=>{ state.outMode='grid'; renderProduce(tpl); };
-  document.getElementById('printBtn').onclick=()=>window.print();
+        const canvas = new fabric.Canvas('drawingCanvas', {
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            backgroundColor: '#ffffff',
+            selection: true
+        });
 
-  renderOutOptions(tpl);
-  renderPreview(tpl, fields);
-}
+        // Initialize Base Template
+        window.onload = () => {
+            loadTemplateA4();
+        };
 
-function renderOutOptions(tpl){
-  const wrap = document.getElementById('outOptions');
-  if(state.outMode==='single'){ wrap.innerHTML=''; return; }
-  const g = state.grid;
-  const usableW = g.pageW - g.marginX*2;
-  const usableH = g.pageH - g.marginY*2;
-  const cols = Math.max(1, Math.floor((usableW+g.gapX) / (tpl.widthMM+g.gapX)));
-  const rows = Math.max(1, Math.floor((usableH+g.gapY) / (tpl.heightMM+g.gapY)));
-  wrap.innerHTML = `<div class="gridcfg">
-    <div class="pgrid2">
-      <div class="pfield"><label class="pl">שוליים אופקי (מ״מ)</label><input type="number" id="g_mx" value="${g.marginX}"></div>
-      <div class="pfield"><label class="pl">שוליים אנכי (מ״מ)</label><input type="number" id="g_my" value="${g.marginY}"></div>
-      <div class="pfield"><label class="pl">רווח אופקי (מ״מ)</label><input type="number" id="g_gx" value="${g.gapX}"></div>
-      <div class="pfield"><label class="pl">רווח אנכי (מ״מ)</label><input type="number" id="g_gy" value="${g.gapY}"></div>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">מתאים אוטומטית: <b>${cols} × ${rows}</b> = ${cols*rows} מדבקות בגיליון</div>
-    <div class="chkrow"><input type="checkbox" id="g_autoinc" ${g.autoInc?'checked':''}><label for="g_autoinc">הגדל מספר סידורי אוטומטית בכל תא (אם קיים שדה סיריאלי)</label></div>
-  </div>`;
-  const bind=(id,key)=>{ document.getElementById(id).addEventListener('input', e=>{ g[key]=parseFloat(e.target.value)||0; renderOutOptions(tpl); renderPreview(tpl, extractFields(tpl)); }); };
-  bind('g_mx','marginX'); bind('g_my','marginY'); bind('g_gx','gapX'); bind('g_gy','gapY');
-  document.getElementById('g_autoinc').addEventListener('change', e=>{ g.autoInc=e.target.checked; });
-}
+        // 1. Technical Drawing A4 Border & Title Block Template
+        function loadTemplateA4() {
+            canvas.clear();
+            canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas));
 
-function buildLabelDom(tpl, fieldVals, scale){
-  const div = document.createElement('div');
-  div.className='lc-canvas';
-  div.style.width=(tpl.widthMM*scale)+'px'; div.style.height=(tpl.heightMM*scale)+'px';
-  div.style.background=tpl.bgColor; div.style.position='relative'; div.style.overflow='hidden';
-  tpl.elements.forEach(el=>{
-    const e = document.createElement('div');
-    e.style.position='absolute'; e.style.left=(el.x*scale)+'px'; e.style.top=(el.y*scale)+'px';
-    e.style.width=(el.w*scale)+'px'; e.style.height=(el.h*scale)+'px';
-    if(el.type==='text'){
-      const val = el.fieldKey ? (fieldVals[el.fieldKey] ?? '') : (el.text||'');
-      e.style.display='flex'; e.style.alignItems='center';
-      e.style.justifyContent = el.align==='right'?'flex-end':el.align==='left'?'flex-start':'center';
-      e.style.fontSize=(el.fontSizeMM*scale)+'px'; e.style.color=el.color; e.style.fontWeight=el.bold?'700':'400';
-      e.style.fontFamily="'Heebo',Arial,sans-serif"; e.style.whiteSpace='pre-wrap'; e.style.textAlign=el.align; e.style.lineHeight='1.15';
-      e.textContent = val;
-    } else if(el.type==='image'){
-      const img=document.createElement('img'); img.src=el.imgData||''; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
-      e.appendChild(img);
-    } else if(el.type==='barcode'){
-      e.style.display='flex'; e.style.alignItems='center'; e.style.justifyContent='center'; e.style.background='#fff';
-      const holder=document.createElement('div'); e.appendChild(holder);
-      const val = el.fieldKey ? (fieldVals[el.fieldKey] ?? '') : (el.text||'');
-      setTimeout(()=>renderBarcodeInto(el, val, holder), 0);
-    }
-    div.appendChild(e);
-  });
-  return div;
-}
+            // Outer Border
+            const outerRect = new fabric.Rect({
+                left: 15, top: 15, width: CANVAS_WIDTH - 30, height: CANVAS_HEIGHT - 30,
+                fill: 'transparent', stroke: '#000000', strokeWidth: 2, selectable: false
+            });
 
-function renderPreview(tpl, fields){
-  const wrap = document.getElementById('producePreview');
-  wrap.innerHTML='';
-  const fieldVals = {};
-  fields.forEach(f=>{ fieldVals[f.key] = f.isSerial ? (state.produceValues[f.key] ?? computeSerialValue(f.el)) : (state.produceValues[f.key] ?? ''); });
+            // Revision Block (Top Right)
+            const revBlock = new fabric.Group([
+                new fabric.Rect({ width: 340, height: 80, fill: 'transparent', stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([0, 20, 340, 20], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([0, 40, 340, 40], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([0, 60, 340, 60], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([35, 0, 35, 80], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([200, 0, 200, 80], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([240, 0, 240, 80], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([295, 0, 295, 80], { stroke: '#000', strokeWidth: 1 }),
+                // Header Text
+                new fabric.Text('REV', { left: 5, top: 4, fontSize: 10, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('DESCRIPTION', { left: 70, top: 4, fontSize: 10, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('ECO', { left: 205, top: 4, fontSize: 10, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('DATE', { left: 250, top: 4, fontSize: 10, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('APPROVED', { left: 298, top: 4, fontSize: 10, fontFamily: 'Arial', fontWeight: 'bold' }),
+                // Row 0
+                new fabric.Text('0', { left: 14, top: 24, fontSize: 10, fontFamily: 'Arial' }),
+                new fabric.Text('DEVICE NAMEPLATE', { left: 40, top: 24, fontSize: 10, fontFamily: 'Arial' }),
+                new fabric.Text('07.05.25', { left: 245, top: 24, fontSize: 10, fontFamily: 'Arial' }),
+                new fabric.Text('Moti K.', { left: 300, top: 24, fontSize: 10, fontFamily: 'Arial' }),
+            ], { left: CANVAS_WIDTH - 365, top: 25, selectable: true });
 
-  if(state.outMode==='single'){
-    const scale = 6;
-    const box = document.createElement('div'); box.className='stagebox';
-    box.appendChild(buildLabelDom(tpl, fieldVals, scale));
-    wrap.appendChild(box);
-    // also a print-only true-mm version
-    const printDiv = document.createElement('div'); printDiv.className='printpage no-screen-only';
-    printDiv.style.position='fixed'; printDiv.style.left='-9999px';
-    printDiv.id='printSingleHolder';
-    document.body.appendChild(oldEl=printDiv);
-    printDiv.appendChild(buildLabelDom(tpl, fieldVals, 3.7795)); // mm to px @96dpi approx for print accuracy fallback
-  } else {
-    const g = state.grid;
-    const usableW = g.pageW - g.marginX*2, usableH = g.pageH - g.marginY*2;
-    const cols = Math.max(1, Math.floor((usableW+g.gapX) / (tpl.widthMM+g.gapX)));
-    const rows = Math.max(1, Math.floor((usableH+g.gapY) / (tpl.heightMM+g.gapY)));
-    const scale = 3.2;
-    const page = document.createElement('div');
-    page.className='printpage';
-    page.style.width=(g.pageW*scale)+'px'; page.style.height=(g.pageH*scale)+'px';
-    page.style.position='relative';
-    let runCounter = null;
-    const serialField = fields.find(f=>f.isSerial);
-    if(g.autoInc && serialField) runCounter = serialField.el.serialConfig.runningNext;
+            // Title Block (Bottom Right)
+            const titleBlock = new fabric.Group([
+                new fabric.Rect({ width: 230, height: 90, fill: 'transparent', stroke: '#000', strokeWidth: 1.5 }),
+                new fabric.Line([0, 25, 230, 25], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([0, 55, 230, 55], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([0, 70, 180, 70], { stroke: '#000', strokeWidth: 1 }),
+                new fabric.Line([180, 55, 180, 90], { stroke: '#000', strokeWidth: 1 }),
+                // Text Fields
+                new fabric.Text('Amphenol Tel-ad', { left: 65, top: 5, fontSize: 12, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('TITLE:', { left: 5, top: 30, fontSize: 8, fontFamily: 'Arial', fill: '#555' }),
+                new fabric.Text('Device Nameplate', { left: 40, top: 30, fontSize: 12, fontFamily: 'Arial', fill: '#000088', fontWeight: 'bold' }),
+                new fabric.Text('PROJECT:', { left: 5, top: 57, fontSize: 7, fontFamily: 'Arial', fill: '#555' }),
+                new fabric.Text('SIZE: A4', { left: 5, top: 74, fontSize: 8, fontFamily: 'Arial' }),
+                new fabric.Text('Drawing Number: 11A-NP-02', { left: 50, top: 74, fontSize: 9, fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('REV: 2', { left: 190, top: 68, fontSize: 12, fontFamily: 'Arial', fontWeight: 'bold' })
+            ], { left: CANVAS_WIDTH - 255, top: CANVAS_HEIGHT - 115, selectable: true });
 
-    for(let r=0;r<rows;r++){
-      for(let c=0;c<cols;c++){
-        const cellVals = Object.assign({}, fieldVals);
-        if(runCounter!==null){
-          const idx = r*cols+c;
-          const cfg = serialField.el.serialConfig;
-          const now=new Date(); const yy=String(now.getFullYear()).slice(-2); const mm=String(now.getMonth()+1).padStart(2,'0');
-          cellVals[serialField.key] = `${cfg.prefix||''}${yy}${mm}${String(runCounter+idx).padStart(cfg.runningDigits||3,'0')}`;
+            canvas.add(outerRect, revBlock, titleBlock);
+            canvas.renderAll();
         }
-        const cell = buildLabelDom(tpl, cellVals, scale);
-        cell.style.position='absolute';
-        cell.style.left=((g.marginX + c*(tpl.widthMM+g.gapX))*scale)+'px';
-        cell.style.top=((g.marginY + r*(tpl.heightMM+g.gapY))*scale)+'px';
-        page.appendChild(cell);
-      }
-    }
-    wrap.appendChild(page);
-  }
-}
 
-/* ============================= MODAL ============================= */
-function showModal({title, body, bodyHTML, okText='אישור', cancelText='ביטול', danger, onOk}){
-  const root=document.getElementById('modalRoot');
-  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
-    <h3>${esc(title)}</h3>
-    ${bodyHTML?bodyHTML:`<p>${esc(body||'')}</p>`}
-    <div class="modal-actions">
-      <button class="mbtn cancel" id="mCancel">${esc(cancelText)}</button>
-      <button class="mbtn ok ${danger?'danger':''}" id="mOk">${esc(okText)}</button>
-    </div>
-  </div></div>`;
-  document.getElementById('mCancel').onclick=()=>{root.innerHTML='';};
-  document.getElementById('mbg').addEventListener('click', e=>{ if(e.target.id==='mbg') root.innerHTML=''; });
-  document.getElementById('mOk').onclick=()=>{ onOk&&onOk(); root.innerHTML=''; };
-}
+        // 2. Add Nameplate/Label Component Example
+        function addSampleLabel() {
+            const labelGroup = new fabric.Group([
+                new fabric.Rect({ width: 180, height: 60, fill: '#000000', rx: 3, ry: 3 }),
+                new fabric.Text('MOTOR#3 ASSEMBLY', { left: 25, top: 8, fontSize: 11, fill: '#ffffff', fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Rect({ left: 38, top: 24, width: 90, height: 14, fill: '#ffffff' }),
+                new fabric.Text('P/N:', { left: 10, top: 25, fontSize: 9, fill: '#ffffff', fontFamily: 'Arial' }),
+                new fabric.Text('15A-03-0494-01', { left: 40, top: 26, fontSize: 9, fill: '#000000', fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('REV', { left: 132, top: 25, fontSize: 8, fill: '#ffffff', fontFamily: 'Arial' }),
+                new fabric.Rect({ left: 155, top: 24, width: 18, height: 14, fill: '#ffffff' }),
+                new fabric.Text('02', { left: 158, top: 26, fontSize: 9, fill: '#000000', fontFamily: 'Arial', fontWeight: 'bold' }),
+                new fabric.Text('S/N:', { left: 10, top: 43, fontSize: 9, fill: '#ffffff', fontFamily: 'Arial' }),
+                new fabric.Rect({ left: 38, top: 42, width: 135, height: 14, fill: '#ffffff' }),
+                new fabric.Text('ATA-2402001', { left: 65, top: 44, fontSize: 9, fill: '#000000', fontFamily: 'Arial' })
+            ], { left: 300, top: 150 });
 
-/* ============================= TOP BAR ACTIONS ============================= */
-document.getElementById('newTplBtn').onclick=()=>{
-  const t = {id:uid(), name:'תבנית חדשה', widthMM:50, heightMM:20, bgColor:'#ffffff', elements:[]};
-  state.templates.push(t); state.currentId=t.id; state.mode='edit'; state.selectedElId=null;
-  persist(); render();
-};
-document.getElementById('tabEdit').onclick=()=>{ state.mode='edit'; render(); };
-document.getElementById('tabProduce').onclick=()=>{ state.mode='produce'; render(); };
+            canvas.add(labelGroup);
+            canvas.setActiveObject(labelGroup);
+        }
 
-document.getElementById('backupBtn').onclick=()=>{
-  showModal({
-    title:'גיבוי וייבוא תבניות',
-    bodyHTML:`<p>הכלי פועל אופליין; התבניות נשמרות במכשיר זה בלבד. ייצאו קובץ גיבוי כדי להעביר תבניות למחשב/משתמש אחר.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="tbtn" style="background:#eef1f5;color:var(--ink)" id="expBtn">⭳ ייצוא כל התבניות (JSON)</button>
-      </div>
-      <div class="pfield"><label class="pl">ייבוא קובץ גיבוי</label><input type="file" id="impFile" accept="application/json"></div>`,
-    okText:'סגור', cancelText:'', onOk:()=>{}
-  });
-  document.getElementById('mCancel').style.display='none';
-  document.getElementById('expBtn').onclick=()=>{
-    const blob = new Blob([JSON.stringify(state.templates,null,2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a');
-    a.href=url; a.download=`labelcraft-backup-${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),2000);
-  };
-  document.getElementById('impFile').onchange=(e)=>{
-    const file=e.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try{
-        const imported=JSON.parse(ev.target.result);
-        if(!Array.isArray(imported)) throw new Error('bad format');
-        let added=0;
-        imported.forEach(t=>{ if(!state.templates.find(x=>x.id===t.id)){ state.templates.push(t); added++; } });
-        persist(); render(); document.getElementById('modalRoot').innerHTML='';
-        toast(`יובאו ${added} תבניות חדשות`);
-      }catch(err){ toast('שגיאה בקריאת קובץ הגיבוי'); }
-    };
-    reader.readAsText(file);
-  };
-};
+        // 3. Add Custom Shapes & Callouts
+        function addText() {
+            const text = new fabric.IText('לחץ פעמיים לעריכה', {
+                left: 100, top: 100, fontSize: 14, fontFamily: 'Arial', fill: '#000000'
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+        }
 
-document.getElementById('menuBtn').addEventListener('click', ()=>document.getElementById('sidebar').classList.toggle('open'));
-document.getElementById('panelBtn').addEventListener('click', ()=>{
-  const es = document.getElementById('editorSide'); if(es) es.classList.toggle('open');
-  const pf = document.getElementById('produceForm'); if(pf) pf.classList.toggle('open');
-});
-document.getElementById('searchBox').addEventListener('input', renderSidebar);
-window.addEventListener('resize', ()=>{
-  document.getElementById('menuBtn').style.display = window.innerWidth<=900?'block':'none';
-  document.getElementById('panelBtn').style.display = (window.innerWidth<=900 && getTpl(state.currentId))?'block':'none';
-});
+        function addBox() {
+            const rect = new fabric.Rect({
+                left: 120, top: 120, width: 100, height: 60,
+                fill: 'transparent', stroke: '#000000', strokeWidth: 1.5
+            });
+            canvas.add(rect);
+        }
 
-/* ============================= INIT ============================= */
-loadState();
-if(!state.currentId && state.templates.length) state.currentId = state.templates[0].id;
-render();
-</script>
+        function addLine() {
+            const line = new fabric.Line([50, 50, 150, 50], {
+                stroke: '#000000', strokeWidth: 1.5
+            });
+            canvas.add(line);
+        }
+
+        function addArrow() {
+            // Arrow Line + Triangle Head
+            const line = new fabric.Line([0, 0, 80, 0], { stroke: '#000000', strokeWidth: 1.5 });
+            const head = new fabric.Triangle({
+                left: 0, top: -4, pointLt: {x: 0, y: 0}, width: 8, height: 10, fill: '#000000', angle: -90
+            });
+            const arrow = new fabric.Group([line, head], { left: 200, top: 200 });
+            canvas.add(arrow);
+        }
+
+        // Image Loader (RoHS Logos, Diagrams, etc.)
+        document.getElementById('imageLoader').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgObj = new Image();
+                imgObj.src = event.target.result;
+                imgObj.onload = function() {
+                    const image = new fabric.Image(imgObj);
+                    image.scaleToWidth(120);
+                    canvas.add(image);
+                    canvas.renderAll();
+                }
+            }
+            if (e.target.files[0]) {
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        // 4. Object Properties Manipulation
+        function updateObjectProperty(prop, value) {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+                activeObject.set(prop, value);
+                canvas.renderAll();
+            }
+        }
+
+        function bringToFront() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) activeObject.bringToFront();
+        }
+
+        function sendToBack() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) activeObject.sendToBack();
+        }
+
+        function deleteSelected() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                activeObjects.forEach(obj => canvas.remove(obj));
+                canvas.discardActiveObject();
+                canvas.renderAll();
+            }
+        }
+
+        function clearCanvas() {
+            if (confirm("האם אתה בטוח שברצונך למחוק את כל משטח העבודה?")) {
+                canvas.clear();
+            }
+        }
+
+        // 5. Save & Export Functions
+        function exportToPNG() {
+            canvas.discardActiveObject();
+            canvas.renderAll();
+            const dataURL = canvas.toDataURL({ format: 'png', multiplier: 2 }); // High res export
+            const link = document.createElement('a');
+            link.download = 'Drawing_Specification.png';
+            link.href = dataURL;
+            link.click();
+        }
+
+        function saveProjectJSON() {
+            const json = JSON.stringify(canvas.toJSON());
+            const blob = new Blob([json], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.download = 'Drawing_Project.json';
+            link.href = URL.createObjectURL(blob);
+            link.click();
+        }
+
+        function loadProjectJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(f) {
+                canvas.loadFromJSON(f.target.result, canvas.renderAll.bind(canvas));
+            };
+            reader.readAsText(file);
+        }
+
+        // Update control panel values on selection
+        canvas.on('selection:created', updateSidebarControls);
+        canvas.on('selection:updated', updateSidebarControls);
+
+        function updateSidebarControls() {
+            const active = canvas.getActiveObject();
+            if (active) {
+                if (active.fill && typeof active.fill === 'string') document.getElementById('fillColor').value = active.fill;
+                if (active.stroke) document.getElementById('strokeColor').value = active.stroke;
+                if (active.strokeWidth) document.getElementById('strokeWidth').value = active.strokeWidth;
+                if (active.opacity) document.getElementById('opacity').value = active.opacity;
+            }
+        }
+    </script>
 </body>
 </html>
