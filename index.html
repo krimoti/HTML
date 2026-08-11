@@ -3,1498 +3,1236 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EngAssist – עוזר הנדסה AI</title>
+<title>ECO Flow — ניהול שינויי הנדסה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Rubik:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-    --bg: #eef4ff;
-    --card: #ffffff;
-    --border: #dbeafe;
-    --border-soft: #e8f0ff;
-    --blue-50: #eff6ff;
-    --blue-100: #dbeafe;
-    --blue-500: #3b82f6;
-    --blue-600: #2563eb;
-    --blue-700: #1d4ed8;
-    --blue-900: #1e3a8a;
-    --ink: #0f172a;
-    --ink-soft: #475569;
-    --ink-faint: #94a3b8;
-    --danger: #dc2626;
-    --warning: #d97706;
-    --success: #16a34a;
-    --teal: #0d9488;
-    --radius: 12px;
-    --shadow: 0 2px 14px rgba(30, 58, 138, 0.08);
+:root{
+  --bg-1:#eaf3fb; --bg-2:#dcedfb; --bg-3:#cfe6f8;
+  --glass:rgba(255,255,255,.58); --glass-strong:rgba(255,255,255,.78); --glass-border:rgba(255,255,255,.85);
+  --blue-900:#0c2c47; --blue-800:#123a5c; --blue-700:#1a5177; --blue-600:#22679a; --blue-500:#3a85bd; --blue-400:#5ea3d6;
+  --sky:#0ea8e6; --sky-deep:#0a7fb3;
+  --accent-rgb:14,168,230; --accent-deep-rgb:10,127,179;
+  --text-900:#10263b; --text-700:#365269; --text-500:#647e93;
+  --success:#1a9c6f; --success-bg:#e2f7ef;
+  --warn:#c9820a; --warn-bg:#fbf0dc;
+  --danger:#d1462f; --danger-bg:#fbe6e1;
+  --idle-bg:#eef3f7; --idle-text:#5c7386;
+  --shadow-soft:0 8px 30px rgba(18,58,92,.10); --shadow-lift:0 14px 40px rgba(18,58,92,.16);
+  --radius:18px;
+}
+/* ===== Theme variants ===== */
+body[data-theme="green"]{
+  --bg-1:#e8f8f2; --bg-2:#d9f3e8; --bg-3:#c8ecdd;
+  --blue-900:#0b3b2e; --blue-800:#0f4f3d; --blue-700:#146349; --blue-600:#1c7a5b; --blue-500:#2f9a75; --blue-400:#5cb695;
+  --sky:#12b886; --sky-deep:#0e9370; --accent-rgb:18,184,134; --accent-deep-rgb:14,147,112;
+}
+body[data-theme="purple"]{
+  --bg-1:#f2edfc; --bg-2:#e9defa; --bg-3:#ddccf7;
+  --blue-900:#2e1065; --blue-800:#3b1683; --blue-700:#4c1d9e; --blue-600:#6127b8; --blue-500:#7c4fd4; --blue-400:#a07ae0;
+  --sky:#8b5cf6; --sky-deep:#7c3aed; --accent-rgb:139,92,246; --accent-deep-rgb:124,58,237;
+}
+body[data-theme="graphite"]{
+  --bg-1:#eef1f5; --bg-2:#e3e8ee; --bg-3:#d6dee6;
+  --blue-900:#1e293b; --blue-800:#27364a; --blue-700:#334155; --blue-600:#475569; --blue-500:#64748b; --blue-400:#94a3b8;
+  --sky:#64748b; --sky-deep:#475569; --accent-rgb:100,116,139; --accent-deep-rgb:71,85,105;
+}
+body[data-theme="amber"]{
+  --bg-1:#fdf3e2; --bg-2:#fbe9c9; --bg-3:#f7dcae;
+  --blue-900:#4a2c06; --blue-800:#6b3d08; --blue-700:#8a4f0a; --blue-600:#b5670e; --blue-500:#d9821c; --blue-400:#eaa146;
+  --sky:#f59e0b; --sky-deep:#d97706; --accent-rgb:245,158,11; --accent-deep-rgb:217,119,6;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Heebo',sans-serif; color:var(--text-900);
+  background:
+    radial-gradient(circle at 12% -10%, #ffffff 0%, transparent 45%),
+    radial-gradient(circle at 90% 0%, var(--bg-3) 0%, transparent 55%),
+    linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+  min-height:100vh; padding:28px 18px 80px;
+}
+h1,h2,h3{font-family:'Rubik',sans-serif; margin:0;}
+.wrap{max-width:1220px; margin:0 auto;}
+.glass{
+  background:var(--glass); border:1px solid var(--glass-border); border-radius:var(--radius);
+  backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:var(--shadow-soft);
 }
 
-html, body { height: 100%; }
+/* ===== Top bar ===== */
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 26px; margin-bottom:22px; flex-wrap:wrap;}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand-mark{width:44px;height:44px;border-radius:13px; background:linear-gradient(135deg, var(--sky) 0%, var(--blue-700) 100%); display:flex;align-items:center;justify-content:center; box-shadow:0 6px 16px rgba(var(--accent-deep-rgb),.35); flex-shrink:0;}
+.brand-mark svg{width:24px;height:24px;}
+.brand-text h1{font-size:20px; font-weight:800; color:var(--blue-900);}
+.brand-text span{font-size:12.5px; color:var(--text-500); font-weight:500;}
+.topbar-actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+button{font-family:'Heebo',sans-serif; cursor:pointer; border:none;}
+.btn{padding:10px 18px; border-radius:12px; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:7px; transition:.18s transform,.18s box-shadow,.18s background; white-space:nowrap;}
+.btn:active{transform:translateY(1px) scale(.98);}
+.btn-primary{background:linear-gradient(135deg, var(--sky) 0%, var(--blue-600) 100%); color:#fff; box-shadow:0 8px 20px rgba(var(--accent-deep-rgb),.30);}
+.btn-primary:hover{box-shadow:0 10px 24px rgba(var(--accent-deep-rgb),.4);}
+.btn-ghost{background:var(--glass-strong); color:var(--blue-800); border:1px solid rgba(255,255,255,.9);}
+.btn-ghost:hover{background:#fff;}
+.btn-soft{background:#eaf4fb; color:var(--blue-700);}
+.btn-soft:hover{background:#dcecf9;}
+.btn-xs{padding:6px 12px; font-size:12.5px; border-radius:9px;}
+input[type=file]{display:none;}
 
-body {
-    font-family: 'Heebo', Arial, sans-serif;
-    background: linear-gradient(160deg, var(--bg) 0%, #ffffff 55%);
-    color: var(--ink);
-    min-height: 100vh;
-    line-height: 1.55;
+/* theme picker */
+.theme-picker{display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:99px; background:var(--glass-strong); border:1px solid rgba(255,255,255,.9);}
+.theme-dot{width:20px; height:20px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:.15s transform;}
+.theme-dot:hover{transform:scale(1.15);}
+.theme-dot.active{border-color:var(--blue-900);}
+.theme-dot.blue{background:linear-gradient(135deg,#0ea8e6,#22679a);}
+.theme-dot.green{background:linear-gradient(135deg,#12b886,#1c7a5b);}
+.theme-dot.purple{background:linear-gradient(135deg,#8b5cf6,#6127b8);}
+.theme-dot.graphite{background:linear-gradient(135deg,#64748b,#334155);}
+.theme-dot.amber{background:linear-gradient(135deg,#f59e0b,#b5670e);}
+
+/* autosave indicator */
+.autosave-indicator{font-size:12px; font-weight:600; color:var(--text-500); display:flex; align-items:center; gap:6px; white-space:nowrap;}
+.autosave-indicator .dot{width:8px; height:8px; border-radius:50%; background:var(--idle-text);}
+.autosave-indicator.on .dot{background:var(--success);}
+
+/* splash screen */
+.splash{position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+  transition:opacity .5s ease, visibility .5s ease;}
+.splash.hide{opacity:0; visibility:hidden; pointer-events:none;}
+.splash-inner{text-align:center;}
+.splash-inner .brand-mark{width:64px; height:64px; margin:0 auto 16px; border-radius:18px;}
+.splash-inner .brand-mark svg{width:34px; height:34px;}
+.splash-inner h1{font-size:24px; font-weight:800; color:var(--blue-900); font-family:'Rubik',sans-serif;}
+.splash-inner span{font-size:13px; color:var(--text-500); display:block; margin-top:6px;}
+.splash-bar{width:170px; height:4px; border-radius:99px; background:rgba(18,58,92,.1); overflow:hidden; margin:18px auto 0;}
+.splash-bar i{display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--sky), var(--blue-600)); animation:splashFill 1.3s ease forwards;}
+@keyframes splashFill{from{width:0%} to{width:100%}}
+
+/* ===== ECO header ===== */
+.eco-header{padding:26px 28px; margin-bottom:20px;}
+.eco-header-top{display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:18px;}
+.eyebrow{font-size:12px; letter-spacing:.5px; color:var(--sky-deep); font-weight:700; text-transform:uppercase;}
+.eco-title-row{display:flex; align-items:center; gap:12px; margin-top:4px;}
+.eco-title-row input{font-family:'Rubik',sans-serif; font-size:26px; font-weight:800; color:var(--blue-900); border:none; background:transparent; outline:none; width:190px; border-bottom:2px dashed transparent;}
+.eco-title-row input:focus{border-bottom:2px dashed var(--sky);}
+.status-pill{padding:7px 16px; border-radius:999px; font-size:13px; font-weight:700; white-space:nowrap;}
+.pill-open{background:var(--warn-bg); color:var(--warn);}
+.pill-progress{background:#e4f0fb; color:var(--blue-600);}
+.pill-closed{background:var(--success-bg); color:var(--success);}
+.pill-hold{background:var(--danger-bg); color:var(--danger);}
+select.status-select{appearance:none; -webkit-appearance:none; border:1px solid rgba(18,58,92,.14); border-radius:999px; padding:7px 32px 7px 14px; font-size:13px; font-weight:700; font-family:'Heebo',sans-serif; background-repeat:no-repeat; background-position:left 12px center; background-size:9px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%23365269' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); cursor:pointer;}
+.progress-track{height:8px; border-radius:99px; background:rgba(18,58,92,.08); overflow:hidden; margin-top:14px;}
+.progress-fill{height:100%; border-radius:99px; background:linear-gradient(90deg, var(--sky) 0%, var(--blue-600) 100%); transition:width .35s ease;}
+.progress-label{display:flex; justify-content:space-between; font-size:12px; color:var(--text-500); margin-top:6px; font-weight:600;}
+.field-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:6px;}
+@media(max-width:900px){.field-grid{grid-template-columns:repeat(2,1fr);}}
+.field label{display:block; font-size:12px; font-weight:700; color:var(--text-500); margin-bottom:6px;}
+.field input, .field textarea{width:100%; border:1px solid rgba(18,58,92,.14); border-radius:10px; padding:9px 12px; font-family:'Heebo',sans-serif; font-size:14px; background:rgba(255,255,255,.7); outline:none; transition:.15s border-color, .15s background;}
+.field input:focus, .field textarea:focus{border-color:var(--sky); background:#fff;}
+.field textarea{resize:vertical; min-height:44px;}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+.chip{padding:7px 10px 7px 14px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; background:#eef3f7; color:var(--text-500); border:1px solid transparent; transition:.15s all; user-select:none; display:inline-flex; align-items:center; gap:8px;}
+.chip.active{background:linear-gradient(135deg, var(--sky) 0%, var(--blue-600) 100%); color:#fff; box-shadow:0 5px 14px rgba(var(--accent-deep-rgb),.3);}
+.chip-del{font-size:11px; opacity:.55; width:16px; height:16px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; transition:.15s all;}
+.chip-del:hover{opacity:1; background:rgba(0,0,0,.12);}
+.chip-add{background:transparent; border:1.5px dashed rgba(18,58,92,.25); color:var(--text-500);}
+.chip-add:hover{border-color:var(--sky); color:var(--sky-deep);}
+
+/* parts table */
+.parts-block{margin-top:20px;}
+.parts-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.parts-head h3{font-size:14px; color:var(--text-700);}
+table.parts{width:100%; border-collapse:collapse;}
+table.parts th{font-size:11.5px; text-align:right; color:var(--text-500); font-weight:700; padding:0 8px 8px;}
+table.parts td{padding:5px;}
+table.parts input{width:100%; border:1px solid rgba(18,58,92,.12); border-radius:9px; padding:8px 10px; font-family:'Heebo'; font-size:13.5px; background:rgba(255,255,255,.75);}
+table.parts input:focus{outline:none; border-color:var(--sky); background:#fff;}
+.row-del{background:none; color:var(--text-500); font-size:16px; padding:4px 8px; border-radius:8px;}
+.row-del:hover{background:var(--danger-bg); color:var(--danger);}
+
+/* ===== Team defaults ===== */
+.team-card{padding:20px 26px; margin-bottom:20px;}
+.team-card h3{font-size:14.5px; color:var(--blue-900); margin-bottom:4px;}
+.team-sub{font-size:12px; color:var(--text-500); margin-bottom:14px;}
+.team-roles{display:flex; flex-direction:column; gap:10px; margin-bottom:16px;}
+.team-role-row{display:grid; grid-template-columns:112px 1fr 1fr; gap:10px; align-items:center;}
+@media(max-width:700px){.team-role-row{grid-template-columns:1fr; gap:6px;}}
+.team-role-row .role-name{font-size:13px; font-weight:700; color:var(--text-700);}
+.team-role-row input{width:100%; border:1px solid rgba(18,58,92,.14); border-radius:10px; padding:8px 12px; font-family:'Heebo'; font-size:13.5px; background:rgba(255,255,255,.7); outline:none;}
+.team-role-row input:focus{border-color:var(--sky); background:#fff;}
+.copy-all-btn{
+  background:#eaf4fb; color:var(--sky-deep); border:1px solid rgba(var(--accent-rgb),.25);
+  font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:7px; cursor:pointer; margin-inline-start:6px;
 }
+.copy-all-btn:hover{background:#dcecf9;}
+.mini-label-row{display:flex; align-items:center; justify-content:space-between;}
 
-/* ===================== SPLASH ===================== */
-#splash {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(160deg, #eff6ff 0%, #ffffff 70%);
-    cursor: pointer;
-    animation: splashOut 0.5s ease 1.7s forwards;
+/* ===== Matrix overview ===== */
+.matrix-card{padding:22px 26px; margin-bottom:20px; overflow-x:auto;}
+.matrix-card h3{font-size:15px; color:var(--blue-900); margin-bottom:4px;}
+.matrix-sub{font-size:12.5px; color:var(--text-500); margin-bottom:14px;}
+table.matrix{border-collapse:collapse; width:100%; min-width:640px;}
+table.matrix th{font-size:11px; color:var(--text-500); font-weight:700; padding:6px 8px; text-align:center;}
+table.matrix th.rowhead{text-align:right;}
+table.matrix td{padding:6px 8px; text-align:center;}
+.matrix-partcell{text-align:right !important; cursor:pointer; border-radius:10px; transition:.15s background;}
+.matrix-partcell:hover{background:rgba(var(--accent-rgb),.08);}
+.matrix-partcell.active-row{background:rgba(var(--accent-rgb),.14);}
+.matrix-pn{font-weight:700; font-size:13px; color:var(--blue-900);}
+.matrix-pn-sub{font-size:11px; color:var(--text-500);}
+.cell-dot{width:26px; height:26px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; transition:.15s transform;}
+.cell-dot:hover{transform:scale(1.12);}
+.dot-idle{background:var(--idle-bg); color:var(--idle-text);}
+.dot-progress{background:#dcedfa; color:var(--blue-600);}
+.dot-good{background:var(--success-bg); color:var(--success);}
+.dot-bad{background:var(--danger-bg); color:var(--danger);}
+.dot-wait{background:var(--warn-bg); color:var(--warn);}
+.cell-dot.aging{box-shadow:0 0 0 2px var(--danger); position:relative;}
+.cell-dot.aging::after{content:'!'; position:absolute; top:-6px; left:-6px; width:14px; height:14px; border-radius:50%; background:var(--danger); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center;}
+
+/* ===== Bulk apply (advanced) ===== */
+.bulk-card{padding:20px 26px; margin-bottom:20px;}
+.bulk-card h3{font-size:14.5px; color:var(--blue-900); margin-bottom:4px;}
+.bulk-sub{font-size:12px; color:var(--text-500); margin-bottom:14px;}
+.bulk-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+.bulk-card select{border:1px solid rgba(18,58,92,.14); border-radius:10px; padding:8px 12px; font-family:'Heebo'; font-size:13.5px; background:rgba(255,255,255,.8);}
+.bulk-fields{display:flex; flex-direction:column; gap:9px; margin-bottom:14px; padding:14px; border-radius:12px; background:rgba(255,255,255,.45); border:1px solid rgba(18,58,92,.08);}
+.bulk-field-row{display:grid; grid-template-columns:22px 130px 1fr; gap:10px; align-items:center;}
+@media(max-width:700px){.bulk-field-row{grid-template-columns:22px 1fr;} .bulk-field-row input[type=text],.bulk-field-row select,.bulk-field-row input[type=date]{grid-column:1/-1;}}
+.bulk-field-row input[type=checkbox]{width:17px; height:17px; accent-color:var(--sky-deep); cursor:pointer;}
+.bulk-field-row label{font-size:12.5px; font-weight:700; color:var(--text-700);}
+.bulk-field-row input[type=text], .bulk-field-row input[type=date], .bulk-field-row select{width:100%; border:1px solid rgba(18,58,92,.14); border-radius:9px; padding:7px 10px; font-family:'Heebo'; font-size:13px; background:#fff;}
+.bulk-parts-head{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px; font-weight:700; color:var(--text-700);}
+.bulk-parts{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+.bulk-parts label{font-size:12.5px; background:rgba(255,255,255,.7); border:1px solid rgba(18,58,92,.1); padding:5px 10px; border-radius:8px; display:flex; align-items:center; gap:5px; cursor:pointer;}
+.bulk-parts input[type=checkbox]{accent-color:var(--sky-deep);}
+
+/* ===== Part tabs ===== */
+.part-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.part-tab{padding:9px 16px; border-radius:12px; font-size:13.5px; font-weight:700; cursor:pointer; background:var(--glass-strong); border:1px solid rgba(255,255,255,.9); color:var(--text-700); transition:.15s all; display:flex; align-items:center; gap:8px;}
+.part-tab .mini-progress{width:34px; height:5px; border-radius:99px; background:rgba(18,58,92,.12); overflow:hidden;}
+.part-tab .mini-progress i{display:block; height:100%; background:var(--sky);}
+.part-tab.active{background:linear-gradient(135deg, var(--sky) 0%, var(--blue-600) 100%); color:#fff; box-shadow:0 8px 18px rgba(var(--accent-deep-rgb),.3);}
+.part-tab.active .mini-progress{background:rgba(255,255,255,.35);}
+.part-tab.active .mini-progress i{background:#fff;}
+
+/* ===== Flow / spine ===== */
+.flow{position:relative; padding-inline-start:6px;}
+.spine{position:absolute; top:14px; bottom:14px; right:37px; width:3px; background:linear-gradient(180deg, var(--sky) 0%, rgba(58,133,189,.15) 100%); border-radius:3px;}
+.stage{position:relative; display:flex; gap:18px; margin-bottom:18px;}
+.stage-node{position:relative; z-index:2; flex-shrink:0; width:76px; height:76px; border-radius:20px; display:flex; align-items:center; justify-content:center; flex-direction:column; background:var(--glass-strong); border:1px solid rgba(255,255,255,.9); box-shadow:var(--shadow-soft); font-size:22px;}
+.stage-node .num{position:absolute; top:-8px; right:-8px; width:22px; height:22px; border-radius:50%; background:var(--blue-800); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;}
+.stage.done .stage-node{background:linear-gradient(135deg, var(--success) 0%, #16a381 100%); box-shadow:0 8px 20px rgba(26,156,111,.35);}
+.stage.done .stage-node .num{background:#0e6e4c;}
+.stage.active .stage-node{background:linear-gradient(135deg, var(--sky) 0%, var(--blue-600) 100%); box-shadow:0 8px 22px rgba(var(--accent-deep-rgb),.4);}
+.stage.active .stage-node .num{background:var(--sky-deep);}
+.stage.blocked .stage-node{background:linear-gradient(135deg, #e7896f 0%, var(--danger) 100%); box-shadow:0 8px 20px rgba(209,70,47,.32);}
+.stage-card{flex:1; padding:18px 22px; margin-top:2px;}
+.stage-card-head{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:4px;}
+.stage-card-head h3{font-size:15.5px; color:var(--blue-900);}
+.stage-role{font-size:12px; color:var(--sky-deep); font-weight:700; margin-top:2px;}
+.stage-body{margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media(max-width:760px){.stage-body{grid-template-columns:1fr;}}
+.stage-body .full{grid-column:1/-1;}
+.mini-label{font-size:11.5px; font-weight:700; color:var(--text-500); margin-bottom:5px; display:block;}
+.stage-body input, .stage-body textarea, .stage-body select{
+  width:100%; border:1px solid rgba(18,58,92,.14); border-radius:10px; padding:9px 12px;
+  font-family:'Heebo',sans-serif; font-size:13.5px; background:rgba(255,255,255,.7); outline:none;
+  transition:.15s border-color, .15s background;
 }
+.stage-body input:focus, .stage-body textarea:focus, .stage-body select:focus{border-color:var(--sky); background:#fff;}
+.stage-body textarea{resize:vertical; min-height:44px;}
+.stage-body select{cursor:pointer;}
+.checkline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text-700); font-weight:500;}
+.checkline input[type=checkbox]{width:17px; height:17px; accent-color:var(--sky-deep); cursor:pointer;}
+.approval-matrix{grid-column:1/-1; margin-top:6px; padding:14px; border-radius:12px; background:rgba(255,255,255,.45); border:1px solid rgba(18,58,92,.08);}
+.approval-matrix-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.approval-matrix-head span{font-size:12.5px; font-weight:700; color:var(--text-700);}
+.approver-row{display:grid; grid-template-columns:1fr 1fr 130px 120px 30px; gap:8px; align-items:center; margin-bottom:8px;}
+@media(max-width:800px){.approver-row{grid-template-columns:1fr 1fr; }}
+.approver-row input, .approver-row select{border:1px solid rgba(18,58,92,.14); border-radius:9px; padding:7px 10px; font-family:'Heebo'; font-size:12.5px; background:#fff; width:100%;}
+.approver-badge{padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; text-align:center;}
+.approver-badge.idle{background:var(--idle-bg); color:var(--idle-text);}
+.approver-badge.waiting{background:var(--warn-bg); color:var(--warn);}
+.approver-badge.approved{background:var(--success-bg); color:var(--success);}
+.approver-badge.rejected{background:var(--danger-bg); color:var(--danger);}
+.loopback-note{margin-top:10px; padding:9px 14px; border-radius:11px; background:var(--danger-bg); color:var(--danger); font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px;}
+.handoff-note{margin-top:10px; padding:11px 16px; border-radius:11px; background:var(--success-bg); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+.handoff-note span{font-size:13px; font-weight:600; color:var(--success);}
+.btn-handoff{background:linear-gradient(135deg, #22b57e 0%, var(--success) 100%); color:#fff; box-shadow:0 6px 16px rgba(26,156,111,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:700;}
+.btn-handoff:hover{box-shadow:0 8px 20px rgba(26,156,111,.4);}
+.customer-card{padding:20px 26px; margin-bottom:20px;}
+.customer-card h3{font-size:14.5px; color:var(--blue-900); margin-bottom:12px;}
 
-#splashSvg .chip-body {
-    fill: #eff6ff;
-    stroke: var(--blue-600);
-    stroke-width: 3;
-    stroke-dasharray: 260;
-    stroke-dashoffset: 260;
-    animation: draw 0.9s ease forwards;
+/* ===== log ===== */
+.log-card{padding:22px 26px; margin-top:22px;}
+.log-card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+.log-card-head h3{font-size:15px; color:var(--blue-900); margin-bottom:0;}
+.log-list{max-height:260px; overflow-y:auto; display:flex; flex-direction:column-reverse; gap:0;}
+.log-item{display:flex; gap:12px; padding:9px 0; border-bottom:1px dashed rgba(18,58,92,.1); font-size:13px;}
+.log-item .dot{width:7px; height:7px; border-radius:50%; background:var(--sky); margin-top:6px; flex-shrink:0;}
+.log-time{color:var(--text-500); font-size:11.5px; white-space:nowrap; font-weight:600;}
+.log-text{color:var(--text-700);}
+footer.note{text-align:center; margin-top:26px; font-size:12px; color:var(--text-500);}
+
+@media print{
+  body{background:#fff; padding:0;}
+  .topbar-actions, .btn, .chip-del, .chip-add, select, .row-del, .bulk-card, .part-tabs, .handoff-note, .theme-picker, .autosave-indicator, .splash{display:none !important;}
+  .glass{background:#fff; box-shadow:none; border:1px solid #ddd; backdrop-filter:none;}
+  .spine{display:none;}
+  .stage{break-inside:avoid;}
+  .matrix-card{break-inside:avoid;}
+  input, textarea{border:none !important; background:none !important; padding:0 !important;}
 }
-
-#splashSvg .pin {
-    stroke: var(--blue-500);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-dasharray: 40;
-    stroke-dashoffset: 40;
-    animation: draw 0.35s ease forwards;
-}
-#splashSvg .pin:nth-child(1) { animation-delay: .55s; }
-#splashSvg .pin:nth-child(2) { animation-delay: .62s; }
-#splashSvg .pin:nth-child(3) { animation-delay: .69s; }
-#splashSvg .pin:nth-child(4) { animation-delay: .76s; }
-#splashSvg .pin:nth-child(5) { animation-delay: .83s; }
-#splashSvg .pin:nth-child(6) { animation-delay: .90s; }
-#splashSvg .pin:nth-child(7) { animation-delay: .97s; }
-#splashSvg .pin:nth-child(8) { animation-delay: 1.04s; }
-#splashSvg .pin:nth-child(9) { animation-delay: 1.11s; }
-#splashSvg .pin:nth-child(10) { animation-delay: 1.18s; }
-#splashSvg .pin:nth-child(11) { animation-delay: 1.25s; }
-#splashSvg .pin:nth-child(12) { animation-delay: 1.32s; }
-
-#splashSvg .core {
-    fill: var(--blue-600);
-    opacity: 0;
-    animation: fadeIn 0.3s ease 1.4s forwards;
-}
-
-.splash-title {
-    font-weight: 700;
-    font-size: 2rem;
-    color: var(--blue-900);
-    opacity: 0;
-    margin-top: 18px;
-    letter-spacing: 0.5px;
-    animation: fadeUp 0.5s ease 1.15s forwards;
-}
-
-.splash-sub {
-    color: var(--ink-soft);
-    font-size: 0.95rem;
-    opacity: 0;
-    margin-top: 6px;
-    animation: fadeUp 0.5s ease 1.35s forwards;
-}
-
-.splash-hint {
-    position: absolute;
-    bottom: 26px;
-    font-size: 0.78rem;
-    color: var(--ink-faint);
-    opacity: 0;
-    animation: fadeUp 0.5s ease 1.5s forwards;
-}
-
-@keyframes draw { to { stroke-dashoffset: 0; } }
-@keyframes fadeIn { to { opacity: 1; } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
-@keyframes splashOut { to { opacity: 0; visibility: hidden; pointer-events: none; } }
-
-/* ===================== SHELL ===================== */
-.topbar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: #ffffffee;
-    backdrop-filter: blur(6px);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.brand { display: flex; align-items: center; gap: 8px; }
-.brand svg { flex-shrink: 0; }
-.brand-text { font-weight: 700; font-size: 1.15rem; color: var(--blue-900); }
-.brand-text span { color: var(--blue-600); }
-
-.tabs {
-    display: flex;
-    gap: 6px;
-    background: var(--blue-50);
-    padding: 4px;
-    border-radius: 10px;
-    flex-wrap: wrap;
-}
-
-.tab-btn {
-    border: none;
-    background: transparent;
-    color: var(--ink-soft);
-    font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-.tab-btn:hover { color: var(--blue-700); }
-.tab-btn.active { background: var(--blue-600); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
-
-.topbar-actions { display: flex; gap: 6px; }
-.btn-icon {
-    border: 1px solid var(--border);
-    background: white;
-    color: var(--blue-700);
-    width: 36px; height: 36px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1.05rem;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-}
-.btn-icon:hover { background: var(--blue-50); }
-
-main { max-width: 1200px; margin: 0 auto; padding: 20px; }
-
-.tab-panel { display: none; }
-.tab-panel.active { display: block; animation: fadeUp 0.3s ease; }
-
-.privacy-note {
-    font-size: 0.8rem;
-    color: var(--ink-faint);
-    text-align: center;
-    padding: 8px 0 4px;
-}
-
-/* ===================== GRID & CARDS ===================== */
-.panel-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-}
-@media (max-width: 860px) { .panel-grid { grid-template-columns: 1fr; } }
-
-.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px;
-    margin-bottom: 18px;
-}
-
-h2 {
-    font-size: 1.05rem;
-    color: var(--blue-900);
-    margin-bottom: 14px;
-    padding-bottom: 9px;
-    border-bottom: 1px solid var(--border-soft);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-h2::before {
-    content: '';
-    width: 8px; height: 8px;
-    background: var(--blue-600);
-    border-radius: 2px;
-    display: inline-block;
-    flex-shrink: 0;
-}
-
-label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    margin-bottom: 6px;
-    margin-top: 10px;
-}
-label:first-of-type { margin-top: 0; }
-
-textarea, input[type="text"], select {
-    width: 100%;
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--ink);
-    padding: 10px 12px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    resize: vertical;
-}
-textarea:focus, input:focus, select:focus {
-    outline: none;
-    border-color: var(--blue-500);
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
-}
-
-.btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-
-.btn {
-    padding: 9px 16px;
-    border: none;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 0.88rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    color: white;
-}
-.btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-
-.btn-blue { background: var(--blue-600); }
-.btn-green { background: var(--success); }
-.btn-red { background: var(--danger); }
-.btn-gray { background: #64748b; }
-.btn-teal { background: var(--teal); }
-.btn-teal-outline { background: white; color: var(--teal); border: 1px solid var(--teal); }
-.btn-purple { background: #7c3aed; }
-.btn-mini {
-    background: var(--blue-600); color: white; border: none;
-    border-radius: 6px; width: 34px; font-size: 1rem; cursor: pointer;
-}
-
-/* ===================== DIM SELECTORS / CHIPS ===================== */
-.dims-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-@media (max-width: 560px) { .dims-selects { grid-template-columns: 1fr; } }
-
-.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.chip {
-    background: var(--blue-50);
-    color: var(--blue-700);
-    border: 1px solid var(--blue-100);
-    padding: 3px 8px 3px 4px;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.chip button {
-    border: none;
-    background: transparent;
-    color: var(--blue-700);
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1;
-    padding: 0 2px;
-}
-.chip button:hover { color: var(--danger); }
-
-.chip-add-row { display: flex; gap: 6px; margin-top: 8px; }
-.chip-add-row input { flex: 1; padding: 7px 10px; font-size: 0.85rem; }
-
-/* ===================== LISTS ===================== */
-.examples-list {
-    max-height: 240px;
-    overflow-y: auto;
-    margin-top: 14px;
-    background: var(--blue-50);
-    border-radius: 8px;
-    padding: 8px;
-}
-
-.example-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    font-size: 0.87rem;
-    background: white;
-    border: 1px solid var(--border-soft);
-}
-
-.example-text {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.badge {
-    font-size: 0.72rem;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-weight: 600;
-    background: var(--blue-50);
-    color: var(--blue-700);
-    white-space: nowrap;
-}
-.badge-source {
-    font-size: 0.7rem;
-    color: var(--ink-faint);
-    white-space: nowrap;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.delete-btn {
-    background: transparent;
-    border: none;
-    color: var(--ink-faint);
-    cursor: pointer;
-    font-size: 1.1rem;
-    padding: 0 4px;
-    flex-shrink: 0;
-}
-.delete-btn:hover { color: var(--danger); }
-
-/* ===================== STATS ===================== */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-    gap: 10px;
-    margin-top: 14px;
-}
-.stat {
-    background: var(--blue-50);
-    padding: 10px;
-    border-radius: 8px;
-    text-align: center;
-}
-.stat-val {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--blue-700);
-    font-family: 'JetBrains Mono', monospace;
-}
-.stat-lbl { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
-
-/* ===================== PREDICTION ===================== */
-.predict-dim { margin-top: 14px; }
-.predict-dim-label { font-size: 0.85rem; font-weight: 600; color: var(--blue-900); margin-bottom: 8px; }
-
-.rank-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.85rem; }
-.rank-label { width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-bar-wrap { flex: 1; background: var(--blue-50); border-radius: 4px; height: 10px; overflow: hidden; }
-.rank-bar { height: 100%; background: var(--blue-300, #93c5fd); border-radius: 4px; background: var(--blue-500); }
-.rank-row.rank-top .rank-bar { background: var(--blue-700); }
-.rank-row.rank-top .rank-label { font-weight: 700; color: var(--blue-900); }
-.rank-pct { width: 46px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--ink-soft); flex-shrink: 0; }
-
-.contrib-list { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
-.contrib-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
-.contrib-word { width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.contrib-bar-wrap { flex: 1; background: var(--blue-50); border-radius: 4px; height: 8px; overflow: hidden; }
-.contrib-bar { height: 100%; border-radius: 4px; }
-.contrib-bar.up { background: var(--blue-600); }
-.contrib-bar.down { background: #fca5a5; }
-
-/* ===================== KB RESULTS ===================== */
-.kb-result-card {
-    background: var(--blue-50);
-    border: 1px solid var(--blue-100);
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-}
-.kb-result-q { font-weight: 700; color: var(--blue-900); margin-bottom: 4px; font-size: 0.92rem; }
-.kb-result-a { color: var(--ink); font-size: 0.88rem; white-space: pre-wrap; }
-.kb-result-meta { margin-top: 6px; font-size: 0.72rem; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
-
-/* ===================== MISC ===================== */
-.info {
-    background: var(--blue-50);
-    border-right: 4px solid var(--blue-500);
-    padding: 12px 14px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.85rem;
-    color: var(--blue-900);
-    margin-top: 16px;
-}
-
-.empty-msg { color: var(--ink-faint); text-align: center; padding: 18px; font-size: 0.87rem; }
-
-.toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--blue-900);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-    z-index: 200;
-}
-.toast.show { opacity: 1; }
-
-footer { text-align: center; margin: 30px 0 10px; color: var(--ink-faint); font-size: 0.8rem; }
 </style>
 </head>
-<body>
-
-<!-- ===================== SPLASH SCREEN ===================== -->
-<div id="splash" title="לחץ כדי לדלג">
-    <svg id="splashSvg" viewBox="0 0 200 200" width="130" height="130">
-        <rect x="70" y="70" width="60" height="60" rx="8" class="chip-body"/>
-        <circle cx="100" cy="100" r="10" class="core"/>
-        <line class="pin" x1="70" y1="82" x2="34" y2="82"/>
-        <line class="pin" x1="70" y1="100" x2="34" y2="100"/>
-        <line class="pin" x1="70" y1="118" x2="34" y2="118"/>
-        <line class="pin" x1="130" y1="82" x2="166" y2="82"/>
-        <line class="pin" x1="130" y1="100" x2="166" y2="100"/>
-        <line class="pin" x1="130" y1="118" x2="166" y2="118"/>
-        <line class="pin" x1="82" y1="70" x2="82" y2="34"/>
-        <line class="pin" x1="100" y1="70" x2="100" y2="34"/>
-        <line class="pin" x1="118" y1="70" x2="118" y2="34"/>
-        <line class="pin" x1="82" y1="130" x2="82" y2="166"/>
-        <line class="pin" x1="100" y1="130" x2="100" y2="166"/>
-        <line class="pin" x1="118" y1="130" x2="118" y2="166"/>
-    </svg>
-    <div class="splash-title">Eng<span>Assist</span></div>
-    <div class="splash-sub">עוזר AI להנדסה ותמיכה טכנית</div>
-    <div class="splash-hint">לחץ בכל מקום כדי לדלג</div>
+<body data-theme="blue">
+<div class="splash" id="splash">
+  <div class="splash-inner">
+    <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <h1>ECO Flow</h1>
+    <span>טוען מערכת ניהול שינויי הנדסה…</span>
+    <div class="splash-bar"><i></i></div>
+  </div>
 </div>
+<div class="wrap">
 
-<!-- ===================== APP SHELL ===================== -->
-<div class="topbar">
+  <div class="topbar glass">
     <div class="brand">
-        <svg width="26" height="26" viewBox="0 0 200 200">
-            <rect x="70" y="70" width="60" height="60" rx="8" fill="none" stroke="#2563eb" stroke-width="8"/>
-            <circle cx="100" cy="100" r="9" fill="#2563eb"/>
-            <line x1="70" y1="85" x2="40" y2="85" stroke="#60a5fa" stroke-width="8"/>
-            <line x1="70" y1="115" x2="40" y2="115" stroke="#60a5fa" stroke-width="8"/>
-            <line x1="130" y1="85" x2="160" y2="85" stroke="#60a5fa" stroke-width="8"/>
-            <line x1="130" y1="115" x2="160" y2="115" stroke="#60a5fa" stroke-width="8"/>
-        </svg>
-        <span class="brand-text">Eng<span>Assist</span></span>
-    </div>
-    <div class="tabs">
-        <button class="tab-btn active" data-role="tab-btn" data-tab="faults">סיווג תקלות</button>
-        <button class="tab-btn" data-role="tab-btn" data-tab="knowledge">עוזר ידע</button>
-        <button class="tab-btn" data-role="tab-btn" data-tab="tickets">פניות תמיכה</button>
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text"><h1>ECO Flow</h1><span>מסלול טיפול בשינויי הנדסה — משרטוט ועד סגירה, לכל מק"ט בנפרד</span></div>
     </div>
     <div class="topbar-actions">
-        <button class="btn-icon" data-role="backup-export" title="גיבוי מלא (JSON)">⭳</button>
-        <button class="btn-icon" data-role="backup-import" title="שחזור מגיבוי">⭱</button>
-        <input type="file" id="fileBackupImport" accept="application/json" hidden>
+      <div class="theme-picker" title="ערכת צבעים">
+        <div class="theme-dot blue active" onclick="setTheme('blue', this)" title="כחול"></div>
+        <div class="theme-dot green" onclick="setTheme('green', this)" title="ירוק"></div>
+        <div class="theme-dot purple" onclick="setTheme('purple', this)" title="סגול"></div>
+        <div class="theme-dot graphite" onclick="setTheme('graphite', this)" title="גרפיט"></div>
+        <div class="theme-dot amber" onclick="setTheme('amber', this)" title="ענבר"></div>
+      </div>
+      <span class="autosave-indicator" id="autosaveIndicator"><span class="dot"></span><span id="autosaveText">שמירה אוטומטית כבויה</span></span>
+      <button class="btn btn-ghost btn-xs" onclick="chooseAutosaveFile()">🗂️ הגדר שמירה אוטומטית</button>
+      <button class="btn btn-ghost" onclick="newEco()">🆕 ECO חדש</button>
+      <label class="btn btn-ghost" for="importFile">📂 טעינת JSON</label>
+      <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+      <button class="btn btn-soft" onclick="exportJSON()">⬇️ ייצוא JSON</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ ייצוא PDF / הדפסה</button>
     </div>
+  </div>
+
+  <!-- ECO HEADER -->
+  <div class="eco-header glass">
+    <div class="eco-header-top">
+      <div>
+        <div class="eyebrow">מספר שינוי הנדסי</div>
+        <div class="eco-title-row">
+          <input id="ecoNumber" placeholder="0000" oninput="touch()">
+          <span style="font-family:'Rubik'; font-size:26px; font-weight:800; color:var(--blue-900);">-ECO</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <select class="status-select" id="overallStatus" onchange="updateOverallPill(); touch();">
+          <option value="open">🟡 פתוח</option>
+          <option value="progress">🔵 בתהליך</option>
+          <option value="hold">🔴 מושהה — ממתין ללקוח</option>
+          <option value="closed">🟢 סגור</option>
+        </select>
+        <span class="status-pill pill-progress" id="overallPill">בתהליך</span>
+      </div>
+    </div>
+
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label"><span id="progressText">0 מתוך 0 שלבים הושלמו (כלל המק"טים)</span><span id="progressPct">0%</span></div>
+
+    <div class="field-grid" style="margin-top:20px;">
+      <div class="field"><label>לקוח</label><input id="customer" oninput="touch()" placeholder="שם הלקוח"></div>
+      <div class="field"><label>פרויקט / מוצר</label><input id="project" oninput="touch()" placeholder="שם הפרויקט"></div>
+      <div class="field"><label>תאריך פתיחה</label><input type="date" id="openDate" oninput="touch()"></div>
+      <div class="field"><label>פתח את ה-ECO</label><input id="openedBy" oninput="touch()" placeholder="שם / תפקיד"></div>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label>סוג השינוי הנדרש</label>
+      <div class="chips" id="changeTypeChips"></div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>תיאור השינוי המבוקש</label>
+      <textarea id="description" oninput="touch()" placeholder="פירוט מלא של השינוי שהלקוח ביקש..."></textarea>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>רכיב / שינוי משותף לכל המק"טים (למשל: סוג בלון כבל זהה בכל השרטוטים)</label>
+      <input id="sharedChange" oninput="touch()" placeholder="לדוגמה: בלון כבל דגם X מוחלף בכל 6 המק&quot;טים">
+    </div>
+
+    <div class="parts-block">
+      <div class="parts-head">
+        <h3>מק"טים מושפעים — לכל מק"ט פרמטר ייחודי משלו (למשל אורך)</h3>
+        <button class="btn btn-soft btn-xs" onclick="addPartRow()">+ הוספת מק"ט</button>
+      </div>
+      <table class="parts">
+        <thead><tr><th style="width:20%">מק"ט ישן</th><th style="width:20%">מק"ט חדש</th><th style="width:24%">פרט ייחודי (למשל אורך חדש)</th><th>תיאור נוסף</th><th style="width:36px"></th></tr></thead>
+        <tbody id="partsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TEAM DEFAULTS -->
+  <div class="team-card glass">
+    <h3>👥 צוות מטפל ב-ECO</h3>
+    <div class="team-sub">שם + אימייל לכל תפקיד. "החל על כל המק"טים" ממלא את שדה האחראי המתאים אצל כל מק"ט. האימייל משמש להכנת מייל עדכון אוטומטי כשמסמנים שלב כהושלם.</div>
+    <div class="team-roles" id="teamRoles"></div>
+    <button class="btn btn-primary btn-xs" onclick="applyTeamToAll()">⚡ החל את הצוות על כל המק"טים</button>
+  </div>
+
+  <!-- CUSTOMER CONTACT -->
+  <div class="customer-card glass">
+    <h3>📇 פרטי קשר לקוח</h3>
+    <div class="field-grid">
+      <div class="field"><label>איש קשר אצל הלקוח</label><input id="custContactName" oninput="touch()" placeholder="שם איש הקשר"></div>
+      <div class="field"><label>טלפון</label><input id="custPhone" oninput="touch()" placeholder="050-0000000"></div>
+      <div class="field"><label>אימייל</label><input id="custEmail" oninput="touch()" placeholder="email@customer.com"></div>
+    </div>
+  </div>
+
+  <!-- MATRIX OVERVIEW -->
+  <div class="matrix-card glass">
+    <h3>📊 מבט־על — כל המק"טים מול שלבי התהליך</h3>
+    <div class="matrix-sub">לחיצה על נקודה פותחת את פרטי אותו שלב עבור אותו מק"ט למטה · טבעת אדומה = השלב תקוע מעל 3 ימים</div>
+    <table class="matrix" id="matrixTable"></table>
+  </div>
+
+  <!-- BULK APPLY (advanced) -->
+  <div class="bulk-card glass">
+    <h3>⚡ עדכון קבוצתי מתקדם</h3>
+    <div class="bulk-sub">בחרו שלב. סמנו בעיגול ✓ רק את השדות שבאמת רוצים לעדכן ומלאו להם ערך. למטה בחרו לאילו מק"טים זה יחול (חובה לסמן ידנית — כלום לא מסומן כברירת מחדל). בסוף לחצו "החל".</div>
+    <div class="bulk-top">
+      <select id="bulkStage" onchange="renderBulkFieldRows()"></select>
+    </div>
+    <div class="bulk-fields" id="bulkFieldsWrap"></div>
+    <div class="bulk-parts-head">
+      <span>להחיל על:</span>
+      <button class="btn btn-ghost btn-xs" onclick="bulkSelectAllParts(true)">בחר הכל</button>
+      <button class="btn btn-ghost btn-xs" onclick="bulkSelectAllParts(false)">נקה הכל</button>
+    </div>
+    <div class="bulk-parts" id="bulkParts"></div>
+    <button class="btn btn-primary" onclick="applyBulk()">✅ החל על המק"טים המסומנים</button>
+  </div>
+
+  <!-- PART TABS -->
+  <div class="part-tabs" id="partTabs"></div>
+
+  <!-- FLOW (per selected part) -->
+  <div class="flow">
+    <div class="spine"></div>
+    <div id="stagesContainer"></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-card glass">
+    <div class="log-card-head">
+      <h3>📋 יומן פעילות</h3>
+      <button class="btn btn-ghost btn-xs" onclick="clearLog()">🗑️ נקה יומן</button>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </div>
+
+  <footer class="note">ECO Flow · נשמר באופן מקומי בדפדפן — לגיבוי ולשיתוף השתמשו בייצוא JSON או PDF</footer>
 </div>
 
-<main>
-    <div class="privacy-note">כל הנתונים והמודלים רצים מקומית בדפדפן שלך בלבד — שום מידע לא נשלח לשרת חיצוני.</div>
-    <section id="tab-faults" class="tab-panel active"></section>
-    <section id="tab-knowledge" class="tab-panel"></section>
-    <section id="tab-tickets" class="tab-panel"></section>
-    <footer>EngAssist • כלי עזר הנדסי מבוסס Naive Bayes וחיפוש TF-IDF • קוד טהור, ללא שרת</footer>
-</main>
-
-<div class="toast" id="toast"></div>
-
 <script>
-'use strict';
+/* ===================== STAGE DEFINITIONS ===================== */
+const STAGES = [
+  {key:'draft', title:'שרטטת — עדכון שרטוט', role:'אחראי: שרטטת', icon:'✏️',
+    fields:[
+      {k:'assignee', label:'שם השרטט/ת', type:'text', copyable:true},
+      {k:'revision', label:'מהדורת שרטוט', type:'text', placeholder:'לדוגמה Rev.B', copyable:true},
+      {k:'dateSent', label:'תאריך העברה למהנדס', type:'date', copyable:true},
+      {k:'notes', label:'הערות', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'טרם החל', cls:'idle'},
+      {v:'progress', t:'בטיפול — מעדכן שרטוט', cls:'progress'},
+      {v:'sent', t:'שרטוט עודכן והועבר למהנדס', cls:'good'}
+    ]
+  },
+  {key:'engineer', title:'מהנדס — בדיקת שרטוט ובניית מק"ט/BOM', role:'אחראי: מהנדס', icon:'🛠️',
+    fields:[
+      {k:'assignee', label:'שם המהנדס/ת', type:'text', copyable:true},
+      {k:'date', label:'תאריך בדיקה', type:'date', copyable:true},
+      {k:'effectivity', label:'תחולה (מאיזה תאריך / מס\' סידורי / מספר הזמנה בתוקף)', type:'text', full:true, placeholder:'לדוגמה: החל מהזמנה #12345 / מ-01.09.2026', copyable:true},
+      {k:'notes', label:'הערות בדיקה', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'ממתין לשרטוט', cls:'idle'},
+      {v:'checking', t:'בבדיקה', cls:'progress'},
+      {v:'invalid', t:'שרטוט לא תקין — הוחזר לשרטטת', cls:'bad'},
+      {v:'valid', t:'תקין — נבנה במערכת', cls:'good'}
+    ],
+    loopback:{onValue:'invalid', targetStage:'draft', targetStatus:'progress', msg:'השרטוט הוחזר לשרטטת לתיקון עבור מק"ט זה.'}
+  },
+  {key:'approval', title:'אישור לקוח', role:'אחראי: מהנדס / מול הלקוח', icon:'✅',
+    fields:[
+      {k:'date', label:'תאריך שליחה לאישור', type:'date', copyable:true},
+      {k:'notes', label:'הערות הלקוח', type:'textarea', full:true, copyable:true}
+    ],
+    hasApprovalMatrix:true,
+    statusOptions:[
+      {v:'idle', t:'טרם נשלח', cls:'idle'},
+      {v:'waiting', t:'ממתין לאישור לקוח', cls:'wait'},
+      {v:'rejected', t:'לא אושר — הוחזר לטיפול', cls:'bad'},
+      {v:'changes', t:'לקוח ביקש שינויים נוספים', cls:'bad'},
+      {v:'approved', t:'אושר ע"י הלקוח', cls:'good'}
+    ],
+    loopback:{onValue:['rejected','changes'], targetStage:'engineer', targetStatus:'checking', msg:'הלקוח לא אישר / ביקש שינוי עבור מק"ט זה — חוזר למהנדס ובמידת הצורך לשרטטת.'}
+  },
+  {key:'sale', title:'עדכון STATUS SALE ועדכון מכירות', role:'אחראי: מהנדס', icon:'📢',
+    fields:[
+      {k:'date', label:'תאריך עדכון סטטוס', type:'date', copyable:true},
+      {k:'salesNotified', label:'שם איש המכירות שעודכן', type:'text', copyable:true},
+      {k:'notes', label:'הערות', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'ממתין לאישור לקוח', cls:'idle'},
+      {v:'updated', t:'סטטוס עודכן ל-SALE', cls:'progress'},
+      {v:'notified', t:'איש המכירות עודכן', cls:'good'}
+    ]
+  },
+  {key:'pricing', title:'תמחור מק"ט חדש', role:'אחראי: איש מכירות', icon:'💰',
+    fields:[
+      {k:'assignee', label:'איש מכירות מטפל', type:'text', copyable:true},
+      {k:'price', label:'מחיר שנקבע ללקוח', type:'text', copyable:false},
+      {k:'date', label:'תאריך תמחור', type:'date', copyable:true},
+      {k:'notes', label:'הערות', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'ממתין', cls:'idle'},
+      {v:'progress', t:'בתמחור', cls:'progress'},
+      {v:'done', t:'תומחר ונשלח ללקוח', cls:'good'}
+    ]
+  },
+  {key:'logistics', title:'הזמנות פתוחות על המק"ט הישן', role:'אחראי: לוגיסטיקה', icon:'📦',
+    fields:[
+      {k:'assignee', label:'איש לוגיסטיקה מטפל', type:'text', copyable:true},
+      {k:'date', label:'תאריך בדיקה', type:'date', copyable:true},
+      {k:'stockDisposition', label:'טיפול במלאי הישן', type:'select', copyable:true,
+        options:[
+          {v:'', t:'— לא נבחר —'},
+          {v:'useUp', t:'המשך שימוש עד גמר המלאי הקיים'},
+          {v:'immediate', t:'החלפה מיידית — הפסקת שימוש במלאי הישן'},
+          {v:'scrap', t:'גריטת המלאי הישן'},
+          {v:'returnSupplier', t:'החזרת המלאי הישן לספק'}
+        ]},
+      {k:'notes', label:'פירוט הזמנות / פק"עות שנבדקו', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'ממתין לבדיקה', cls:'idle'},
+      {v:'noOrders', t:'אין הזמנות פתוחות', cls:'good'},
+      {v:'openOrders', t:'קיימות הזמנות פתוחות — בבירור', cls:'wait'},
+      {v:'resolved', t:'התקבל אישור לקוח סופי במייל', cls:'good'}
+    ],
+    extra:['releasedToProd','emailConfirmed']
+  },
+  {key:'closure', title:'סגירת סעיף עבור מק"ט זה', role:'אחראי: מנהל התהליך', icon:'🏁',
+    fields:[
+      {k:'date', label:'תאריך סגירה', type:'date', copyable:true},
+      {k:'notes', label:'סיכום סגירה', type:'textarea', full:true, copyable:true}
+    ],
+    statusOptions:[
+      {v:'idle', t:'פתוח', cls:'idle'},
+      {v:'closed', t:'סגור', cls:'good'}
+    ]
+  }
+];
+const DONE_VAL = {}; STAGES.forEach(s=> DONE_VAL[s.key] = s.statusOptions[s.statusOptions.length-1].v);
 
-/* ============================================================
-   0. CONFIG
-   ============================================================ */
-const CLASSIFIER_CONFIGS = {
-    faults: {
-        title: 'תקלות',
-        storageKey: 'engassist_faults_v1',
-        textLabel: 'תיאור התקלה / הכשל',
-        textPlaceholder: 'לדוגמה: המנוע לא מגיב לפקודת הפעלה, נשמע רעש קליקה חוזר מכיוון הממסר',
-        dims: [
-            { key: 'category', label: 'קטגוריה', defaultLabels: ['מכני', 'חשמלי', 'תוכנה/בקרה', 'איכות/NCR', 'אחר'] },
-            { key: 'severity', label: 'חומרה', defaultLabels: ['קריטי', 'גבוה', 'בינוני', 'נמוך'] }
-        ],
-        excelColumns: {
-            text: ['תיאור', 'description', 'fault', 'תקלה'],
-            category: ['קטגוריה', 'category'],
-            severity: ['חומרה', 'severity']
-        }
-    },
-    tickets: {
-        title: 'פניות תמיכה',
-        storageKey: 'engassist_tickets_v1',
-        textLabel: 'תיאור הפנייה',
-        textPlaceholder: 'לדוגמה: אני צריך עזרה בהגדרת פרופיל חדש ב-AutoCAD Electrical',
-        dims: [
-            { key: 'category', label: 'קטגוריה', defaultLabels: ['חומרה', 'תוכנה', 'הזמנה/רכש', 'תיעוד', 'אחר'] },
-            { key: 'urgency', label: 'דחיפות', defaultLabels: ['דחוף', 'רגיל', 'נמוך'] }
-        ],
-        excelColumns: {
-            text: ['תיאור', 'description', 'פנייה'],
-            category: ['קטגוריה', 'category'],
-            urgency: ['דחיפות', 'urgency']
-        }
-    }
+/* which team role "owns" each stage's assignee field, for the team-apply-to-all + handoff features */
+const ROLE_LABELS = {draft:'שרטט/ת', engineer:'מהנדס/ת', sales:'איש/ת מכירות', logistics:'איש/ת לוגיסטיקה', manager:'מנהל/ת תהליך (סוגר ECO)'};
+const STAGE_OWNER_ROLE = {draft:'draft', engineer:'engineer', pricing:'sales', logistics:'logistics'};
+/* who should be notified once a given stage is marked as its final "done" status */
+const NEXT_EMAIL = {
+  draft:{role:'engineer', label:'המהנדס/ת'},
+  engineer:{role:'customer', label:'הלקוח (לאישור)'},
+  approval:{role:'engineer', label:'המהנדס/ת (להמשך לסטטוס SALE)'},
+  sale:{role:'sales', label:'איש/ת המכירות (לתמחור)'},
+  pricing:{role:'logistics', label:'הלוגיסטיקה (בדיקת הזמנות פתוחות)'},
+  logistics:{role:'manager', label:'מנהל/ת התהליך (לסגירת ה-ECO)'},
+  closure:{role:'customer', label:'הלקוח (עדכון סיום)'}
 };
 
-const STATE = {};   // configKey -> { examples:[...], dims:{key:{labels:[...]}} }
-const MODELS = {};  // configKey -> { dimKey: model }
-let KB = [];         // knowledge base entries
+let state = null;
+let activePart = 0;
+let autosaveHandle = null;
+let autosaveTimer = null;
 
-/* ============================================================
-   1. UTILITIES
-   ============================================================ */
-function loadScriptOnce(src) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[data-lazy-src="${src}"]`)) { resolve(); return; }
-        const s = document.createElement('script');
-        s.src = src;
-        s.dataset.lazySrc = src;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('טעינת הספרייה נכשלה — נדרש חיבור לאינטרנט לתכונה זו'));
-        document.head.appendChild(s);
+/* ===================== THEME ===================== */
+function setTheme(name, el){
+  document.body.setAttribute('data-theme', name);
+  document.querySelectorAll('.theme-dot').forEach(d=> d.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(state){ state.theme = name; scheduleAutosave(); }
+}
+
+/* ===================== AUTOSAVE (File System Access API) ===================== */
+function updateAutosaveIndicator(){
+  const ind = document.getElementById('autosaveIndicator');
+  const txt = document.getElementById('autosaveText');
+  if(autosaveHandle){
+    ind.classList.add('on');
+    txt.textContent = 'שמירה אוטומטית פעילה';
+  } else {
+    ind.classList.remove('on');
+    txt.textContent = 'שמירה אוטומטית כבויה';
+  }
+}
+async function chooseAutosaveFile(){
+  if(!window.showSaveFilePicker){
+    alert('הדפדפן הנוכחי לא תומך בשמירה אוטומטית לקובץ (זמין ב-Chrome / Edge עדכניים). אפשר להמשיך לעבוד עם "ייצוא JSON" הרגיל.');
+    return;
+  }
+  try{
+    touch();
+    autosaveHandle = await window.showSaveFilePicker({
+      suggestedName: `ECO-${state.ecoNumber || 'ללא-מספר'}.json`,
+      types:[{description:'קובץ ECO (JSON)', accept:{'application/json':['.json']}}]
     });
+    await writeAutosave();
+    updateAutosaveIndicator();
+    addLog('הוגדר קובץ שמירה אוטומטית — כל שינוי יישמר אליו ישירות.');
+  }catch(err){
+    // user cancelled the picker — no action needed
+  }
+}
+async function writeAutosave(){
+  if(!autosaveHandle) return;
+  try{
+    const writable = await autosaveHandle.createWritable();
+    await writable.write(JSON.stringify(state, null, 2));
+    await writable.close();
+  }catch(err){
+    console.error('autosave failed', err);
+  }
+}
+function scheduleAutosave(){
+  if(!autosaveHandle) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(writeAutosave, 700);
 }
 
-async function ensureXLSX() {
-    if (typeof XLSX !== 'undefined') return;
-    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+function defaultApprovers(){
+  return [
+    {role:'בקרת איכות', name:'', status:'idle', date:''},
+    {role:'מהנדס ראשי / מנהל הנדסה', name:'', status:'idle', date:''},
+    {role:'לקוח', name:'', status:'idle', date:''}
+  ];
+}
+function emptyPart(){
+  const p = {oldPN:'', newPN:'', changeValue:'', desc:'', stages:{}};
+  STAGES.forEach(st=>{
+    p.stages[st.key] = {status:'idle'};
+    st.fields.forEach(f=> p.stages[st.key][f.k]='');
+    if(st.extra) st.extra.forEach(k=> p.stages[st.key][k]=false);
+    if(st.hasApprovalMatrix) p.stages[st.key].approvers = defaultApprovers();
+  });
+  return p;
+}
+function emptyState(){
+  return {
+    ecoNumber:'', customer:'', project:'', openDate:'', openedBy:'',
+    overallStatus:'progress', changeTypes:[], description:'', sharedChange:'',
+    changeTypeOptions:['שינוי מידות','שינוי מק"ט','הוספת פריט','הסרת פריט','החלפת פריט'],
+    theme:'blue',
+    team:{
+      draft:{name:'', email:''}, engineer:{name:'', email:''},
+      sales:{name:'', email:''}, logistics:{name:'', email:''}, manager:{name:'', email:''}
+    },
+    customerContact:{name:'', phone:'', email:''},
+    parts:[emptyPart()], log:[]
+  };
 }
 
-async function ensurePdfJs() {
-    if (typeof pdfjsLib !== 'undefined') return;
-    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function nowStr(){ const d=new Date(); return d.toLocaleDateString('he-IL')+' '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}); }
+function addLog(text){ state.log.push({t:nowStr(), text}); renderLog(); scheduleAutosave(); }
+function esc(s){ return (s===undefined||s===null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function partLabel(p, fallback){ return (p.newPN||p.oldPN) ? `${p.oldPN||'—'} ← ${p.newPN||'טרם נקבע'}` : fallback; }
+
+/* ===================== HEADER ===================== */
+function bindHeaderInputs(){
+  ['ecoNumber','customer','project','openDate','openedBy','description','sharedChange'].forEach(id=>{
+    document.getElementById(id).value = state[id] || '';
+  });
+  if(!state.team) state.team = emptyState().team;
+  if(!state.customerContact) state.customerContact = {name:'', phone:'', email:''};
+  document.getElementById('custContactName').value = state.customerContact.name || '';
+  document.getElementById('custPhone').value = state.customerContact.phone || '';
+  document.getElementById('custEmail').value = state.customerContact.email || '';
+  renderTeamRoles();
+  document.getElementById('overallStatus').value = state.overallStatus;
+  updateOverallPill();
+  renderChangeTypeChips();
 }
-
-function qs(sel, root) { return (root || document).querySelector(sel); }
-function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str == null ? '' : String(str);
-    return div.innerHTML;
-}
-
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => t.classList.remove('show'), 2300);
-}
-
-function downloadJson(obj, filename) {
-    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-function tokenize(text) {
-    return String(text || '')
-        .toLowerCase()
-        .replace(/[^\u0590-\u05FFa-zA-Z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 1);
-}
-
-function findColumn(row, candidates) {
-    const keys = Object.keys(row);
-    for (const c of candidates) {
-        const found = keys.find(k => k.trim().toLowerCase() === c.toLowerCase());
-        if (found && String(row[found]).trim() !== '') return String(row[found]).trim();
-    }
-    return '';
-}
-
-/* ============================================================
-   2. GENERIC MULTINOMIAL NAIVE BAYES
-   ============================================================ */
-function buildModelGeneric(dataset) {
-    const labels = [...new Set(dataset.map(d => d.label))];
-    if (labels.length < 2) return null;
-
-    const wordCounts = {}, totalWords = {}, vocab = new Set();
-    labels.forEach(l => { wordCounts[l] = {}; totalWords[l] = 0; });
-
-    for (const ex of dataset) {
-        const tokens = tokenize(ex.text);
-        for (const w of tokens) {
-            vocab.add(w);
-            wordCounts[ex.label][w] = (wordCounts[ex.label][w] || 0) + 1;
-            totalWords[ex.label]++;
-        }
-    }
-
-    const alpha = 1, V = vocab.size;
-    const logProb = {};
-    labels.forEach(l => {
-        logProb[l] = {};
-        vocab.forEach(w => {
-            logProb[l][w] = Math.log((wordCounts[l][w] || 0) + alpha) - Math.log(totalWords[l] + alpha * V);
-        });
-    });
-
-    const logPrior = {};
-    labels.forEach(l => {
-        const count = dataset.filter(d => d.label === l).length;
-        logPrior[l] = Math.log(count / dataset.length);
-    });
-
-    return { labels, logProb, logPrior, vocab, wordCounts, totalWords };
-}
-
-function predictGeneric(model, text) {
-    if (!model) return null;
-    const tokens = tokenize(text);
-    if (tokens.length === 0) return null;
-
-    const alpha = 1, V = model.vocab.size;
-    const unk = {};
-    const scores = {};
-    model.labels.forEach(l => {
-        unk[l] = Math.log(alpha) - Math.log(model.totalWords[l] + alpha * V);
-        scores[l] = model.logPrior[l];
-    });
-
-    const perWordVals = tokens.map(w => {
-        const vals = {};
-        model.labels.forEach(l => {
-            const v = model.logProb[l][w] !== undefined ? model.logProb[l][w] : unk[l];
-            vals[l] = v;
-            scores[l] += v;
-        });
-        return { word: w, vals };
-    });
-
-    const maxS = Math.max(...model.labels.map(l => scores[l]));
-    let sum = 0;
-    const exp = {};
-    model.labels.forEach(l => { exp[l] = Math.exp(scores[l] - maxS); sum += exp[l]; });
-    const probs = {};
-    model.labels.forEach(l => { probs[l] = exp[l] / sum; });
-
-    const ranking = model.labels.slice().sort((a, b) => probs[b] - probs[a]);
-    const top = ranking[0];
-    const second = ranking[1];
-
-    const perWord = perWordVals.map(pw => ({
-        word: pw.word,
-        diff: pw.vals[top] - (second !== undefined ? pw.vals[second] : 0)
-    }));
-
-    return { top, second, probs, ranking, perWord };
-}
-
-function computeLooGeneric(dataset) {
-    if (dataset.length < 4 || dataset.length > 60) return null;
-    let correct = 0, evaluated = 0;
-
-    for (let i = 0; i < dataset.length; i++) {
-        const held = dataset[i];
-        const rest = dataset.slice(0, i).concat(dataset.slice(i + 1));
-        const labelsUsed = new Set(rest.map(x => x.label));
-        if (labelsUsed.size < 2) continue;
-
-        const m = buildModelGeneric(rest);
-        const res = predictGeneric(m, held.text);
-        if (!res) continue;
-
-        evaluated++;
-        if (res.top === held.label) correct++;
-    }
-
-    if (evaluated === 0) return null;
-    return correct / evaluated;
-}
-
-/* ============================================================
-   3. STATE (classifiers)
-   ============================================================ */
-function defaultStateFor(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const dims = {};
-    cfg.dims.forEach(d => { dims[d.key] = { labels: [...d.defaultLabels] }; });
-    return { examples: [], dims };
-}
-
-function loadState(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    try {
-        const raw = localStorage.getItem(cfg.storageKey);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && Array.isArray(parsed.examples) && parsed.dims) {
-                STATE[configKey] = parsed;
-                return;
-            }
-        }
-    } catch (e) { console.warn(e); }
-    STATE[configKey] = defaultStateFor(configKey);
-}
-
-function saveState(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    try { localStorage.setItem(cfg.storageKey, JSON.stringify(STATE[configKey])); }
-    catch (e) { console.warn(e); }
-}
-
-function invalidateModels(configKey) {
-    MODELS[configKey] = {};
-    const btn = qs(`[data-role="btn-predict"][data-config="${configKey}"]`);
-    if (btn) btn.disabled = true;
-    const resEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
-    if (resEl) resEl.innerHTML = '<div class="empty-msg">אמן את המודל כדי לסווג טקסט חדש</div>';
-    const contribEl = qs(`[data-role="contrib"][data-config="${configKey}"]`);
-    if (contribEl) contribEl.innerHTML = '';
-}
-
-/* ============================================================
-   4. CLASSIFIER PANEL — RENDERING
-   ============================================================ */
-function classifierPanelHtml(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const dimsHtml = cfg.dims.map(d => `
-        <div class="dim-select-wrap">
-            <label>${escapeHtml(d.label)}</label>
-            <select data-role="ex-dim-select" data-config="${configKey}" data-dim="${d.key}"></select>
-            <div class="chip-row" data-role="dim-chips" data-config="${configKey}" data-dim="${d.key}"></div>
-            <div class="chip-add-row">
-                <input type="text" data-role="dim-new-label" data-config="${configKey}" data-dim="${d.key}" placeholder="תווית חדשה...">
-                <button class="btn-mini" data-role="dim-add-label" data-config="${configKey}" data-dim="${d.key}">+</button>
-            </div>
-        </div>
-    `).join('');
-
-    return `
-    <div class="panel-grid">
-        <div class="card">
-            <h2>הוסף דוגמה לאימון</h2>
-            <label>${escapeHtml(cfg.textLabel)}</label>
-            <textarea data-role="ex-text" data-config="${configKey}" rows="3" placeholder="${escapeHtml(cfg.textPlaceholder)}"></textarea>
-            <div class="dims-selects">${dimsHtml}</div>
-            <div class="btn-row">
-                <button class="btn btn-blue" data-role="btn-add-example" data-config="${configKey}">הוסף דוגמה</button>
-                <button class="btn btn-green" data-role="btn-train" data-config="${configKey}">אמן מודלים</button>
-                <button class="btn btn-gray" data-role="btn-clear" data-config="${configKey}">נקה הכל</button>
-            </div>
-            <div class="btn-row">
-                <button class="btn btn-teal" data-role="btn-excel-import" data-config="${configKey}">ייבוא Excel</button>
-                <button class="btn btn-teal-outline" data-role="btn-excel-export" data-config="${configKey}">ייצוא Excel</button>
-                <input type="file" data-role="file-excel-import" data-config="${configKey}" accept=".xlsx,.xls,.csv" hidden>
-            </div>
-            <div class="examples-list" data-role="examples-list" data-config="${configKey}"></div>
-            <div class="stats-grid" data-role="stats" data-config="${configKey}"></div>
-        </div>
-
-        <div class="card">
-            <h2>בדיקה וסיווג</h2>
-            <label>${escapeHtml(cfg.textLabel)}</label>
-            <textarea data-role="predict-text" data-config="${configKey}" rows="3" placeholder="${escapeHtml(cfg.textPlaceholder)}"></textarea>
-            <div class="btn-row">
-                <button class="btn btn-green" data-role="btn-predict" data-config="${configKey}" disabled>סווג עכשיו</button>
-            </div>
-            <div data-role="predict-result" data-config="${configKey}"><div class="empty-msg">אמן את המודל כדי לסווג טקסט חדש</div></div>
-            <div data-role="contrib" data-config="${configKey}"></div>
-            <div class="info">המודל לומד מהדוגמאות שהזנת (Naive Bayes) ומדרג את כל התוויות האפשריות לפי הסתברות. ככל שיהיו יותר דוגמאות מגוונות — כך הסיווג יהיה מדויק יותר.</div>
-        </div>
-    </div>`;
-}
-
-function renderDimSelect(configKey, dimKey) {
-    const sel = qs(`[data-role="ex-dim-select"][data-config="${configKey}"][data-dim="${dimKey}"]`);
-    if (!sel) return;
-    const labels = STATE[configKey].dims[dimKey].labels;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">-- בחר --</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
-    if (labels.includes(current)) sel.value = current;
-}
-
-function renderDimChips(configKey, dimKey) {
-    const wrap = qs(`[data-role="dim-chips"][data-config="${configKey}"][data-dim="${dimKey}"]`);
-    if (!wrap) return;
-    const labels = STATE[configKey].dims[dimKey].labels;
-    wrap.innerHTML = labels.map(l => `
-        <span class="chip">${escapeHtml(l)}<button data-role="chip-delete" data-config="${configKey}" data-dim="${dimKey}" data-label="${escapeHtml(l)}" title="הסר תווית">×</button></span>
-    `).join('');
-}
-
-function renderExamplesList(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const el = qs(`[data-role="examples-list"][data-config="${configKey}"]`);
-    const examples = STATE[configKey].examples;
-    if (!el) return;
-    if (examples.length === 0) {
-        el.innerHTML = '<div class="empty-msg">עדיין אין דוגמאות. הוסף כמה מכל תווית כדי לאמן את המודל.</div>';
-        return;
-    }
-    el.innerHTML = examples.map((ex, i) => {
-        const badges = cfg.dims.map(d => ex[d.key] ? `<span class="badge">${escapeHtml(ex[d.key])}</span>` : '').join('');
-        return `
-        <div class="example-item">
-            <span class="example-text" title="${escapeHtml(ex.text)}">${escapeHtml(ex.text)}</span>
-            ${badges}
-            <button class="delete-btn" data-role="example-delete" data-config="${configKey}" data-index="${i}" title="מחק">×</button>
-        </div>`;
-    }).join('');
-}
-
-function renderStats(configKey, withLoo) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const el = qs(`[data-role="stats"][data-config="${configKey}"]`);
-    if (!el) return;
-    const examples = STATE[configKey].examples;
-
-    let html = `<div class="stat"><div class="stat-val">${examples.length}</div><div class="stat-lbl">דוגמאות</div></div>`;
-
-    cfg.dims.forEach(d => {
-        const model = MODELS[configKey] && MODELS[configKey][d.key];
-        const vocabTxt = model ? model.vocab.size : '–';
-        html += `<div class="stat"><div class="stat-val">${vocabTxt}</div><div class="stat-lbl">מילים (${escapeHtml(d.label)})</div></div>`;
-    });
-
-    cfg.dims.forEach(d => {
-        html += `<div class="stat"><div class="stat-val" data-loo="${configKey}:${d.key}">–</div><div class="stat-lbl">דיוק LOO (${escapeHtml(d.label)})</div></div>`;
-    });
-
-    el.innerHTML = html;
-
-    if (withLoo) {
-        cfg.dims.forEach(d => {
-            const dataset = examples.filter(e => e[d.key]).map(e => ({ text: e.text, label: e[d.key] }));
-            const target = qs(`[data-loo="${configKey}:${d.key}"]`);
-            if (!target) return;
-            target.textContent = '...';
-            setTimeout(() => {
-                const acc = computeLooGeneric(dataset);
-                target.textContent = acc === null ? 'N/A' : (acc * 100).toFixed(0) + '%';
-            }, 10);
-        });
-    }
-}
-
-function renderPredictDim(label, res) {
-    const bars = res.ranking.map(l => {
-        const pct = (res.probs[l] * 100).toFixed(1);
-        const isTop = l === res.top;
-        return `<div class="rank-row ${isTop ? 'rank-top' : ''}">
-            <span class="rank-label" title="${escapeHtml(l)}">${escapeHtml(l)}</span>
-            <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%"></div></div>
-            <span class="rank-pct">${pct}%</span>
-        </div>`;
-    }).join('');
-    return `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(label)}</div>${bars}</div>`;
-}
-
-function renderContributions(configKey, allPerWord) {
-    const el = qs(`[data-role="contrib"][data-config="${configKey}"]`);
-    if (!el) return;
-    if (!allPerWord || allPerWord.length === 0) { el.innerHTML = ''; return; }
-
-    const sorted = [...allPerWord].sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff)).slice(0, 6);
-    const maxAbs = Math.max(...sorted.map(s => Math.abs(s.diff)), 0.0001);
-
-    let html = '<div style="font-size:0.83rem;color:var(--ink-soft);margin-top:12px;">מילים מכריעות (ביחס לתווית המובילה):</div><div class="contrib-list">';
-    sorted.forEach(item => {
-        const side = item.diff >= 0 ? 'up' : 'down';
-        const pct = Math.min(100, (Math.abs(item.diff) / maxAbs) * 100);
-        html += `
-        <div class="contrib-item">
-            <span class="contrib-word" title="${escapeHtml(item.word)} (${escapeHtml(item.dim)})">${escapeHtml(item.word)}</span>
-            <div class="contrib-bar-wrap"><div class="contrib-bar ${side}" style="width:${pct}%"></div></div>
-        </div>`;
-    });
-    html += '</div>';
-    el.innerHTML = html;
-}
-
-/* ============================================================
-   5. CLASSIFIER PANEL — HANDLERS
-   ============================================================ */
-function handleAddExample(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const textEl = qs(`[data-role="ex-text"][data-config="${configKey}"]`);
-    const text = textEl.value.trim();
-    if (!text) { alert('כתוב תיאור לפני ההוספה'); return; }
-
-    const record = { text };
-    let anyDim = false;
-    cfg.dims.forEach(d => {
-        const sel = qs(`[data-role="ex-dim-select"][data-config="${configKey}"][data-dim="${d.key}"]`);
-        record[d.key] = sel.value;
-        if (sel.value) anyDim = true;
-    });
-    if (!anyDim) { alert('בחר לפחות תווית אחת (למשל קטגוריה)'); return; }
-
-    STATE[configKey].examples.push(record);
-    textEl.value = '';
-    invalidateModels(configKey);
-    saveState(configKey);
-    renderExamplesList(configKey);
-    renderStats(configKey);
-}
-
-function handleDeleteExample(configKey, index) {
-    STATE[configKey].examples.splice(index, 1);
-    invalidateModels(configKey);
-    saveState(configKey);
-    renderExamplesList(configKey);
-    renderStats(configKey);
-}
-
-function handleClearConfig(configKey) {
-    if (STATE[configKey].examples.length > 0 && !confirm('למחוק את כל הדוגמאות בלשונית זו?')) return;
-    STATE[configKey].examples = [];
-    invalidateModels(configKey);
-    saveState(configKey);
-    renderExamplesList(configKey);
-    renderStats(configKey);
-}
-
-function handleTrain(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const examples = STATE[configKey].examples;
-    if (examples.length < 2) { alert('צריך לפחות כמה דוגמאות כדי לאמן'); return; }
-
-    MODELS[configKey] = MODELS[configKey] || {};
-    let anyTrained = false;
-
-    cfg.dims.forEach(d => {
-        const dataset = examples.filter(e => e[d.key]).map(e => ({ text: e.text, label: e[d.key] }));
-        const labelsUsed = new Set(dataset.map(x => x.label));
-        if (labelsUsed.size >= 2) {
-            MODELS[configKey][d.key] = buildModelGeneric(dataset);
-            anyTrained = true;
-        } else {
-            MODELS[configKey][d.key] = null;
-        }
-    });
-
-    if (!anyTrained) { alert('צריך לפחות שתי תוויות שונות בממד אחד לפחות כדי לאמן'); return; }
-
-    const btn = qs(`[data-role="btn-predict"][data-config="${configKey}"]`);
-    if (btn) btn.disabled = false;
-    const resEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
-    if (resEl) resEl.innerHTML = '<div class="empty-msg">הכנס טקסט ולחץ "סווג עכשיו"</div>';
-
-    renderStats(configKey, true);
-    showToast('המודלים אומנו בהצלחה');
-}
-
-function handlePredict(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const text = qs(`[data-role="predict-text"][data-config="${configKey}"]`).value.trim();
-    if (!text) { alert('כתוב טקסט לבדיקה'); return; }
-
-    const resultsEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
-    let html = '';
-    let allPerWord = [];
-
-    cfg.dims.forEach(d => {
-        const model = MODELS[configKey] && MODELS[configKey][d.key];
-        if (!model) {
-            html += `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(d.label)}</div><div class="empty-msg">לא מאומן (צריך לפחות שתי תוויות שונות בממד זה)</div></div>`;
-            return;
-        }
-        const res = predictGeneric(model, text);
-        if (!res) {
-            html += `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(d.label)}</div><div class="empty-msg">אין מילים מוכרות בטקסט</div></div>`;
-            return;
-        }
-        html += renderPredictDim(d.label, res);
-        allPerWord = allPerWord.concat(res.perWord.map(pw => ({ ...pw, dim: d.label })));
-    });
-
-    resultsEl.innerHTML = html || '<div class="empty-msg">אין תוצאה</div>';
-    renderContributions(configKey, allPerWord);
-}
-
-function handleAddLabel(configKey, dimKey) {
-    const input = qs(`[data-role="dim-new-label"][data-config="${configKey}"][data-dim="${dimKey}"]`);
-    const val = input.value.trim();
-    if (!val) return;
-    const labels = STATE[configKey].dims[dimKey].labels;
-    if (labels.includes(val)) { showToast('התווית כבר קיימת'); return; }
-    labels.push(val);
-    input.value = '';
-    saveState(configKey);
-    renderDimSelect(configKey, dimKey);
-    renderDimChips(configKey, dimKey);
-}
-
-function handleDeleteLabel(configKey, dimKey, label) {
-    const labels = STATE[configKey].dims[dimKey].labels;
-    STATE[configKey].dims[dimKey].labels = labels.filter(l => l !== label);
-    saveState(configKey);
-    renderDimSelect(configKey, dimKey);
-    renderDimChips(configKey, dimKey);
-}
-
-async function handleExcelExport(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const examples = STATE[configKey].examples;
-    if (examples.length === 0) { alert('אין דוגמאות לייצוא'); return; }
-
-    try { await ensureXLSX(); }
-    catch (err) { alert(err.message); return; }
-
-    const rows = examples.map(e => {
-        const row = {};
-        row[cfg.textLabel] = e.text;
-        cfg.dims.forEach(d => { row[d.label] = e[d.key] || ''; });
-        return row;
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, cfg.title);
-    XLSX.writeFile(wb, `engassist-${configKey}.xlsx`);
-    showToast('הקובץ יוצא בהצלחה');
-}
-
-async function handleExcelImport(configKey, file) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    try { await ensureXLSX(); }
-    catch (err) { alert(err.message); return; }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const wb = XLSX.read(e.target.result, { type: 'array' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-            let count = 0;
-
-            rows.forEach(row => {
-                const text = findColumn(row, cfg.excelColumns.text);
-                if (!text) return;
-                const record = { text };
-                let anyDim = false;
-                cfg.dims.forEach(d => {
-                    const val = findColumn(row, cfg.excelColumns[d.key] || []);
-                    record[d.key] = val;
-                    if (val) {
-                        anyDim = true;
-                        if (!STATE[configKey].dims[d.key].labels.includes(val)) {
-                            STATE[configKey].dims[d.key].labels.push(val);
-                        }
-                    }
-                });
-                if (anyDim) { STATE[configKey].examples.push(record); count++; }
-            });
-
-            invalidateModels(configKey);
-            saveState(configKey);
-            cfg.dims.forEach(d => { renderDimSelect(configKey, d.key); renderDimChips(configKey, d.key); });
-            renderExamplesList(configKey);
-            renderStats(configKey);
-            showToast(`יובאו ${count} דוגמאות מ-Excel`);
-        } catch (err) {
-            alert('שגיאה בקריאת קובץ ה-Excel: ' + err.message);
-        }
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-/* ============================================================
-   6. KNOWLEDGE BASE
-   ============================================================ */
-const KB_STORAGE_KEY = 'engassist_kb_v1';
-
-function loadKB() {
-    try {
-        const raw = localStorage.getItem(KB_STORAGE_KEY);
-        KB = raw ? JSON.parse(raw) : [];
-    } catch (e) { KB = []; }
-}
-
-function saveKB() {
-    try { localStorage.setItem(KB_STORAGE_KEY, JSON.stringify(KB)); }
-    catch (e) { console.warn(e); }
-}
-
-function addKbEntry(entry) {
-    entry.id = 'kb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    entry.allText = [entry.question, entry.answer, entry.tags].filter(Boolean).join(' ');
-    KB.push(entry);
-}
-
-function knowledgePanelHtml() {
-    return `
-    <div class="panel-grid">
-        <div class="card">
-            <h2>הוסף לבסיס הידע</h2>
-            <label>שאלה / כותרת (אופציונלי)</label>
-            <input type="text" id="kbQuestion" placeholder="לדוגמה: איך מגדירים פרופיל חדש ב-AutoCAD Electrical">
-            <label>תשובה / תוכן</label>
-            <textarea id="kbAnswer" rows="4" placeholder="הסבר, נוהל עבודה, או תשובה מלאה..."></textarea>
-            <label>תגיות (מופרדות בפסיק)</label>
-            <input type="text" id="kbTags" placeholder="autocad, חשמל, נוהל">
-            <div class="btn-row">
-                <button class="btn btn-blue" data-role="kb-add">הוסף לבסיס הידע</button>
-            </div>
-            <div class="btn-row">
-                <button class="btn btn-teal" data-role="kb-upload-pdf">העלה PDF</button>
-                <input type="file" id="fileKbPdf" accept="application/pdf" hidden>
-                <button class="btn btn-teal" data-role="kb-upload-excel">העלה Excel (שאלה/תשובה)</button>
-                <input type="file" id="fileKbExcel" accept=".xlsx,.xls,.csv" hidden>
-            </div>
-            <div class="stats-grid" id="kbStats"></div>
-        </div>
-
-        <div class="card">
-            <h2>חיפוש בבסיס הידע</h2>
-            <label>מה תרצה לדעת?</label>
-            <textarea id="kbQuery" rows="2" placeholder="נסח שאלה או תאר בעיה טכנית..."></textarea>
-            <div class="btn-row"><button class="btn btn-green" data-role="kb-search">חפש</button></div>
-            <div id="kbResults"></div>
-            <div class="info">עוזר הידע מבצע חיפוש חכם מבוסס מילות מפתח (TF-IDF) בתוך המידע שהזנת. הוא <strong>לא</strong> מייצר תשובות חדשות — הוא מוצא ומציג את הקטעים הרלוונטיים ביותר מתוך הידע שלך.</div>
-        </div>
+function renderChangeTypeChips(){
+  if(!state.changeTypeOptions) state.changeTypeOptions = emptyState().changeTypeOptions;
+  const wrap = document.getElementById('changeTypeChips');
+  wrap.innerHTML = state.changeTypeOptions.map((t,idx)=>`
+    <div class="chip ${state.changeTypes.includes(t)?'active':''}" onclick="toggleChangeTypeIdx(${idx})">
+      <span>${esc(t)}</span>
+      <span class="chip-del" title="הסר סוג שינוי זה מהרשימה" onclick="event.stopPropagation(); removeChangeTypeIdx(${idx});">✕</span>
     </div>
-    <div class="card">
-        <h2>ניהול בסיס הידע (<span id="kbCount">0</span> פריטים)</h2>
-        <div class="examples-list" id="kbList" style="max-height:320px;"></div>
-    </div>`;
+  `).join('') + `<div class="chip chip-add" onclick="addChangeTypeOption()">+ הוסף סוג</div>`;
+}
+function toggleChangeTypeIdx(idx){
+  const t = state.changeTypeOptions[idx];
+  if(state.changeTypes.includes(t)) state.changeTypes = state.changeTypes.filter(x=>x!==t);
+  else state.changeTypes.push(t);
+  renderChangeTypeChips();
+  scheduleAutosave();
+}
+function addChangeTypeOption(){
+  const name = prompt('שם סוג השינוי החדש (למשל: עדכון חומר גלם):');
+  if(!name || !name.trim()) return;
+  const clean = name.trim();
+  if(!state.changeTypeOptions.includes(clean)) state.changeTypeOptions.push(clean);
+  renderChangeTypeChips();
+  scheduleAutosave();
+}
+function removeChangeTypeIdx(idx){
+  const t = state.changeTypeOptions[idx];
+  if(!confirm(`להסיר את סוג השינוי "${t}" מהרשימה?`)) return;
+  state.changeTypeOptions.splice(idx,1);
+  state.changeTypes = state.changeTypes.filter(x=>x!==t);
+  renderChangeTypeChips();
+  scheduleAutosave();
+}
+function renderTeamRoles(){
+  const wrap = document.getElementById('teamRoles');
+  wrap.innerHTML = Object.keys(ROLE_LABELS).map(roleKey=>`
+    <div class="team-role-row">
+      <span class="role-name">${ROLE_LABELS[roleKey]}</span>
+      <input type="text" placeholder="שם" value="${esc(state.team[roleKey].name)}" oninput="state.team['${roleKey}'].name=this.value; scheduleAutosave();">
+      <input type="email" placeholder="אימייל" value="${esc(state.team[roleKey].email)}" oninput="state.team['${roleKey}'].email=this.value; scheduleAutosave();">
+    </div>
+  `).join('');
+}
+function touch(){
+  state.ecoNumber = document.getElementById('ecoNumber').value;
+  state.customer = document.getElementById('customer').value;
+  state.project = document.getElementById('project').value;
+  state.openDate = document.getElementById('openDate').value;
+  state.openedBy = document.getElementById('openedBy').value;
+  state.description = document.getElementById('description').value;
+  state.sharedChange = document.getElementById('sharedChange').value;
+  state.overallStatus = document.getElementById('overallStatus').value;
+  if(!state.customerContact) state.customerContact = {name:'', phone:'', email:''};
+  state.customerContact.name = document.getElementById('custContactName').value;
+  state.customerContact.phone = document.getElementById('custPhone').value;
+  state.customerContact.email = document.getElementById('custEmail').value;
+  scheduleAutosave();
 }
 
-function renderKbStats() {
-    const el = document.getElementById('kbStats');
-    if (!el) return;
-    const manual = KB.filter(k => !k.source).length;
-    const fromFiles = KB.filter(k => k.source).length;
-    el.innerHTML = `
-        <div class="stat"><div class="stat-val">${KB.length}</div><div class="stat-lbl">סה"כ פריטים</div></div>
-        <div class="stat"><div class="stat-val">${manual}</div><div class="stat-lbl">ידניים</div></div>
-        <div class="stat"><div class="stat-val">${fromFiles}</div><div class="stat-lbl">מקבצים</div></div>
+/* ===================== TEAM APPLY-TO-ALL ===================== */
+function applyTeamToAll(){
+  touch();
+  const t = state.team;
+  Object.keys(STAGE_OWNER_ROLE).forEach(stageKey=>{
+    const roleKey = STAGE_OWNER_ROLE[stageKey];
+    const name = t[roleKey] && t[roleKey].name;
+    if(name){
+      state.parts.forEach(p=> p.stages[stageKey].assignee = name);
+    }
+  });
+  addLog(`הצוות הוחל על כל ${state.parts.length} המק"טים (${Object.keys(ROLE_LABELS).map(r=>`${ROLE_LABELS[r]}: ${t[r].name||'—'}`).join(' · ')}).`);
+  renderStagesForActivePart();
+  renderMatrix();
+}
+function copyFieldToAll(stageKey, fieldKey){
+  const val = state.parts[activePart].stages[stageKey][fieldKey];
+  state.parts.forEach(p=> p.stages[stageKey][fieldKey] = val);
+  const st = STAGES.find(s=>s.key===stageKey);
+  const f = st.fields.find(x=>x.k===fieldKey);
+  addLog(`הערך "${val||'—'}" בשדה "${f.label}" (${st.title}) הוחל על כל ${state.parts.length} המק"טים.`);
+  renderStagesForActivePart();
+  renderMatrix();
+}
+
+/* ===================== APPROVAL MATRIX ===================== */
+const APPROVER_STATUS_LABELS = {idle:'טרם נשלח', waiting:'ממתין', approved:'אישר', rejected:'דחה'};
+function addApprover(stageKey){
+  const part = state.parts[activePart];
+  if(!Array.isArray(part.stages[stageKey].approvers)) part.stages[stageKey].approvers = [];
+  part.stages[stageKey].approvers.push({role:'', name:'', status:'idle', date:''});
+  renderStagesForActivePart();
+  scheduleAutosave();
+}
+function removeApprover(stageKey, idx){
+  state.parts[activePart].stages[stageKey].approvers.splice(idx,1);
+  renderStagesForActivePart();
+  scheduleAutosave();
+}
+function updateApprover(stageKey, idx, field, value){
+  state.parts[activePart].stages[stageKey].approvers[idx][field] = value;
+  if(field==='status'){ renderStagesForActivePart(); }
+  scheduleAutosave();
+}
+function copyApproversToAll(stageKey){
+  const src = JSON.parse(JSON.stringify(state.parts[activePart].stages[stageKey].approvers || []));
+  state.parts.forEach((p,i)=>{ if(i!==activePart) p.stages[stageKey].approvers = JSON.parse(JSON.stringify(src)); });
+  addLog(`מטריצת המאשרים בשלב "${STAGES.find(s=>s.key===stageKey).title}" הוחלה על כל ${state.parts.length} המק"טים.`);
+  renderStagesForActivePart();
+}
+function updateOverallPill(){
+  const v = document.getElementById('overallStatus').value;
+  const pill = document.getElementById('overallPill');
+  const map = {open:['פתוח','pill-open'], progress:['בתהליך','pill-progress'], hold:['מושהה — ממתין ללקוח','pill-hold'], closed:['סגור','pill-closed']};
+  pill.className = 'status-pill '+map[v][1]; pill.textContent = map[v][0];
+}
+
+/* ===================== PARTS TABLE ===================== */
+function renderParts(){
+  const body = document.getElementById('partsBody');
+  body.innerHTML = '';
+  state.parts.forEach((row,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${esc(row.oldPN)}" oninput="state.parts[${i}].oldPN=this.value; renderMatrix(); renderPartTabs(); scheduleAutosave();"></td>
+      <td><input value="${esc(row.newPN)}" oninput="state.parts[${i}].newPN=this.value; renderMatrix(); renderPartTabs(); scheduleAutosave();"></td>
+      <td><input value="${esc(row.changeValue)}" placeholder="לדוגמה: אורך 320 מ&quot;מ" oninput="state.parts[${i}].changeValue=this.value; renderMatrix(); renderPartTabs(); scheduleAutosave();"></td>
+      <td><input value="${esc(row.desc)}" oninput="state.parts[${i}].desc=this.value; scheduleAutosave();"></td>
+      <td><button class="row-del" onclick="delPartRow(${i})">✕</button></td>
     `;
+    body.appendChild(tr);
+  });
+}
+function addPartRow(){ state.parts.push(emptyPart()); renderAll(); scheduleAutosave(); }
+function delPartRow(i){
+  state.parts.splice(i,1);
+  if(state.parts.length===0) state.parts.push(emptyPart());
+  if(activePart>=state.parts.length) activePart = state.parts.length-1;
+  renderAll();
+  scheduleAutosave();
 }
 
-function renderKbList() {
-    const el = document.getElementById('kbList');
-    const countEl = document.getElementById('kbCount');
-    if (countEl) countEl.textContent = KB.length;
-    if (!el) return;
-    if (KB.length === 0) {
-        el.innerHTML = '<div class="empty-msg">בסיס הידע ריק. הוסף פריטים ידנית או העלה קובץ PDF / Excel.</div>';
-        return;
-    }
-    el.innerHTML = KB.map(k => {
-        const preview = k.question ? k.question : k.answer.slice(0, 90);
-        return `
-        <div class="example-item">
-            <span class="example-text" title="${escapeHtml(k.answer)}">${escapeHtml(preview)}</span>
-            <span class="badge-source" title="${escapeHtml(k.source || 'ידני')}">${escapeHtml(k.source || 'ידני')}</span>
-            <button class="delete-btn" data-role="kb-delete" data-id="${k.id}" title="מחק">×</button>
-        </div>`;
+/* ===================== MATRIX ===================== */
+function statusMetaFor(stageKey, value){
+  const st = STAGES.find(s=>s.key===stageKey);
+  return st.statusOptions.find(o=>o.v===value) || st.statusOptions[0];
+}
+function daysSince(iso){
+  if(!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+function renderMatrix(){
+  const table = document.getElementById('matrixTable');
+  let head = '<tr><th class="rowhead">מק"ט</th>' + STAGES.map(s=>`<th title="${s.title}">${s.icon}</th>`).join('') + '</tr>';
+  let rows = state.parts.map((p,i)=>{
+    let cells = STAGES.map(st=>{
+      const cell = p.stages[st.key];
+      const meta = statusMetaFor(st.key, cell.status);
+      const isDone = cell.status === DONE_VAL[st.key];
+      const days = daysSince(cell.updatedAt);
+      const isAging = !isDone && cell.status!=='idle' && days!==null && days>=3;
+      const agingTitle = days!==null ? ` · עודכן לפני ${days} ימים` : '';
+      return `<td><span class="cell-dot dot-${meta.cls}${isAging?' aging':''}" title="${st.title}: ${meta.t}${agingTitle}" onclick="selectPart(${i}); scrollToStage('${st.key}');">●</span></td>`;
     }).join('');
+    return `<tr>
+      <td class="matrix-partcell ${i===activePart?'active-row':''}" onclick="selectPart(${i})">
+        <div class="matrix-pn">מק"ט ${i+1} — ${esc(p.oldPN||'ללא מק"ט ישן')}</div>
+        <div class="matrix-pn-sub">${esc(p.newPN? 'חדש: '+p.newPN : 'מק"ט חדש טרם נקבע')}${p.changeValue? ' · '+esc(p.changeValue):''}</div>
+      </td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  table.innerHTML = head + rows;
+}
+function scrollToStage(key){
+  const el = document.getElementById('stagecard-'+key);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
-function handleKbAdd() {
-    const question = document.getElementById('kbQuestion').value.trim();
-    const answer = document.getElementById('kbAnswer').value.trim();
-    const tags = document.getElementById('kbTags').value.trim();
-    if (!answer) { alert('כתוב תוכן/תשובה לפני ההוספה'); return; }
+/* ===================== BULK APPLY (advanced) ===================== */
+function renderBulkStageOptions(){
+  const sel = document.getElementById('bulkStage');
+  sel.innerHTML = STAGES.map(s=>`<option value="${s.key}">${s.icon} ${s.title}</option>`).join('');
+  renderBulkFieldRows();
+}
+function renderBulkFieldRows(){
+  const stageKey = document.getElementById('bulkStage').value;
+  const st = STAGES.find(s=>s.key===stageKey);
+  const wrap = document.getElementById('bulkFieldsWrap');
+  let rows = `
+    <div class="bulk-field-row">
+      <input type="checkbox" id="bulkChk_status" checked>
+      <label for="bulkChk_status">סטטוס השלב</label>
+      <select id="bulkVal_status">${st.statusOptions.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select>
+    </div>`;
+  st.fields.forEach(f=>{
+    if(f.type==='select'){
+      const opts = f.options.map(o=>`<option value="${o.v}">${o.t}</option>`).join('');
+      rows += `
+      <div class="bulk-field-row">
+        <input type="checkbox" id="bulkChk_${f.k}">
+        <label for="bulkChk_${f.k}">${f.label}</label>
+        <select id="bulkVal_${f.k}">${opts}</select>
+      </div>`;
+      return;
+    }
+    const inputType = f.type==='textarea' ? 'text' : f.type;
+    rows += `
+    <div class="bulk-field-row">
+      <input type="checkbox" id="bulkChk_${f.k}">
+      <label for="bulkChk_${f.k}">${f.label}</label>
+      <input type="${inputType}" id="bulkVal_${f.k}" placeholder="${f.placeholder||''}">
+    </div>`;
+  });
+  wrap.innerHTML = rows;
+}
+function renderBulkParts(){
+  const wrap = document.getElementById('bulkParts');
+  wrap.innerHTML = state.parts.map((p,i)=>`
+    <label><input type="checkbox" class="bulkPartChk" data-i="${i}"> ${esc(p.oldPN||('מק"ט '+(i+1)))}</label>
+  `).join('');
+}
+function bulkSelectAllParts(val){
+  document.querySelectorAll('.bulkPartChk').forEach(c=> c.checked = val);
+}
+function applyBulk(){
+  const stageKey = document.getElementById('bulkStage').value;
+  const st = STAGES.find(s=>s.key===stageKey);
+  const checkedParts = Array.from(document.querySelectorAll('.bulkPartChk:checked')).map(c=>parseInt(c.dataset.i));
+  if(checkedParts.length===0){ alert('לא סימנת אף מק"ט למטה תחת "להחיל על:" — סמנו לפחות אחד (או "בחר הכל") ואז לחצו שוב על החל.'); return; }
 
-    addKbEntry({ question, answer, tags, source: '' });
-    document.getElementById('kbQuestion').value = '';
-    document.getElementById('kbAnswer').value = '';
-    document.getElementById('kbTags').value = '';
-    saveKB();
-    renderKbList();
-    renderKbStats();
-    showToast('נוסף לבסיס הידע');
+  const doStatus = document.getElementById('bulkChk_status').checked;
+  const statusVal = document.getElementById('bulkVal_status').value;
+  const fieldUpdates = st.fields.filter(f=> document.getElementById('bulkChk_'+f.k).checked)
+    .map(f=> ({k:f.k, label:f.label, val:document.getElementById('bulkVal_'+f.k).value}));
+
+  if(!doStatus && fieldUpdates.length===0){ alert('סמנו לפחות שדה אחד (או את הסטטוס) לעדכון.'); return; }
+
+  checkedParts.forEach(i=>{
+    const part = state.parts[i];
+    fieldUpdates.forEach(fu=> part.stages[stageKey][fu.k] = fu.val);
+    if(doStatus) applyStageStatus(i, stageKey, statusVal, true);
+  });
+
+  const parts = [];
+  if(doStatus) parts.push(`סטטוס → ${statusMetaFor(stageKey,statusVal).t}`);
+  fieldUpdates.forEach(fu=> parts.push(`${fu.label} → "${fu.val||'—'}"`));
+  addLog(`עדכון קבוצתי בשלב "${st.title}" על ${checkedParts.length} מק"טים: ${parts.join(' · ')}`);
+  renderAll();
 }
 
-function handleKbDelete(id) {
-    KB = KB.filter(k => k.id !== id);
-    saveKB();
-    renderKbList();
-    renderKbStats();
+/* ===================== PART TABS ===================== */
+function partProgress(p){
+  const done = STAGES.filter(st=> p.stages[st.key].status === DONE_VAL[st.key]).length;
+  return Math.round((done/STAGES.length)*100);
+}
+function selectPart(i){ activePart = i; renderPartTabs(); renderStagesForActivePart(); renderMatrix(); }
+function renderPartTabs(){
+  const wrap = document.getElementById('partTabs');
+  wrap.innerHTML = state.parts.map((p,i)=>`
+    <div class="part-tab ${i===activePart?'active':''}" onclick="selectPart(${i})">
+      <span>מק"ט ${i+1}${p.oldPN? ' · '+esc(p.oldPN):''}</span>
+      <span class="mini-progress"><i style="width:${partProgress(p)}%"></i></span>
+    </div>
+  `).join('');
 }
 
-/* ---- TF-IDF search ---- */
-function buildSearchIndex(entries) {
-    const df = {};
-    const N = entries.length;
-    const tokenizedEntries = entries.map(e => {
-        const tokens = tokenize(e.allText);
-        new Set(tokens).forEach(t => { df[t] = (df[t] || 0) + 1; });
-        return { entry: e, tokens };
+/* ===================== STAGE CARDS (active part) ===================== */
+function applyStageStatus(partIndex, stageKey, value, silent){
+  const st = STAGES.find(s=>s.key===stageKey);
+  const part = state.parts[partIndex];
+  part.stages[stageKey].status = value;
+  part.stages[stageKey].updatedAt = new Date().toISOString();
+  if(!silent){
+    const meta = statusMetaFor(stageKey, value);
+    addLog(`מק"ט ${partIndex+1} (${part.oldPN||'—'}): "${st.title}" → ${meta.t}`);
+  }
+  if(st.loopback){
+    const onVals = Array.isArray(st.loopback.onValue) ? st.loopback.onValue : [st.loopback.onValue];
+    if(onVals.includes(value)){
+      part.stages[st.loopback.targetStage].status = st.loopback.targetStatus;
+      const targetSt = STAGES.find(s=>s.key===st.loopback.targetStage);
+      addLog(`↩️ מק"ט ${partIndex+1} (${part.oldPN||'—'}) הוחזר לשלב "${targetSt.title}".`);
+    }
+  }
+}
+function onStageStatus(stageKey, value){
+  applyStageStatus(activePart, stageKey, value, false);
+  renderStagesForActivePart();
+  renderMatrix();
+  renderPartTabs();
+}
+
+/* ===================== HANDOFF EMAIL ===================== */
+function resolveRecipient(roleKey){
+  if(roleKey==='customer'){
+    return {name: state.customerContact.name || state.customer || 'הלקוח', email: state.customerContact.email || ''};
+  }
+  const t = state.team[roleKey];
+  return {name: (t && t.name) || ROLE_LABELS[roleKey], email: (t && t.email) || ''};
+}
+function buildHandoffText(stageKey, partIndex, recipientName){
+  const st = STAGES.find(s=>s.key===stageKey);
+  const part = state.parts[partIndex];
+  const meta = statusMetaFor(stageKey, part.stages[stageKey].status);
+  const next = NEXT_EMAIL[stageKey];
+  const notes = part.stages[stageKey].notes ? `\nהערות: ${part.stages[stageKey].notes}` : '';
+
+  let pending = [];
+  state.parts.forEach((p,i)=>{
+    if(i!==partIndex && p.stages[stageKey].status !== DONE_VAL[stageKey]){
+      pending.push(`• מק"ט ${i+1} (${p.oldPN||'—'}) — סטטוס נוכחי: ${statusMetaFor(stageKey,p.stages[stageKey].status).t}`);
+    }
+  });
+
+  let txt = '';
+  txt += `שלום רב ${recipientName||''},\n\n`;
+  txt += `רצ"ב פרטים וקובץ מעודכן בנוגע ל-ECO-${state.ecoNumber||'—'}${state.customer?' ('+state.customer+')':''}.\n\n`;
+  txt += `מק"ט: ${part.oldPN||'—'} ← ${part.newPN||'טרם נקבע'}${part.changeValue? ' ('+part.changeValue+')':''}\n`;
+  txt += `✅ הושלם: ${st.title} — סטטוס: ${meta.t}${notes}\n\n`;
+  txt += `⏭️ ממתין כעת לטיפולך: ${next ? next.label : 'סגירת ה-ECO'}\n`;
+
+  if(pending.length){
+    txt += `\nלמידע — שאר המק"טים באותו שלב:\n${pending.join('\n')}\n`;
+  }
+  txt += `\nמצורף קובץ נתוני ה-ECO המלא (JSON) — ניתן לטעון אותו ישירות בכלי ECO Flow לצפייה בכל הפרטים.\n`;
+  txt += `\nאודה על טיפולך,\n${state.openedBy || ''}`;
+  return txt;
+}
+function sendHandoff(stageKey, partIndex){
+  const next = NEXT_EMAIL[stageKey];
+  if(!next){ alert('לא הוגדר למי לשלוח עדכון בשלב הזה.'); return; }
+  const recipient = resolveRecipient(next.role);
+  if(!recipient.email){
+    alert(`לא הוזן אימייל עבור ${recipient.name}. אפשר להוסיף אותו בכרטיס "צוות מטפל ב-ECO" או "פרטי קשר לקוח" למעלה.`);
+    return;
+  }
+  const st = STAGES.find(s=>s.key===stageKey);
+  const part = state.parts[partIndex];
+  const subject = `ECO-${state.ecoNumber||'—'} — ${st.title} הושלם, ממתין ל${next.label}`;
+  const body = buildHandoffText(stageKey, partIndex, recipient.name);
+  exportJSON();
+  const mailto = `mailto:${encodeURIComponent(recipient.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  addLog(`נפתחה טיוטת מייל ל-${recipient.name} (${recipient.email}) בעקבות סיום "${st.title}" עבור מק"ט ${partIndex+1} (${part.oldPN||'—'}). קובץ ה-JSON הורד — יש לצרף אותו ידנית להודעה.`);
+}
+
+function renderStagesForActivePart(){
+  const container = document.getElementById('stagesContainer');
+  container.innerHTML = '';
+  if(!state.parts[activePart]) return;
+  const part = state.parts[activePart];
+
+  STAGES.forEach((st, idx)=>{
+    const data = part.stages[st.key];
+    const meta = statusMetaFor(st.key, data.status);
+    const isDone = data.status === DONE_VAL[st.key];
+    const isBlocked = ['invalid','rejected','changes'].includes(data.status);
+    const isActive = !isDone && data.status !== 'idle';
+
+    const stageEl = document.createElement('div');
+    stageEl.className = 'stage ' + (isDone?'done':(isBlocked?'blocked':(isActive?'active':'')));
+    stageEl.id = 'stagecard-'+st.key;
+
+    const node = document.createElement('div');
+    node.className = 'stage-node';
+    node.innerHTML = `<span class="num">${idx+1}</span>${st.icon}`;
+
+    const card = document.createElement('div');
+    card.className = 'stage-card glass';
+
+    let fieldsHtml = '';
+    st.fields.forEach(f=>{
+      const val = esc(data[f.k]||'');
+      const labelHtml = f.copyable
+        ? `<span class="mini-label mini-label-row"><span>${f.label}</span><button type="button" class="copy-all-btn" title="החל את הערך הזה על כל המק&quot;טים" onclick="copyFieldToAll('${st.key}','${f.k}')">⧉ הכל</button></span>`
+        : `<span class="mini-label">${f.label}</span>`;
+      if(f.type==='textarea'){
+        fieldsHtml += `<div class="${f.full?'full':''}">${labelHtml}
+          <textarea oninput="state.parts[${activePart}].stages['${st.key}'].${f.k}=this.value; scheduleAutosave();" placeholder="${f.placeholder||''}">${val}</textarea></div>`;
+      } else if(f.type==='select'){
+        const opts = f.options.map(o=>`<option value="${o.v}" ${o.v===(data[f.k]||'')?'selected':''}>${o.t}</option>`).join('');
+        fieldsHtml += `<div class="${f.full?'full':''}">${labelHtml}
+          <select onchange="state.parts[${activePart}].stages['${st.key}'].${f.k}=this.value; scheduleAutosave();">${opts}</select></div>`;
+      } else {
+        fieldsHtml += `<div>${labelHtml}
+          <input type="${f.type}" value="${val}" placeholder="${f.placeholder||''}" oninput="state.parts[${activePart}].stages['${st.key}'].${f.k}=this.value; scheduleAutosave();"></div>`;
+      }
     });
-    const idf = {};
-    Object.keys(df).forEach(t => { idf[t] = Math.log((N + 1) / (df[t] + 1)) + 1; });
-    return { tokenizedEntries, idf };
-}
 
-function searchKB(index, query, topN) {
-    const qTokens = tokenize(query);
-    const scored = index.tokenizedEntries.map(({ entry, tokens }) => {
-        const tf = {};
-        tokens.forEach(t => { tf[t] = (tf[t] || 0) + 1; });
-        let score = 0;
-        qTokens.forEach(qt => { if (tf[qt]) score += tf[qt] * (index.idf[qt] || 1); });
-        return { entry, score };
-    }).filter(s => s.score > 0);
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topN || 5);
-}
-
-function handleKbSearch() {
-    const query = document.getElementById('kbQuery').value.trim();
-    if (!query) { alert('כתוב שאלה לחיפוש'); return; }
-    if (KB.length === 0) { alert('בסיס הידע ריק — הוסף פריטים תחילה'); return; }
-
-    const index = buildSearchIndex(KB);
-    const results = searchKB(index, query, 5);
-    renderKbResults(results);
-}
-
-function renderKbResults(results) {
-    const el = document.getElementById('kbResults');
-    if (results.length === 0) { el.innerHTML = '<div class="empty-msg">לא נמצאו תוצאות רלוונטיות. נסה מילות מפתח אחרות.</div>'; return; }
-    el.innerHTML = results.map(r => `
-        <div class="kb-result-card">
-            ${r.entry.question ? `<div class="kb-result-q">${escapeHtml(r.entry.question)}</div>` : ''}
-            <div class="kb-result-a">${escapeHtml(r.entry.answer)}</div>
-            <div class="kb-result-meta">${r.entry.source ? escapeHtml(r.entry.source) + ' • ' : ''}ציון רלוונטיות: ${r.score.toFixed(1)}</div>
+    let extraHtml = '';
+    if(st.extra && st.extra.includes('releasedToProd')){
+      extraHtml += `<div class="full checkline"><input type="checkbox" id="${st.key}_rel_${activePart}" ${data.releasedToProd?'checked':''} onchange="state.parts[${activePart}].stages['${st.key}'].releasedToProd=this.checked; scheduleAutosave();">
+        <label for="${st.key}_rel_${activePart}">קיימות פק"עות ששוחררו לייצור על המק"ט הישן</label></div>`;
+    }
+    if(st.extra && st.extra.includes('emailConfirmed')){
+      extraHtml += `<div class="full checkline"><input type="checkbox" id="${st.key}_em_${activePart}" ${data.emailConfirmed?'checked':''} onchange="state.parts[${activePart}].stages['${st.key}'].emailConfirmed=this.checked; scheduleAutosave();">
+        <label for="${st.key}_em_${activePart}">התקבל אישור מסודר מהלקוח במייל</label></div>`;
+    }
+    if(st.hasApprovalMatrix){
+      const approvers = data.approvers || [];
+      const rows = approvers.map((a,idx)=>`
+        <div class="approver-row">
+          <input type="text" placeholder="גורם מאשר (למשל: איכות)" value="${esc(a.role)}" oninput="updateApprover('${st.key}',${idx},'role',this.value)">
+          <input type="text" placeholder="שם" value="${esc(a.name)}" oninput="updateApprover('${st.key}',${idx},'name',this.value)">
+          <select onchange="updateApprover('${st.key}',${idx},'status',this.value)">
+            ${Object.keys(APPROVER_STATUS_LABELS).map(v=>`<option value="${v}" ${v===a.status?'selected':''}>${APPROVER_STATUS_LABELS[v]}</option>`).join('')}
+          </select>
+          <input type="date" value="${esc(a.date)}" oninput="updateApprover('${st.key}',${idx},'date',this.value)">
+          <button type="button" class="row-del" onclick="removeApprover('${st.key}',${idx})">✕</button>
+        </div>`).join('');
+      extraHtml += `<div class="approval-matrix">
+        <div class="approval-matrix-head">
+          <span>מטריצת אישורים פנימית (איכות / הנדסה / גורמים נוספים לפני אישור הלקוח הסופי)</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-ghost btn-xs" onclick="addApprover('${st.key}')">+ הוסף מאשר</button>
+            <button type="button" class="btn btn-soft btn-xs" onclick="copyApproversToAll('${st.key}')">⧉ החל על כל המק"טים</button>
+          </div>
         </div>
-    `).join('');
-}
-
-/* ---- PDF extraction ---- */
-async function extractPdfText(file) {
-    await ensurePdfJs();
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let fullText = '';
-    for (let p = 1; p <= pdf.numPages; p++) {
-        const page = await pdf.getPage(p);
-        const content = await page.getTextContent();
-        fullText += content.items.map(it => it.str).join(' ') + '\n\n';
+        ${rows || '<div style="font-size:12.5px; color:var(--text-500);">אין מאשרים מוגדרים.</div>'}
+      </div>`;
     }
-    return fullText;
+
+    const options = st.statusOptions.map(o=>`<option value="${o.v}" ${o.v===data.status?'selected':''}>${o.t}</option>`).join('');
+    let loopHtml = '';
+    if(isBlocked && st.loopback) loopHtml = `<div class="loopback-note">↩️ ${st.loopback.msg}</div>`;
+
+    let handoffHtml = '';
+    if(isDone && NEXT_EMAIL[st.key]){
+      const next = NEXT_EMAIL[st.key];
+      handoffHtml = `<div class="handoff-note">
+        <span>✅ השלב הושלם — הבא בתור: ${next.label}</span>
+        <button class="btn btn-handoff" onclick="sendHandoff('${st.key}', ${activePart})">📧 הכן מייל עדכון + הורד קובץ</button>
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="stage-card-head">
+        <div><h3>${st.title}</h3><div class="stage-role">${st.role}</div></div>
+        <select class="status-select" onchange="onStageStatus('${st.key}', this.value)">${options}</select>
+      </div>
+      <div class="stage-body">${fieldsHtml}${extraHtml}</div>
+      ${loopHtml}
+      ${handoffHtml}
+    `;
+    stageEl.appendChild(node); stageEl.appendChild(card);
+    container.appendChild(stageEl);
+  });
+
+  updateOverallProgress();
 }
 
-function chunkText(text, maxLen) {
-    maxLen = maxLen || 600;
-    const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20);
-    const chunks = [];
-    for (const p of paragraphs) {
-        if (p.length <= maxLen) { chunks.push(p); continue; }
-        const sentences = p.split(/(?<=[.!?])\s+/);
-        let current = '';
-        for (const s of sentences) {
-            if ((current + ' ' + s).length > maxLen && current) { chunks.push(current.trim()); current = s; }
-            else current += (current ? ' ' : '') + s;
+function updateOverallProgress(){
+  let total = 0, done = 0;
+  state.parts.forEach(p=>{
+    STAGES.forEach(st=>{
+      total++;
+      if(p.stages[st.key].status === DONE_VAL[st.key]) done++;
+    });
+  });
+  const pct = total? Math.round((done/total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressText').textContent = `${done} מתוך ${total} שלבים הושלמו (כלל ${state.parts.length} המק"טים)`;
+  document.getElementById('progressPct').textContent = pct+'%';
+}
+
+/* ===================== LOG ===================== */
+function clearLog(){
+  if(!confirm('לנקות את כל יומן הפעילות? הפעולה לא ניתנת לשחזור.')) return;
+  state.log = [];
+  renderLog();
+  scheduleAutosave();
+}
+function renderLog(){
+  const list = document.getElementById('logList');
+  if(state.log.length===0){ list.innerHTML = '<div style="color:var(--text-500); font-size:13px; text-align:center; padding:14px;">אין פעולות עדיין</div>'; return; }
+  list.innerHTML = state.log.map(l=>`<div class="log-item"><div class="dot"></div><div><div class="log-time">${l.t}</div><div class="log-text">${esc(l.text)}</div></div></div>`).join('');
+}
+
+/* ===================== IO ===================== */
+function exportJSON(){
+  touch();
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ECO-${state.ecoNumber||'ללא-מספר'}.json`;
+  a.click();
+  addLog('הקובץ יוצא כ-JSON.');
+}
+function importJSON(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const loaded = JSON.parse(e.target.result);
+      const base = emptyState();
+      state = Object.assign(base, loaded);
+      // migrate/repair team + customerContact shape defensively
+      const freshTeam = emptyState().team;
+      state.team = {};
+      Object.keys(freshTeam).forEach(roleKey=>{
+        const loadedRole = loaded.team && loaded.team[roleKey];
+        if(loadedRole && typeof loadedRole === 'object'){
+          state.team[roleKey] = {name: loadedRole.name||'', email: loadedRole.email||''};
+        } else if(typeof loadedRole === 'string'){
+          state.team[roleKey] = {name: loadedRole, email:''}; // old format (plain string)
+        } else {
+          state.team[roleKey] = {name:'', email:''};
         }
-        if (current) chunks.push(current.trim());
-    }
-    return chunks;
+      });
+      state.customerContact = Object.assign({name:'', phone:'', email:''}, loaded.customerContact||{});
+      if(!state.parts || state.parts.length===0) state.parts=[emptyPart()];
+      state.parts = state.parts.map(p=>{
+        const base = emptyPart();
+        const merged = Object.assign(base, p);
+        STAGES.forEach(st=>{
+          merged.stages[st.key] = Object.assign({status:'idle'}, (p.stages&&p.stages[st.key])||{});
+          if(st.hasApprovalMatrix && !Array.isArray(merged.stages[st.key].approvers)){
+            merged.stages[st.key].approvers = defaultApprovers();
+          }
+        });
+        return merged;
+      });
+      activePart = 0;
+      autosaveHandle = null;
+      renderAll();
+      addLog('נטען קובץ JSON קיים.');
+    }catch(err){ alert('שגיאה בטעינת הקובץ — ודאו שזהו קובץ JSON תקין שיוצא מהכלי.'); }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+function newEco(){
+  if(!confirm('לפתוח ECO חדש? כל הנתונים שלא יוצאו לקובץ יימחקו.')) return;
+  state = emptyState(); activePart = 0;
+  autosaveHandle = null;
+  updateAutosaveIndicator();
+  renderAll();
 }
 
-async function handlePdfUpload(file) {
-    showToast('מעבד PDF...');
-    try {
-        const text = await extractPdfText(file);
-        const chunks = chunkText(text);
-        chunks.forEach((c, i) => addKbEntry({ question: '', answer: c, tags: '', source: `${file.name} · קטע ${i + 1}` }));
-        saveKB();
-        renderKbList();
-        renderKbStats();
-        showToast(`נוספו ${chunks.length} קטעי ידע מתוך ${file.name}`);
-    } catch (e) {
-        alert('שגיאה בעיבוד ה-PDF: ' + e.message);
-    }
+function renderAll(){
+  bindHeaderInputs();
+  renderParts();
+  renderMatrix();
+  renderBulkStageOptions();
+  renderBulkParts();
+  renderPartTabs();
+  renderStagesForActivePart();
+  renderLog();
+  const themeName = state.theme || 'blue';
+  document.body.setAttribute('data-theme', themeName);
+  document.querySelectorAll('.theme-dot').forEach(d=>{
+    d.classList.toggle('active', d.classList.contains(themeName));
+  });
+  updateAutosaveIndicator();
 }
 
-async function handleKbExcelUpload(file) {
-    try { await ensureXLSX(); }
-    catch (err) { alert(err.message); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const wb = XLSX.read(e.target.result, { type: 'array' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-            let count = 0;
-            rows.forEach(row => {
-                const q = findColumn(row, ['שאלה', 'question', 'נושא', 'title']);
-                const a = findColumn(row, ['תשובה', 'answer', 'תוכן', 'content']);
-                if (a) { addKbEntry({ question: q, answer: a, tags: '', source: file.name }); count++; }
-            });
-            saveKB();
-            renderKbList();
-            renderKbStats();
-            showToast(`נוספו ${count} פריטים מ-Excel`);
-        } catch (err) {
-            alert('שגיאה בקריאת קובץ ה-Excel: ' + err.message);
-        }
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-/* ============================================================
-   7. BACKUP
-   ============================================================ */
-function handleBackupExport() {
-    const backup = {
-        faults: STATE.faults,
-        tickets: STATE.tickets,
-        kb: KB,
-        exportedAt: new Date().toISOString(),
-        app: 'EngAssist'
-    };
-    downloadJson(backup, 'engassist-backup.json');
-    showToast('הגיבוי יוצא בהצלחה');
-}
-
-function handleBackupImportFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (!confirm('שחזור גיבוי יחליף את כל הנתונים הקיימים. להמשיך?')) return;
-
-            if (data.faults) STATE.faults = data.faults;
-            if (data.tickets) STATE.tickets = data.tickets;
-            if (Array.isArray(data.kb)) KB = data.kb;
-
-            saveState('faults'); saveState('tickets'); saveKB();
-            invalidateModels('faults'); invalidateModels('tickets');
-            renderFullClassifierPanel('faults');
-            renderFullClassifierPanel('tickets');
-            renderKbList(); renderKbStats();
-            showToast('הגיבוי שוחזר בהצלחה');
-        } catch (err) {
-            alert('שגיאה בשחזור הגיבוי: ' + err.message);
-        }
-    };
-    reader.readAsText(file);
-}
-
-/* ============================================================
-   8. TABS
-   ============================================================ */
-function switchTab(tab) {
-    qsa('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    qsa('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
-}
-
-/* ============================================================
-   9. FULL PANEL RENDER (per classifier config)
-   ============================================================ */
-function renderFullClassifierPanel(configKey) {
-    const cfg = CLASSIFIER_CONFIGS[configKey];
-    const container = document.getElementById(`tab-${configKey}`);
-    container.innerHTML = classifierPanelHtml(configKey);
-    cfg.dims.forEach(d => { renderDimSelect(configKey, d.key); renderDimChips(configKey, d.key); });
-    renderExamplesList(configKey);
-    renderStats(configKey);
-}
-
-/* ============================================================
-   10. EVENT DELEGATION
-   ============================================================ */
-document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-role]');
-    if (!el) return;
-    const role = el.dataset.role;
-    const configKey = el.dataset.config;
-    const dim = el.dataset.dim;
-
-    switch (role) {
-        case 'tab-btn': switchTab(el.dataset.tab); break;
-        case 'btn-add-example': handleAddExample(configKey); break;
-        case 'btn-train': handleTrain(configKey); break;
-        case 'btn-clear': handleClearConfig(configKey); break;
-        case 'btn-predict': handlePredict(configKey); break;
-        case 'btn-excel-import': qs(`[data-role="file-excel-import"][data-config="${configKey}"]`).click(); break;
-        case 'btn-excel-export': handleExcelExport(configKey); break;
-        case 'dim-add-label': handleAddLabel(configKey, dim); break;
-        case 'chip-delete': handleDeleteLabel(configKey, dim, el.dataset.label); break;
-        case 'example-delete': handleDeleteExample(configKey, parseInt(el.dataset.index, 10)); break;
-        case 'kb-add': handleKbAdd(); break;
-        case 'kb-search': handleKbSearch(); break;
-        case 'kb-delete': handleKbDelete(el.dataset.id); break;
-        case 'kb-upload-pdf': document.getElementById('fileKbPdf').click(); break;
-        case 'kb-upload-excel': document.getElementById('fileKbExcel').click(); break;
-        case 'backup-export': handleBackupExport(); break;
-        case 'backup-import': document.getElementById('fileBackupImport').click(); break;
-    }
-});
-
-document.addEventListener('change', (e) => {
-    const t = e.target;
-    if (t.dataset && t.dataset.role === 'file-excel-import') {
-        const file = t.files[0]; if (file) handleExcelImport(t.dataset.config, file); t.value = '';
-    } else if (t.id === 'fileKbPdf') {
-        const file = t.files[0]; if (file) handlePdfUpload(file); t.value = '';
-    } else if (t.id === 'fileKbExcel') {
-        const file = t.files[0]; if (file) handleKbExcelUpload(file); t.value = '';
-    } else if (t.id === 'fileBackupImport') {
-        const file = t.files[0]; if (file) handleBackupImportFile(file); t.value = '';
-    }
-});
-
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        const active = document.activeElement;
-        if (active && active.dataset && active.dataset.role === 'predict-text') {
-            handlePredict(active.dataset.config);
-        }
-    }
-});
-
-/* ============================================================
-   11. INIT
-   ============================================================ */
-function initSplash() {
-    const splash = document.getElementById('splash');
-    const hide = () => { splash.style.display = 'none'; };
-    setTimeout(hide, 2200);
-    splash.addEventListener('click', hide);
-}
-
-function init() {
-    initSplash();
-
-    loadState('faults');
-    loadState('tickets');
-    loadKB();
-
-    document.getElementById('tab-knowledge').innerHTML = knowledgePanelHtml();
-    renderFullClassifierPanel('faults');
-    renderFullClassifierPanel('tickets');
-    renderKbList();
-    renderKbStats();
-}
-
-init();
+state = emptyState();
+renderAll();
+setTimeout(()=>{ document.getElementById('splash').classList.add('hide'); }, 1500);
 </script>
 </body>
 </html>
