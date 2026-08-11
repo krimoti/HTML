@@ -2,473 +2,1499 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>עוזר תמיכה הנדסי</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EngAssist – עוזר הנדסה AI</title>
 <style>
-  :root{
-    --bg:#12181f;
-    --panel:#1a2229;
-    --panel2:#212b34;
-    --line:#2c3641;
-    --text:#e8ecef;
-    --dim:#8a97a3;
-    --amber:#e8a33d;
-    --amber-dim:#7a5a24;
-    --cyan:#3ddcc7;
-    --red:#e8593d;
-    --mono:'IBM Plex Mono','Consolas','Courier New',monospace;
-    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Arial',sans-serif;
-  }
-  *{box-sizing:border-box;}
-  html,body{height:100%;margin:0;}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--sans);
-    display:flex;
-    flex-direction:column;
-    height:100vh;
-    overflow:hidden;
-  }
-  /* header */
-  header{
-    background:var(--panel);
-    border-bottom:1px solid var(--line);
-    padding:10px 14px;
-    display:flex;
-    align-items:center;
-    gap:10px;
-    flex-shrink:0;
-  }
-  .lamp{
-    width:10px;height:10px;border-radius:50%;
-    background:var(--dim);
-    box-shadow:0 0 0 2px rgba(255,255,255,0.03);
-    flex-shrink:0;
-    transition:background .3s, box-shadow .3s;
-  }
-  .lamp.ready{background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
-  .lamp.busy{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1s infinite;}
-  .lamp.err{background:var(--red);box-shadow:0 0 8px var(--red);}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-  header h1{
-    font-size:15px;margin:0;letter-spacing:.3px;font-weight:600;flex:1;
-  }
-  header .status{
-    font-family:var(--mono);
-    font-size:10.5px;
-    color:var(--dim);
-    white-space:nowrap;
-  }
-  /* tabs */
-  nav.tabs{
-    display:flex;
-    background:var(--panel);
-    border-bottom:1px solid var(--line);
-    flex-shrink:0;
-  }
-  nav.tabs button{
-    flex:1;
-    background:none;
-    border:none;
-    color:var(--dim);
-    font-family:var(--sans);
-    font-size:13px;
-    padding:11px 6px;
-    cursor:pointer;
-    border-bottom:2px solid transparent;
-    transition:color .15s,border-color .15s;
-  }
-  nav.tabs button.active{
-    color:var(--amber);
-    border-bottom-color:var(--amber);
-  }
-  main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;}
-  .view{display:none;flex:1;overflow:hidden;flex-direction:column;}
-  .view.active{display:flex;}
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-  /* chat view */
-  #chatLog{
-    flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;
-  }
-  .msg{max-width:86%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.55;white-space:pre-wrap;}
-  .msg.user{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);}
-  .msg.bot{align-self:flex-end;background:linear-gradient(180deg,#22303a,#1b262e);border:1px solid var(--amber-dim);}
-  .msg .src{
-    margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
-    font-family:var(--mono);font-size:11px;color:var(--dim);
-  }
-  .msg .src b{color:var(--cyan);}
-  .msg.empty-state{align-self:center;color:var(--dim);text-align:center;background:none;border:none;font-size:13px;}
-  #chatForm{
-    display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:var(--panel);flex-shrink:0;
-  }
-  #chatInput{
-    flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;
-    color:var(--text);padding:11px 12px;font-family:var(--sans);font-size:14px;resize:none;
-  }
-  #chatInput:focus{outline:none;border-color:var(--amber);}
-  #chatForm button{
-    background:var(--amber);color:#1a1204;border:none;border-radius:10px;
-    padding:0 18px;font-weight:700;font-size:14px;cursor:pointer;
-  }
-  #chatForm button:disabled{background:var(--line);color:var(--dim);cursor:not-allowed;}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* admin view */
-  #adminView{overflow-y:auto;padding:14px;gap:18px;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;}
-  .card h2{font-size:13px;margin:0 0 10px;color:var(--amber);letter-spacing:.3px;display:flex;align-items:center;gap:6px;}
-  .card h2 .n{font-family:var(--mono);color:var(--dim);font-size:11px;}
-  label{display:block;font-size:12px;color:var(--dim);margin:8px 0 4px;}
-  input[type=text],textarea{
-    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;
-    color:var(--text);padding:9px 10px;font-family:var(--sans);font-size:13.5px;
-  }
-  textarea{resize:vertical;min-height:70px;line-height:1.5;}
-  input:focus,textarea:focus{outline:none;border-color:var(--cyan);}
-  .row{display:flex;gap:8px;}
-  .row>*{flex:1;}
-  .btn{
-    background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;
-    padding:9px 14px;font-size:13px;cursor:pointer;margin-top:10px;
-  }
-  .btn.primary{background:var(--amber);color:#1a1204;border-color:var(--amber);font-weight:700;}
-  .btn.danger{color:var(--red);}
-  .btn:active{transform:scale(.98);}
-  .list-item{
-    border-top:1px solid var(--line);padding:10px 0;font-size:13px;
-  }
-  .list-item .t{font-weight:600;margin-bottom:3px;}
-  .list-item .p{color:var(--dim);font-size:12px;white-space:pre-wrap;max-height:60px;overflow:hidden;}
-  .list-item .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
-  .badge{font-family:var(--mono);font-size:10px;color:var(--cyan);background:#123;padding:2px 6px;border-radius:4px;}
-  .del{background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;}
-  .hint{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:4px;}
-  .toolbar{display:flex;gap:8px;margin-bottom:10px;}
-  .toolbar .btn{margin-top:0;flex:1;text-align:center;}
-  #fileImport{display:none;}
+:root {
+    --bg: #eef4ff;
+    --card: #ffffff;
+    --border: #dbeafe;
+    --border-soft: #e8f0ff;
+    --blue-50: #eff6ff;
+    --blue-100: #dbeafe;
+    --blue-500: #3b82f6;
+    --blue-600: #2563eb;
+    --blue-700: #1d4ed8;
+    --blue-900: #1e3a8a;
+    --ink: #0f172a;
+    --ink-soft: #475569;
+    --ink-faint: #94a3b8;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --success: #16a34a;
+    --teal: #0d9488;
+    --radius: 12px;
+    --shadow: 0 2px 14px rgba(30, 58, 138, 0.08);
+}
+
+html, body { height: 100%; }
+
+body {
+    font-family: 'Heebo', Arial, sans-serif;
+    background: linear-gradient(160deg, var(--bg) 0%, #ffffff 55%);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.55;
+}
+
+/* ===================== SPLASH ===================== */
+#splash {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #eff6ff 0%, #ffffff 70%);
+    cursor: pointer;
+    animation: splashOut 0.5s ease 1.7s forwards;
+}
+
+#splashSvg .chip-body {
+    fill: #eff6ff;
+    stroke: var(--blue-600);
+    stroke-width: 3;
+    stroke-dasharray: 260;
+    stroke-dashoffset: 260;
+    animation: draw 0.9s ease forwards;
+}
+
+#splashSvg .pin {
+    stroke: var(--blue-500);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: draw 0.35s ease forwards;
+}
+#splashSvg .pin:nth-child(1) { animation-delay: .55s; }
+#splashSvg .pin:nth-child(2) { animation-delay: .62s; }
+#splashSvg .pin:nth-child(3) { animation-delay: .69s; }
+#splashSvg .pin:nth-child(4) { animation-delay: .76s; }
+#splashSvg .pin:nth-child(5) { animation-delay: .83s; }
+#splashSvg .pin:nth-child(6) { animation-delay: .90s; }
+#splashSvg .pin:nth-child(7) { animation-delay: .97s; }
+#splashSvg .pin:nth-child(8) { animation-delay: 1.04s; }
+#splashSvg .pin:nth-child(9) { animation-delay: 1.11s; }
+#splashSvg .pin:nth-child(10) { animation-delay: 1.18s; }
+#splashSvg .pin:nth-child(11) { animation-delay: 1.25s; }
+#splashSvg .pin:nth-child(12) { animation-delay: 1.32s; }
+
+#splashSvg .core {
+    fill: var(--blue-600);
+    opacity: 0;
+    animation: fadeIn 0.3s ease 1.4s forwards;
+}
+
+.splash-title {
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--blue-900);
+    opacity: 0;
+    margin-top: 18px;
+    letter-spacing: 0.5px;
+    animation: fadeUp 0.5s ease 1.15s forwards;
+}
+
+.splash-sub {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    opacity: 0;
+    margin-top: 6px;
+    animation: fadeUp 0.5s ease 1.35s forwards;
+}
+
+.splash-hint {
+    position: absolute;
+    bottom: 26px;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    opacity: 0;
+    animation: fadeUp 0.5s ease 1.5s forwards;
+}
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+@keyframes splashOut { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+
+/* ===================== SHELL ===================== */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #ffffffee;
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand svg { flex-shrink: 0; }
+.brand-text { font-weight: 700; font-size: 1.15rem; color: var(--blue-900); }
+.brand-text span { color: var(--blue-600); }
+
+.tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--blue-50);
+    padding: 4px;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--blue-700); }
+.tab-btn.active { background: var(--blue-600); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
+
+.topbar-actions { display: flex; gap: 6px; }
+.btn-icon {
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--blue-700);
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.05rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.btn-icon:hover { background: var(--blue-50); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeUp 0.3s ease; }
+
+.privacy-note {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    text-align: center;
+    padding: 8px 0 4px;
+}
+
+/* ===================== GRID & CARDS ===================== */
+.panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+@media (max-width: 860px) { .panel-grid { grid-template-columns: 1fr; } }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 18px;
+}
+
+h2 {
+    font-size: 1.05rem;
+    color: var(--blue-900);
+    margin-bottom: 14px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+h2::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--blue-600);
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    margin-top: 10px;
+}
+label:first-of-type { margin-top: 0; }
+
+textarea, input[type="text"], select {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--ink);
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+}
+textarea:focus, input:focus, select:focus {
+    outline: none;
+    border-color: var(--blue-500);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+
+.btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+.btn {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: white;
+}
+.btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.btn-blue { background: var(--blue-600); }
+.btn-green { background: var(--success); }
+.btn-red { background: var(--danger); }
+.btn-gray { background: #64748b; }
+.btn-teal { background: var(--teal); }
+.btn-teal-outline { background: white; color: var(--teal); border: 1px solid var(--teal); }
+.btn-purple { background: #7c3aed; }
+.btn-mini {
+    background: var(--blue-600); color: white; border: none;
+    border-radius: 6px; width: 34px; font-size: 1rem; cursor: pointer;
+}
+
+/* ===================== DIM SELECTORS / CHIPS ===================== */
+.dims-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+@media (max-width: 560px) { .dims-selects { grid-template-columns: 1fr; } }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+    background: var(--blue-50);
+    color: var(--blue-700);
+    border: 1px solid var(--blue-100);
+    padding: 3px 8px 3px 4px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.chip button {
+    border: none;
+    background: transparent;
+    color: var(--blue-700);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0 2px;
+}
+.chip button:hover { color: var(--danger); }
+
+.chip-add-row { display: flex; gap: 6px; margin-top: 8px; }
+.chip-add-row input { flex: 1; padding: 7px 10px; font-size: 0.85rem; }
+
+/* ===================== LISTS ===================== */
+.examples-list {
+    max-height: 240px;
+    overflow-y: auto;
+    margin-top: 14px;
+    background: var(--blue-50);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.example-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.87rem;
+    background: white;
+    border: 1px solid var(--border-soft);
+}
+
+.example-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badge {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    background: var(--blue-50);
+    color: var(--blue-700);
+    white-space: nowrap;
+}
+.badge-source {
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+.delete-btn:hover { color: var(--danger); }
+
+/* ===================== STATS ===================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+.stat {
+    background: var(--blue-50);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+.stat-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--blue-700);
+    font-family: 'JetBrains Mono', monospace;
+}
+.stat-lbl { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
+
+/* ===================== PREDICTION ===================== */
+.predict-dim { margin-top: 14px; }
+.predict-dim-label { font-size: 0.85rem; font-weight: 600; color: var(--blue-900); margin-bottom: 8px; }
+
+.rank-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.85rem; }
+.rank-label { width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-bar-wrap { flex: 1; background: var(--blue-50); border-radius: 4px; height: 10px; overflow: hidden; }
+.rank-bar { height: 100%; background: var(--blue-300, #93c5fd); border-radius: 4px; background: var(--blue-500); }
+.rank-row.rank-top .rank-bar { background: var(--blue-700); }
+.rank-row.rank-top .rank-label { font-weight: 700; color: var(--blue-900); }
+.rank-pct { width: 46px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--ink-soft); flex-shrink: 0; }
+
+.contrib-list { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.contrib-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+.contrib-word { width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contrib-bar-wrap { flex: 1; background: var(--blue-50); border-radius: 4px; height: 8px; overflow: hidden; }
+.contrib-bar { height: 100%; border-radius: 4px; }
+.contrib-bar.up { background: var(--blue-600); }
+.contrib-bar.down { background: #fca5a5; }
+
+/* ===================== KB RESULTS ===================== */
+.kb-result-card {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-100);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+.kb-result-q { font-weight: 700; color: var(--blue-900); margin-bottom: 4px; font-size: 0.92rem; }
+.kb-result-a { color: var(--ink); font-size: 0.88rem; white-space: pre-wrap; }
+.kb-result-meta { margin-top: 6px; font-size: 0.72rem; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
+
+/* ===================== MISC ===================== */
+.info {
+    background: var(--blue-50);
+    border-right: 4px solid var(--blue-500);
+    padding: 12px 14px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.85rem;
+    color: var(--blue-900);
+    margin-top: 16px;
+}
+
+.empty-msg { color: var(--ink-faint); text-align: center; padding: 18px; font-size: 0.87rem; }
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--blue-900);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 200;
+}
+.toast.show { opacity: 1; }
+
+footer { text-align: center; margin: 30px 0 10px; color: var(--ink-faint); font-size: 0.8rem; }
 </style>
 </head>
 <body>
 
-<header>
-  <div id="lamp" class="lamp"></div>
-  <h1>עוזר תמיכה הנדסי</h1>
-  <div id="statusText" class="status">טוען מודל...</div>
-</header>
+<!-- ===================== SPLASH SCREEN ===================== -->
+<div id="splash" title="לחץ כדי לדלג">
+    <svg id="splashSvg" viewBox="0 0 200 200" width="130" height="130">
+        <rect x="70" y="70" width="60" height="60" rx="8" class="chip-body"/>
+        <circle cx="100" cy="100" r="10" class="core"/>
+        <line class="pin" x1="70" y1="82" x2="34" y2="82"/>
+        <line class="pin" x1="70" y1="100" x2="34" y2="100"/>
+        <line class="pin" x1="70" y1="118" x2="34" y2="118"/>
+        <line class="pin" x1="130" y1="82" x2="166" y2="82"/>
+        <line class="pin" x1="130" y1="100" x2="166" y2="100"/>
+        <line class="pin" x1="130" y1="118" x2="166" y2="118"/>
+        <line class="pin" x1="82" y1="70" x2="82" y2="34"/>
+        <line class="pin" x1="100" y1="70" x2="100" y2="34"/>
+        <line class="pin" x1="118" y1="70" x2="118" y2="34"/>
+        <line class="pin" x1="82" y1="130" x2="82" y2="166"/>
+        <line class="pin" x1="100" y1="130" x2="100" y2="166"/>
+        <line class="pin" x1="118" y1="130" x2="118" y2="166"/>
+    </svg>
+    <div class="splash-title">Eng<span>Assist</span></div>
+    <div class="splash-sub">עוזר AI להנדסה ותמיכה טכנית</div>
+    <div class="splash-hint">לחץ בכל מקום כדי לדלג</div>
+</div>
 
-<nav class="tabs">
-  <button data-view="chatView" class="active">💬 צ'אט</button>
-  <button data-view="adminView">🗂 ניהול ידע</button>
-</nav>
+<!-- ===================== APP SHELL ===================== -->
+<div class="topbar">
+    <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 200 200">
+            <rect x="70" y="70" width="60" height="60" rx="8" fill="none" stroke="#2563eb" stroke-width="8"/>
+            <circle cx="100" cy="100" r="9" fill="#2563eb"/>
+            <line x1="70" y1="85" x2="40" y2="85" stroke="#60a5fa" stroke-width="8"/>
+            <line x1="70" y1="115" x2="40" y2="115" stroke="#60a5fa" stroke-width="8"/>
+            <line x1="130" y1="85" x2="160" y2="85" stroke="#60a5fa" stroke-width="8"/>
+            <line x1="130" y1="115" x2="160" y2="115" stroke="#60a5fa" stroke-width="8"/>
+        </svg>
+        <span class="brand-text">Eng<span>Assist</span></span>
+    </div>
+    <div class="tabs">
+        <button class="tab-btn active" data-role="tab-btn" data-tab="faults">סיווג תקלות</button>
+        <button class="tab-btn" data-role="tab-btn" data-tab="knowledge">עוזר ידע</button>
+        <button class="tab-btn" data-role="tab-btn" data-tab="tickets">פניות תמיכה</button>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn-icon" data-role="backup-export" title="גיבוי מלא (JSON)">⭳</button>
+        <button class="btn-icon" data-role="backup-import" title="שחזור מגיבוי">⭱</button>
+        <input type="file" id="fileBackupImport" accept="application/json" hidden>
+    </div>
+</div>
 
 <main>
-  <section id="chatView" class="view active">
-    <div id="chatLog">
-      <div class="msg empty-state">שאל אותי שאלה הנדסית. אני אחפש קודם ב-Q&amp;A שהזנת, ואז בנהלים/תקנים שהעלית.</div>
-    </div>
-    <form id="chatForm">
-      <textarea id="chatInput" rows="1" placeholder="הקלד שאלה..." dir="rtl"></textarea>
-      <button type="submit" id="sendBtn" disabled>שלח</button>
-    </form>
-  </section>
-
-  <section id="adminView" class="view">
-    <div class="card">
-      <div class="toolbar">
-        <button class="btn" id="exportBtn">⬇ ייצוא מאגר</button>
-        <button class="btn" id="importBtn">⬆ ייבוא מאגר</button>
-        <input type="file" id="fileImport" accept="application/json">
-      </div>
-      <div class="hint">כל הידע נשמר מקומית בדפדפן (localStorage). ייצוא/ייבוא מאפשר גיבוי או העברה בין מכשירים.</div>
-    </div>
-
-    <div class="card">
-      <h2>נהלים ותקנים <span class="n" id="docCount">(0)</span></h2>
-      <label>כותרת המסמך</label>
-      <input type="text" id="docTitle" placeholder="לדוגמה: IPC-A-620 סעיף 4 - קרימפ">
-      <label>תוכן (טקסט חופשי - יפוצל אוטומטית לקטעים)</label>
-      <textarea id="docText" rows="6" placeholder="הדבק כאן את הנוהל/התקן..." dir="rtl"></textarea>
-      <button class="btn primary" id="addDocBtn">➕ הוסף למאגר ובצע הטמעה (embedding)</button>
-      <div class="hint" id="docProgress"></div>
-      <div id="docList"></div>
-    </div>
-
-    <div class="card">
-      <h2>שאלות ותשובות <span class="n" id="qaCount">(0)</span></h2>
-      <label>שאלה</label>
-      <input type="text" id="qaQ" placeholder="לדוגמה: מה מומנט ההידוק לברגי M4?">
-      <label>תשובה</label>
-      <textarea id="qaA" rows="3" placeholder="התשובה המדויקת..." dir="rtl"></textarea>
-      <button class="btn primary" id="addQaBtn">➕ הוסף שאלה-תשובה</button>
-      <div id="qaList"></div>
-    </div>
-  </section>
+    <div class="privacy-note">כל הנתונים והמודלים רצים מקומית בדפדפן שלך בלבד — שום מידע לא נשלח לשרת חיצוני.</div>
+    <section id="tab-faults" class="tab-panel active"></section>
+    <section id="tab-knowledge" class="tab-panel"></section>
+    <section id="tab-tickets" class="tab-panel"></section>
+    <footer>EngAssist • כלי עזר הנדסי מבוסס Naive Bayes וחיפוש TF-IDF • קוד טהור, ללא שרת</footer>
 </main>
 
-<script type="module">
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+<div class="toast" id="toast"></div>
 
-// keep everything local-cache friendly; allow remote fetch only for the one-time model download
-env.allowLocalModels = false;
+<script>
+'use strict';
 
-const LS_DOCS = 'esb_docs_v1';
-const LS_QA = 'esb_qa_v1';
-
-let extractor = null;
-let docs = JSON.parse(localStorage.getItem(LS_DOCS) || '[]');
-let qa = JSON.parse(localStorage.getItem(LS_QA) || '[]');
-
-const lamp = document.getElementById('lamp');
-const statusText = document.getElementById('statusText');
-const sendBtn = document.getElementById('sendBtn');
-const chatInput = document.getElementById('chatInput');
-const chatLog = document.getElementById('chatLog');
-
-function setStatus(mode, text){
-  lamp.className = 'lamp ' + mode;
-  statusText.textContent = text;
-}
-
-async function initModel(){
-  try{
-    setStatus('busy', 'מוריד מודל (חד-פעמי, נדרש אינטרנט)...');
-    extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
-    setStatus('ready', 'מוכן • המודל שמור במטמון לשימוש אופליין');
-    sendBtn.disabled = false;
-  }catch(e){
-    console.error(e);
-    setStatus('err', 'שגיאה בטעינת המודל - בדוק חיבור אינטרנט (רק בפעם הראשונה)');
-  }
-}
-initModel();
-
-async function embed(text){
-  const out = await extractor(text, { pooling: 'mean', normalize: true });
-  return Array.from(out.data);
-}
-
-function cosine(a, b){
-  let s = 0;
-  for(let i=0;i<a.length;i++) s += a[i]*b[i];
-  return s; // already normalized -> dot product = cosine similarity
-}
-
-function chunkText(text){
-  // split into paragraphs, then group into ~250-450 char chunks
-  const paras = text.split(/\n+/).map(p=>p.trim()).filter(Boolean);
-  const chunks = [];
-  let buf = '';
-  for(const p of paras){
-    if((buf + ' ' + p).length > 450 && buf){
-      chunks.push(buf.trim());
-      buf = p;
-    } else {
-      buf = buf ? buf + ' ' + p : p;
+/* ============================================================
+   0. CONFIG
+   ============================================================ */
+const CLASSIFIER_CONFIGS = {
+    faults: {
+        title: 'תקלות',
+        storageKey: 'engassist_faults_v1',
+        textLabel: 'תיאור התקלה / הכשל',
+        textPlaceholder: 'לדוגמה: המנוע לא מגיב לפקודת הפעלה, נשמע רעש קליקה חוזר מכיוון הממסר',
+        dims: [
+            { key: 'category', label: 'קטגוריה', defaultLabels: ['מכני', 'חשמלי', 'תוכנה/בקרה', 'איכות/NCR', 'אחר'] },
+            { key: 'severity', label: 'חומרה', defaultLabels: ['קריטי', 'גבוה', 'בינוני', 'נמוך'] }
+        ],
+        excelColumns: {
+            text: ['תיאור', 'description', 'fault', 'תקלה'],
+            category: ['קטגוריה', 'category'],
+            severity: ['חומרה', 'severity']
+        }
+    },
+    tickets: {
+        title: 'פניות תמיכה',
+        storageKey: 'engassist_tickets_v1',
+        textLabel: 'תיאור הפנייה',
+        textPlaceholder: 'לדוגמה: אני צריך עזרה בהגדרת פרופיל חדש ב-AutoCAD Electrical',
+        dims: [
+            { key: 'category', label: 'קטגוריה', defaultLabels: ['חומרה', 'תוכנה', 'הזמנה/רכש', 'תיעוד', 'אחר'] },
+            { key: 'urgency', label: 'דחיפות', defaultLabels: ['דחוף', 'רגיל', 'נמוך'] }
+        ],
+        excelColumns: {
+            text: ['תיאור', 'description', 'פנייה'],
+            category: ['קטגוריה', 'category'],
+            urgency: ['דחיפות', 'urgency']
+        }
     }
-  }
-  if(buf) chunks.push(buf.trim());
-  return chunks.length ? chunks : [text.trim()];
-}
-
-function saveDocs(){ localStorage.setItem(LS_DOCS, JSON.stringify(docs)); renderDocs(); }
-function saveQa(){ localStorage.setItem(LS_QA, JSON.stringify(qa)); renderQa(); }
-
-function renderDocs(){
-  document.getElementById('docCount').textContent = `(${docs.length})`;
-  const el = document.getElementById('docList');
-  el.innerHTML = docs.map(d => `
-    <div class="list-item">
-      <div class="t">${escapeHtml(d.title)}</div>
-      <div class="p">${escapeHtml(d.chunks.map(c=>c.text).join(' ')).slice(0,180)}...</div>
-      <div class="meta">
-        <span class="badge">${d.chunks.length} קטעים</span>
-        <button class="del" data-del-doc="${d.id}">מחק</button>
-      </div>
-    </div>`).join('');
-  el.querySelectorAll('[data-del-doc]').forEach(b=>{
-    b.onclick = ()=>{ docs = docs.filter(d=>d.id!==b.dataset.delDoc); saveDocs(); };
-  });
-}
-
-function renderQa(){
-  document.getElementById('qaCount').textContent = `(${qa.length})`;
-  const el = document.getElementById('qaList');
-  el.innerHTML = qa.map(item => `
-    <div class="list-item">
-      <div class="t">${escapeHtml(item.q)}</div>
-      <div class="p">${escapeHtml(item.a)}</div>
-      <div class="meta">
-        <span class="badge">Q&amp;A</span>
-        <button class="del" data-del-qa="${item.id}">מחק</button>
-      </div>
-    </div>`).join('');
-  el.querySelectorAll('[data-del-qa]').forEach(b=>{
-    b.onclick = ()=>{ qa = qa.filter(x=>x.id!==b.dataset.delQa); saveQa(); };
-  });
-}
-
-function escapeHtml(s){
-  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// ---- Add document ----
-document.getElementById('addDocBtn').onclick = async () => {
-  const title = document.getElementById('docTitle').value.trim();
-  const text = document.getElementById('docText').value.trim();
-  if(!title || !text) return alert('נא למלא כותרת ותוכן');
-  if(!extractor) return alert('המודל עדיין לא מוכן, המתן רגע');
-  const progress = document.getElementById('docProgress');
-  const rawChunks = chunkText(text);
-  const chunks = [];
-  for(let i=0;i<rawChunks.length;i++){
-    progress.textContent = `מטמיע קטע ${i+1}/${rawChunks.length}...`;
-    const vec = await embed(rawChunks[i]);
-    chunks.push({ text: rawChunks[i], vec });
-  }
-  docs.push({ id: crypto.randomUUID(), title, chunks });
-  saveDocs();
-  document.getElementById('docTitle').value = '';
-  document.getElementById('docText').value = '';
-  progress.textContent = 'בוצע ✓';
-  setTimeout(()=>progress.textContent='', 1500);
 };
 
-// ---- Add Q&A ----
-document.getElementById('addQaBtn').onclick = async () => {
-  const q = document.getElementById('qaQ').value.trim();
-  const a = document.getElementById('qaA').value.trim();
-  if(!q || !a) return alert('נא למלא שאלה ותשובה');
-  if(!extractor) return alert('המודל עדיין לא מוכן, המתן רגע');
-  const vec = await embed(q);
-  qa.push({ id: crypto.randomUUID(), q, a, vec });
-  saveQa();
-  document.getElementById('qaQ').value = '';
-  document.getElementById('qaA').value = '';
-};
+const STATE = {};   // configKey -> { examples:[...], dims:{key:{labels:[...]}} }
+const MODELS = {};  // configKey -> { dimKey: model }
+let KB = [];         // knowledge base entries
 
-// ---- Export / Import ----
-document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({docs, qa}, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'eng-support-kb.json'; a.click();
-  URL.revokeObjectURL(url);
-};
-document.getElementById('importBtn').onclick = () => document.getElementById('fileImport').click();
-document.getElementById('fileImport').onchange = async (e) => {
-  const file = e.target.files[0];
-  if(!file) return;
-  const text = await file.text();
-  try{
-    const data = JSON.parse(text);
-    if(Array.isArray(data.docs)) docs = docs.concat(data.docs);
-    if(Array.isArray(data.qa)) qa = qa.concat(data.qa);
-    saveDocs(); saveQa();
-    alert('הייבוא הושלם');
-  }catch(err){ alert('קובץ לא תקין'); }
-};
-
-// ---- Chat ----
-document.getElementById('chatForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const q = chatInput.value.trim();
-  if(!q || !extractor) return;
-  addMsg(q, 'user');
-  chatInput.value = '';
-  sendBtn.disabled = true;
-  setStatus('busy', 'מחפש...');
-
-  const qVec = await embed(q);
-
-  // score QA
-  let bestQa = null, bestQaScore = -1;
-  for(const item of qa){
-    const s = cosine(qVec, item.vec);
-    if(s > bestQaScore){ bestQaScore = s; bestQa = item; }
-  }
-
-  // score doc chunks
-  let bestChunks = [];
-  for(const d of docs){
-    for(const c of d.chunks){
-      const s = cosine(qVec, c.vec);
-      bestChunks.push({ score: s, text: c.text, title: d.title });
-    }
-  }
-  bestChunks.sort((a,b)=>b.score-a.score);
-  bestChunks = bestChunks.slice(0,2);
-
-  renderAnswer(bestQa, bestQaScore, bestChunks);
-  setStatus('ready', 'מוכן');
-  sendBtn.disabled = false;
-});
-
-// auto-resize textarea
-chatInput.addEventListener('input', () => {
-  chatInput.style.height = 'auto';
-  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-});
-chatInput.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){
-    e.preventDefault();
-    document.getElementById('chatForm').requestSubmit();
-  }
-});
-
-function addMsg(text, cls, srcHtml){
-  const empty = chatLog.querySelector('.empty-state');
-  if(empty) empty.remove();
-  const div = document.createElement('div');
-  div.className = 'msg ' + cls;
-  div.innerHTML = escapeHtml(text).replace(/\n/g,'<br>') + (srcHtml || '');
-  chatLog.appendChild(div);
-  chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-function renderAnswer(bestQa, bestQaScore, bestChunks){
-  const QA_THRESHOLD = 0.62;
-  const DOC_THRESHOLD = 0.35;
-
-  if(!qa.length && !docs.length){
-    addMsg('המאגר שלי ריק כרגע. עבור ל"ניהול ידע" והוסף נהלים או שאלות-תשובות כדי שאוכל לעזור.', 'bot');
-    return;
-  }
-
-  if(bestQa && bestQaScore >= QA_THRESHOLD){
-    const src = `<div class="src"><b>מקור:</b> Q&amp;A • התאמה ${(bestQaScore*100).toFixed(0)}%</div>`;
-    addMsg(bestQa.a, 'bot', src);
-    return;
-  }
-
-  const relevant = bestChunks.filter(c => c.score >= DOC_THRESHOLD);
-  if(relevant.length){
-    let answer = relevant.map(c => c.text).join('\n\n');
-    let src = '<div class="src">';
-    relevant.forEach(c => {
-      src += `<b>מקור:</b> ${escapeHtml(c.title)} • התאמה ${(c.score*100).toFixed(0)}%<br>`;
+/* ============================================================
+   1. UTILITIES
+   ============================================================ */
+function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[data-lazy-src="${src}"]`)) { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = src;
+        s.dataset.lazySrc = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('טעינת הספרייה נכשלה — נדרש חיבור לאינטרנט לתכונה זו'));
+        document.head.appendChild(s);
     });
-    src += '</div>';
-    addMsg(answer, 'bot', src);
-    return;
-  }
-
-  addMsg('לא מצאתי תשובה מספקת מהימנה במאגר. נסה לנסח אחרת, או הוסף את המידע הזה ב"ניהול ידע".', 'bot');
 }
 
-// ---- Tabs ----
-document.querySelectorAll('nav.tabs button').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.view).classList.add('active');
-  };
+async function ensureXLSX() {
+    if (typeof XLSX !== 'undefined') return;
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+}
+
+async function ensurePdfJs() {
+    if (typeof pdfjsLib !== 'undefined') return;
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function qs(sel, root) { return (root || document).querySelector(sel); }
+function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => t.classList.remove('show'), 2300);
+}
+
+function downloadJson(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function tokenize(text) {
+    return String(text || '')
+        .toLowerCase()
+        .replace(/[^\u0590-\u05FFa-zA-Z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 1);
+}
+
+function findColumn(row, candidates) {
+    const keys = Object.keys(row);
+    for (const c of candidates) {
+        const found = keys.find(k => k.trim().toLowerCase() === c.toLowerCase());
+        if (found && String(row[found]).trim() !== '') return String(row[found]).trim();
+    }
+    return '';
+}
+
+/* ============================================================
+   2. GENERIC MULTINOMIAL NAIVE BAYES
+   ============================================================ */
+function buildModelGeneric(dataset) {
+    const labels = [...new Set(dataset.map(d => d.label))];
+    if (labels.length < 2) return null;
+
+    const wordCounts = {}, totalWords = {}, vocab = new Set();
+    labels.forEach(l => { wordCounts[l] = {}; totalWords[l] = 0; });
+
+    for (const ex of dataset) {
+        const tokens = tokenize(ex.text);
+        for (const w of tokens) {
+            vocab.add(w);
+            wordCounts[ex.label][w] = (wordCounts[ex.label][w] || 0) + 1;
+            totalWords[ex.label]++;
+        }
+    }
+
+    const alpha = 1, V = vocab.size;
+    const logProb = {};
+    labels.forEach(l => {
+        logProb[l] = {};
+        vocab.forEach(w => {
+            logProb[l][w] = Math.log((wordCounts[l][w] || 0) + alpha) - Math.log(totalWords[l] + alpha * V);
+        });
+    });
+
+    const logPrior = {};
+    labels.forEach(l => {
+        const count = dataset.filter(d => d.label === l).length;
+        logPrior[l] = Math.log(count / dataset.length);
+    });
+
+    return { labels, logProb, logPrior, vocab, wordCounts, totalWords };
+}
+
+function predictGeneric(model, text) {
+    if (!model) return null;
+    const tokens = tokenize(text);
+    if (tokens.length === 0) return null;
+
+    const alpha = 1, V = model.vocab.size;
+    const unk = {};
+    const scores = {};
+    model.labels.forEach(l => {
+        unk[l] = Math.log(alpha) - Math.log(model.totalWords[l] + alpha * V);
+        scores[l] = model.logPrior[l];
+    });
+
+    const perWordVals = tokens.map(w => {
+        const vals = {};
+        model.labels.forEach(l => {
+            const v = model.logProb[l][w] !== undefined ? model.logProb[l][w] : unk[l];
+            vals[l] = v;
+            scores[l] += v;
+        });
+        return { word: w, vals };
+    });
+
+    const maxS = Math.max(...model.labels.map(l => scores[l]));
+    let sum = 0;
+    const exp = {};
+    model.labels.forEach(l => { exp[l] = Math.exp(scores[l] - maxS); sum += exp[l]; });
+    const probs = {};
+    model.labels.forEach(l => { probs[l] = exp[l] / sum; });
+
+    const ranking = model.labels.slice().sort((a, b) => probs[b] - probs[a]);
+    const top = ranking[0];
+    const second = ranking[1];
+
+    const perWord = perWordVals.map(pw => ({
+        word: pw.word,
+        diff: pw.vals[top] - (second !== undefined ? pw.vals[second] : 0)
+    }));
+
+    return { top, second, probs, ranking, perWord };
+}
+
+function computeLooGeneric(dataset) {
+    if (dataset.length < 4 || dataset.length > 60) return null;
+    let correct = 0, evaluated = 0;
+
+    for (let i = 0; i < dataset.length; i++) {
+        const held = dataset[i];
+        const rest = dataset.slice(0, i).concat(dataset.slice(i + 1));
+        const labelsUsed = new Set(rest.map(x => x.label));
+        if (labelsUsed.size < 2) continue;
+
+        const m = buildModelGeneric(rest);
+        const res = predictGeneric(m, held.text);
+        if (!res) continue;
+
+        evaluated++;
+        if (res.top === held.label) correct++;
+    }
+
+    if (evaluated === 0) return null;
+    return correct / evaluated;
+}
+
+/* ============================================================
+   3. STATE (classifiers)
+   ============================================================ */
+function defaultStateFor(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const dims = {};
+    cfg.dims.forEach(d => { dims[d.key] = { labels: [...d.defaultLabels] }; });
+    return { examples: [], dims };
+}
+
+function loadState(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    try {
+        const raw = localStorage.getItem(cfg.storageKey);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.examples) && parsed.dims) {
+                STATE[configKey] = parsed;
+                return;
+            }
+        }
+    } catch (e) { console.warn(e); }
+    STATE[configKey] = defaultStateFor(configKey);
+}
+
+function saveState(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    try { localStorage.setItem(cfg.storageKey, JSON.stringify(STATE[configKey])); }
+    catch (e) { console.warn(e); }
+}
+
+function invalidateModels(configKey) {
+    MODELS[configKey] = {};
+    const btn = qs(`[data-role="btn-predict"][data-config="${configKey}"]`);
+    if (btn) btn.disabled = true;
+    const resEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
+    if (resEl) resEl.innerHTML = '<div class="empty-msg">אמן את המודל כדי לסווג טקסט חדש</div>';
+    const contribEl = qs(`[data-role="contrib"][data-config="${configKey}"]`);
+    if (contribEl) contribEl.innerHTML = '';
+}
+
+/* ============================================================
+   4. CLASSIFIER PANEL — RENDERING
+   ============================================================ */
+function classifierPanelHtml(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const dimsHtml = cfg.dims.map(d => `
+        <div class="dim-select-wrap">
+            <label>${escapeHtml(d.label)}</label>
+            <select data-role="ex-dim-select" data-config="${configKey}" data-dim="${d.key}"></select>
+            <div class="chip-row" data-role="dim-chips" data-config="${configKey}" data-dim="${d.key}"></div>
+            <div class="chip-add-row">
+                <input type="text" data-role="dim-new-label" data-config="${configKey}" data-dim="${d.key}" placeholder="תווית חדשה...">
+                <button class="btn-mini" data-role="dim-add-label" data-config="${configKey}" data-dim="${d.key}">+</button>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+    <div class="panel-grid">
+        <div class="card">
+            <h2>הוסף דוגמה לאימון</h2>
+            <label>${escapeHtml(cfg.textLabel)}</label>
+            <textarea data-role="ex-text" data-config="${configKey}" rows="3" placeholder="${escapeHtml(cfg.textPlaceholder)}"></textarea>
+            <div class="dims-selects">${dimsHtml}</div>
+            <div class="btn-row">
+                <button class="btn btn-blue" data-role="btn-add-example" data-config="${configKey}">הוסף דוגמה</button>
+                <button class="btn btn-green" data-role="btn-train" data-config="${configKey}">אמן מודלים</button>
+                <button class="btn btn-gray" data-role="btn-clear" data-config="${configKey}">נקה הכל</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-teal" data-role="btn-excel-import" data-config="${configKey}">ייבוא Excel</button>
+                <button class="btn btn-teal-outline" data-role="btn-excel-export" data-config="${configKey}">ייצוא Excel</button>
+                <input type="file" data-role="file-excel-import" data-config="${configKey}" accept=".xlsx,.xls,.csv" hidden>
+            </div>
+            <div class="examples-list" data-role="examples-list" data-config="${configKey}"></div>
+            <div class="stats-grid" data-role="stats" data-config="${configKey}"></div>
+        </div>
+
+        <div class="card">
+            <h2>בדיקה וסיווג</h2>
+            <label>${escapeHtml(cfg.textLabel)}</label>
+            <textarea data-role="predict-text" data-config="${configKey}" rows="3" placeholder="${escapeHtml(cfg.textPlaceholder)}"></textarea>
+            <div class="btn-row">
+                <button class="btn btn-green" data-role="btn-predict" data-config="${configKey}" disabled>סווג עכשיו</button>
+            </div>
+            <div data-role="predict-result" data-config="${configKey}"><div class="empty-msg">אמן את המודל כדי לסווג טקסט חדש</div></div>
+            <div data-role="contrib" data-config="${configKey}"></div>
+            <div class="info">המודל לומד מהדוגמאות שהזנת (Naive Bayes) ומדרג את כל התוויות האפשריות לפי הסתברות. ככל שיהיו יותר דוגמאות מגוונות — כך הסיווג יהיה מדויק יותר.</div>
+        </div>
+    </div>`;
+}
+
+function renderDimSelect(configKey, dimKey) {
+    const sel = qs(`[data-role="ex-dim-select"][data-config="${configKey}"][data-dim="${dimKey}"]`);
+    if (!sel) return;
+    const labels = STATE[configKey].dims[dimKey].labels;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- בחר --</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+    if (labels.includes(current)) sel.value = current;
+}
+
+function renderDimChips(configKey, dimKey) {
+    const wrap = qs(`[data-role="dim-chips"][data-config="${configKey}"][data-dim="${dimKey}"]`);
+    if (!wrap) return;
+    const labels = STATE[configKey].dims[dimKey].labels;
+    wrap.innerHTML = labels.map(l => `
+        <span class="chip">${escapeHtml(l)}<button data-role="chip-delete" data-config="${configKey}" data-dim="${dimKey}" data-label="${escapeHtml(l)}" title="הסר תווית">×</button></span>
+    `).join('');
+}
+
+function renderExamplesList(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const el = qs(`[data-role="examples-list"][data-config="${configKey}"]`);
+    const examples = STATE[configKey].examples;
+    if (!el) return;
+    if (examples.length === 0) {
+        el.innerHTML = '<div class="empty-msg">עדיין אין דוגמאות. הוסף כמה מכל תווית כדי לאמן את המודל.</div>';
+        return;
+    }
+    el.innerHTML = examples.map((ex, i) => {
+        const badges = cfg.dims.map(d => ex[d.key] ? `<span class="badge">${escapeHtml(ex[d.key])}</span>` : '').join('');
+        return `
+        <div class="example-item">
+            <span class="example-text" title="${escapeHtml(ex.text)}">${escapeHtml(ex.text)}</span>
+            ${badges}
+            <button class="delete-btn" data-role="example-delete" data-config="${configKey}" data-index="${i}" title="מחק">×</button>
+        </div>`;
+    }).join('');
+}
+
+function renderStats(configKey, withLoo) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const el = qs(`[data-role="stats"][data-config="${configKey}"]`);
+    if (!el) return;
+    const examples = STATE[configKey].examples;
+
+    let html = `<div class="stat"><div class="stat-val">${examples.length}</div><div class="stat-lbl">דוגמאות</div></div>`;
+
+    cfg.dims.forEach(d => {
+        const model = MODELS[configKey] && MODELS[configKey][d.key];
+        const vocabTxt = model ? model.vocab.size : '–';
+        html += `<div class="stat"><div class="stat-val">${vocabTxt}</div><div class="stat-lbl">מילים (${escapeHtml(d.label)})</div></div>`;
+    });
+
+    cfg.dims.forEach(d => {
+        html += `<div class="stat"><div class="stat-val" data-loo="${configKey}:${d.key}">–</div><div class="stat-lbl">דיוק LOO (${escapeHtml(d.label)})</div></div>`;
+    });
+
+    el.innerHTML = html;
+
+    if (withLoo) {
+        cfg.dims.forEach(d => {
+            const dataset = examples.filter(e => e[d.key]).map(e => ({ text: e.text, label: e[d.key] }));
+            const target = qs(`[data-loo="${configKey}:${d.key}"]`);
+            if (!target) return;
+            target.textContent = '...';
+            setTimeout(() => {
+                const acc = computeLooGeneric(dataset);
+                target.textContent = acc === null ? 'N/A' : (acc * 100).toFixed(0) + '%';
+            }, 10);
+        });
+    }
+}
+
+function renderPredictDim(label, res) {
+    const bars = res.ranking.map(l => {
+        const pct = (res.probs[l] * 100).toFixed(1);
+        const isTop = l === res.top;
+        return `<div class="rank-row ${isTop ? 'rank-top' : ''}">
+            <span class="rank-label" title="${escapeHtml(l)}">${escapeHtml(l)}</span>
+            <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%"></div></div>
+            <span class="rank-pct">${pct}%</span>
+        </div>`;
+    }).join('');
+    return `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(label)}</div>${bars}</div>`;
+}
+
+function renderContributions(configKey, allPerWord) {
+    const el = qs(`[data-role="contrib"][data-config="${configKey}"]`);
+    if (!el) return;
+    if (!allPerWord || allPerWord.length === 0) { el.innerHTML = ''; return; }
+
+    const sorted = [...allPerWord].sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff)).slice(0, 6);
+    const maxAbs = Math.max(...sorted.map(s => Math.abs(s.diff)), 0.0001);
+
+    let html = '<div style="font-size:0.83rem;color:var(--ink-soft);margin-top:12px;">מילים מכריעות (ביחס לתווית המובילה):</div><div class="contrib-list">';
+    sorted.forEach(item => {
+        const side = item.diff >= 0 ? 'up' : 'down';
+        const pct = Math.min(100, (Math.abs(item.diff) / maxAbs) * 100);
+        html += `
+        <div class="contrib-item">
+            <span class="contrib-word" title="${escapeHtml(item.word)} (${escapeHtml(item.dim)})">${escapeHtml(item.word)}</span>
+            <div class="contrib-bar-wrap"><div class="contrib-bar ${side}" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+/* ============================================================
+   5. CLASSIFIER PANEL — HANDLERS
+   ============================================================ */
+function handleAddExample(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const textEl = qs(`[data-role="ex-text"][data-config="${configKey}"]`);
+    const text = textEl.value.trim();
+    if (!text) { alert('כתוב תיאור לפני ההוספה'); return; }
+
+    const record = { text };
+    let anyDim = false;
+    cfg.dims.forEach(d => {
+        const sel = qs(`[data-role="ex-dim-select"][data-config="${configKey}"][data-dim="${d.key}"]`);
+        record[d.key] = sel.value;
+        if (sel.value) anyDim = true;
+    });
+    if (!anyDim) { alert('בחר לפחות תווית אחת (למשל קטגוריה)'); return; }
+
+    STATE[configKey].examples.push(record);
+    textEl.value = '';
+    invalidateModels(configKey);
+    saveState(configKey);
+    renderExamplesList(configKey);
+    renderStats(configKey);
+}
+
+function handleDeleteExample(configKey, index) {
+    STATE[configKey].examples.splice(index, 1);
+    invalidateModels(configKey);
+    saveState(configKey);
+    renderExamplesList(configKey);
+    renderStats(configKey);
+}
+
+function handleClearConfig(configKey) {
+    if (STATE[configKey].examples.length > 0 && !confirm('למחוק את כל הדוגמאות בלשונית זו?')) return;
+    STATE[configKey].examples = [];
+    invalidateModels(configKey);
+    saveState(configKey);
+    renderExamplesList(configKey);
+    renderStats(configKey);
+}
+
+function handleTrain(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const examples = STATE[configKey].examples;
+    if (examples.length < 2) { alert('צריך לפחות כמה דוגמאות כדי לאמן'); return; }
+
+    MODELS[configKey] = MODELS[configKey] || {};
+    let anyTrained = false;
+
+    cfg.dims.forEach(d => {
+        const dataset = examples.filter(e => e[d.key]).map(e => ({ text: e.text, label: e[d.key] }));
+        const labelsUsed = new Set(dataset.map(x => x.label));
+        if (labelsUsed.size >= 2) {
+            MODELS[configKey][d.key] = buildModelGeneric(dataset);
+            anyTrained = true;
+        } else {
+            MODELS[configKey][d.key] = null;
+        }
+    });
+
+    if (!anyTrained) { alert('צריך לפחות שתי תוויות שונות בממד אחד לפחות כדי לאמן'); return; }
+
+    const btn = qs(`[data-role="btn-predict"][data-config="${configKey}"]`);
+    if (btn) btn.disabled = false;
+    const resEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
+    if (resEl) resEl.innerHTML = '<div class="empty-msg">הכנס טקסט ולחץ "סווג עכשיו"</div>';
+
+    renderStats(configKey, true);
+    showToast('המודלים אומנו בהצלחה');
+}
+
+function handlePredict(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const text = qs(`[data-role="predict-text"][data-config="${configKey}"]`).value.trim();
+    if (!text) { alert('כתוב טקסט לבדיקה'); return; }
+
+    const resultsEl = qs(`[data-role="predict-result"][data-config="${configKey}"]`);
+    let html = '';
+    let allPerWord = [];
+
+    cfg.dims.forEach(d => {
+        const model = MODELS[configKey] && MODELS[configKey][d.key];
+        if (!model) {
+            html += `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(d.label)}</div><div class="empty-msg">לא מאומן (צריך לפחות שתי תוויות שונות בממד זה)</div></div>`;
+            return;
+        }
+        const res = predictGeneric(model, text);
+        if (!res) {
+            html += `<div class="predict-dim"><div class="predict-dim-label">${escapeHtml(d.label)}</div><div class="empty-msg">אין מילים מוכרות בטקסט</div></div>`;
+            return;
+        }
+        html += renderPredictDim(d.label, res);
+        allPerWord = allPerWord.concat(res.perWord.map(pw => ({ ...pw, dim: d.label })));
+    });
+
+    resultsEl.innerHTML = html || '<div class="empty-msg">אין תוצאה</div>';
+    renderContributions(configKey, allPerWord);
+}
+
+function handleAddLabel(configKey, dimKey) {
+    const input = qs(`[data-role="dim-new-label"][data-config="${configKey}"][data-dim="${dimKey}"]`);
+    const val = input.value.trim();
+    if (!val) return;
+    const labels = STATE[configKey].dims[dimKey].labels;
+    if (labels.includes(val)) { showToast('התווית כבר קיימת'); return; }
+    labels.push(val);
+    input.value = '';
+    saveState(configKey);
+    renderDimSelect(configKey, dimKey);
+    renderDimChips(configKey, dimKey);
+}
+
+function handleDeleteLabel(configKey, dimKey, label) {
+    const labels = STATE[configKey].dims[dimKey].labels;
+    STATE[configKey].dims[dimKey].labels = labels.filter(l => l !== label);
+    saveState(configKey);
+    renderDimSelect(configKey, dimKey);
+    renderDimChips(configKey, dimKey);
+}
+
+async function handleExcelExport(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const examples = STATE[configKey].examples;
+    if (examples.length === 0) { alert('אין דוגמאות לייצוא'); return; }
+
+    try { await ensureXLSX(); }
+    catch (err) { alert(err.message); return; }
+
+    const rows = examples.map(e => {
+        const row = {};
+        row[cfg.textLabel] = e.text;
+        cfg.dims.forEach(d => { row[d.label] = e[d.key] || ''; });
+        return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, cfg.title);
+    XLSX.writeFile(wb, `engassist-${configKey}.xlsx`);
+    showToast('הקובץ יוצא בהצלחה');
+}
+
+async function handleExcelImport(configKey, file) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    try { await ensureXLSX(); }
+    catch (err) { alert(err.message); return; }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            let count = 0;
+
+            rows.forEach(row => {
+                const text = findColumn(row, cfg.excelColumns.text);
+                if (!text) return;
+                const record = { text };
+                let anyDim = false;
+                cfg.dims.forEach(d => {
+                    const val = findColumn(row, cfg.excelColumns[d.key] || []);
+                    record[d.key] = val;
+                    if (val) {
+                        anyDim = true;
+                        if (!STATE[configKey].dims[d.key].labels.includes(val)) {
+                            STATE[configKey].dims[d.key].labels.push(val);
+                        }
+                    }
+                });
+                if (anyDim) { STATE[configKey].examples.push(record); count++; }
+            });
+
+            invalidateModels(configKey);
+            saveState(configKey);
+            cfg.dims.forEach(d => { renderDimSelect(configKey, d.key); renderDimChips(configKey, d.key); });
+            renderExamplesList(configKey);
+            renderStats(configKey);
+            showToast(`יובאו ${count} דוגמאות מ-Excel`);
+        } catch (err) {
+            alert('שגיאה בקריאת קובץ ה-Excel: ' + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+/* ============================================================
+   6. KNOWLEDGE BASE
+   ============================================================ */
+const KB_STORAGE_KEY = 'engassist_kb_v1';
+
+function loadKB() {
+    try {
+        const raw = localStorage.getItem(KB_STORAGE_KEY);
+        KB = raw ? JSON.parse(raw) : [];
+    } catch (e) { KB = []; }
+}
+
+function saveKB() {
+    try { localStorage.setItem(KB_STORAGE_KEY, JSON.stringify(KB)); }
+    catch (e) { console.warn(e); }
+}
+
+function addKbEntry(entry) {
+    entry.id = 'kb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    entry.allText = [entry.question, entry.answer, entry.tags].filter(Boolean).join(' ');
+    KB.push(entry);
+}
+
+function knowledgePanelHtml() {
+    return `
+    <div class="panel-grid">
+        <div class="card">
+            <h2>הוסף לבסיס הידע</h2>
+            <label>שאלה / כותרת (אופציונלי)</label>
+            <input type="text" id="kbQuestion" placeholder="לדוגמה: איך מגדירים פרופיל חדש ב-AutoCAD Electrical">
+            <label>תשובה / תוכן</label>
+            <textarea id="kbAnswer" rows="4" placeholder="הסבר, נוהל עבודה, או תשובה מלאה..."></textarea>
+            <label>תגיות (מופרדות בפסיק)</label>
+            <input type="text" id="kbTags" placeholder="autocad, חשמל, נוהל">
+            <div class="btn-row">
+                <button class="btn btn-blue" data-role="kb-add">הוסף לבסיס הידע</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-teal" data-role="kb-upload-pdf">העלה PDF</button>
+                <input type="file" id="fileKbPdf" accept="application/pdf" hidden>
+                <button class="btn btn-teal" data-role="kb-upload-excel">העלה Excel (שאלה/תשובה)</button>
+                <input type="file" id="fileKbExcel" accept=".xlsx,.xls,.csv" hidden>
+            </div>
+            <div class="stats-grid" id="kbStats"></div>
+        </div>
+
+        <div class="card">
+            <h2>חיפוש בבסיס הידע</h2>
+            <label>מה תרצה לדעת?</label>
+            <textarea id="kbQuery" rows="2" placeholder="נסח שאלה או תאר בעיה טכנית..."></textarea>
+            <div class="btn-row"><button class="btn btn-green" data-role="kb-search">חפש</button></div>
+            <div id="kbResults"></div>
+            <div class="info">עוזר הידע מבצע חיפוש חכם מבוסס מילות מפתח (TF-IDF) בתוך המידע שהזנת. הוא <strong>לא</strong> מייצר תשובות חדשות — הוא מוצא ומציג את הקטעים הרלוונטיים ביותר מתוך הידע שלך.</div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>ניהול בסיס הידע (<span id="kbCount">0</span> פריטים)</h2>
+        <div class="examples-list" id="kbList" style="max-height:320px;"></div>
+    </div>`;
+}
+
+function renderKbStats() {
+    const el = document.getElementById('kbStats');
+    if (!el) return;
+    const manual = KB.filter(k => !k.source).length;
+    const fromFiles = KB.filter(k => k.source).length;
+    el.innerHTML = `
+        <div class="stat"><div class="stat-val">${KB.length}</div><div class="stat-lbl">סה"כ פריטים</div></div>
+        <div class="stat"><div class="stat-val">${manual}</div><div class="stat-lbl">ידניים</div></div>
+        <div class="stat"><div class="stat-val">${fromFiles}</div><div class="stat-lbl">מקבצים</div></div>
+    `;
+}
+
+function renderKbList() {
+    const el = document.getElementById('kbList');
+    const countEl = document.getElementById('kbCount');
+    if (countEl) countEl.textContent = KB.length;
+    if (!el) return;
+    if (KB.length === 0) {
+        el.innerHTML = '<div class="empty-msg">בסיס הידע ריק. הוסף פריטים ידנית או העלה קובץ PDF / Excel.</div>';
+        return;
+    }
+    el.innerHTML = KB.map(k => {
+        const preview = k.question ? k.question : k.answer.slice(0, 90);
+        return `
+        <div class="example-item">
+            <span class="example-text" title="${escapeHtml(k.answer)}">${escapeHtml(preview)}</span>
+            <span class="badge-source" title="${escapeHtml(k.source || 'ידני')}">${escapeHtml(k.source || 'ידני')}</span>
+            <button class="delete-btn" data-role="kb-delete" data-id="${k.id}" title="מחק">×</button>
+        </div>`;
+    }).join('');
+}
+
+function handleKbAdd() {
+    const question = document.getElementById('kbQuestion').value.trim();
+    const answer = document.getElementById('kbAnswer').value.trim();
+    const tags = document.getElementById('kbTags').value.trim();
+    if (!answer) { alert('כתוב תוכן/תשובה לפני ההוספה'); return; }
+
+    addKbEntry({ question, answer, tags, source: '' });
+    document.getElementById('kbQuestion').value = '';
+    document.getElementById('kbAnswer').value = '';
+    document.getElementById('kbTags').value = '';
+    saveKB();
+    renderKbList();
+    renderKbStats();
+    showToast('נוסף לבסיס הידע');
+}
+
+function handleKbDelete(id) {
+    KB = KB.filter(k => k.id !== id);
+    saveKB();
+    renderKbList();
+    renderKbStats();
+}
+
+/* ---- TF-IDF search ---- */
+function buildSearchIndex(entries) {
+    const df = {};
+    const N = entries.length;
+    const tokenizedEntries = entries.map(e => {
+        const tokens = tokenize(e.allText);
+        new Set(tokens).forEach(t => { df[t] = (df[t] || 0) + 1; });
+        return { entry: e, tokens };
+    });
+    const idf = {};
+    Object.keys(df).forEach(t => { idf[t] = Math.log((N + 1) / (df[t] + 1)) + 1; });
+    return { tokenizedEntries, idf };
+}
+
+function searchKB(index, query, topN) {
+    const qTokens = tokenize(query);
+    const scored = index.tokenizedEntries.map(({ entry, tokens }) => {
+        const tf = {};
+        tokens.forEach(t => { tf[t] = (tf[t] || 0) + 1; });
+        let score = 0;
+        qTokens.forEach(qt => { if (tf[qt]) score += tf[qt] * (index.idf[qt] || 1); });
+        return { entry, score };
+    }).filter(s => s.score > 0);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topN || 5);
+}
+
+function handleKbSearch() {
+    const query = document.getElementById('kbQuery').value.trim();
+    if (!query) { alert('כתוב שאלה לחיפוש'); return; }
+    if (KB.length === 0) { alert('בסיס הידע ריק — הוסף פריטים תחילה'); return; }
+
+    const index = buildSearchIndex(KB);
+    const results = searchKB(index, query, 5);
+    renderKbResults(results);
+}
+
+function renderKbResults(results) {
+    const el = document.getElementById('kbResults');
+    if (results.length === 0) { el.innerHTML = '<div class="empty-msg">לא נמצאו תוצאות רלוונטיות. נסה מילות מפתח אחרות.</div>'; return; }
+    el.innerHTML = results.map(r => `
+        <div class="kb-result-card">
+            ${r.entry.question ? `<div class="kb-result-q">${escapeHtml(r.entry.question)}</div>` : ''}
+            <div class="kb-result-a">${escapeHtml(r.entry.answer)}</div>
+            <div class="kb-result-meta">${r.entry.source ? escapeHtml(r.entry.source) + ' • ' : ''}ציון רלוונטיות: ${r.score.toFixed(1)}</div>
+        </div>
+    `).join('');
+}
+
+/* ---- PDF extraction ---- */
+async function extractPdfText(file) {
+    await ensurePdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let fullText = '';
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        fullText += content.items.map(it => it.str).join(' ') + '\n\n';
+    }
+    return fullText;
+}
+
+function chunkText(text, maxLen) {
+    maxLen = maxLen || 600;
+    const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20);
+    const chunks = [];
+    for (const p of paragraphs) {
+        if (p.length <= maxLen) { chunks.push(p); continue; }
+        const sentences = p.split(/(?<=[.!?])\s+/);
+        let current = '';
+        for (const s of sentences) {
+            if ((current + ' ' + s).length > maxLen && current) { chunks.push(current.trim()); current = s; }
+            else current += (current ? ' ' : '') + s;
+        }
+        if (current) chunks.push(current.trim());
+    }
+    return chunks;
+}
+
+async function handlePdfUpload(file) {
+    showToast('מעבד PDF...');
+    try {
+        const text = await extractPdfText(file);
+        const chunks = chunkText(text);
+        chunks.forEach((c, i) => addKbEntry({ question: '', answer: c, tags: '', source: `${file.name} · קטע ${i + 1}` }));
+        saveKB();
+        renderKbList();
+        renderKbStats();
+        showToast(`נוספו ${chunks.length} קטעי ידע מתוך ${file.name}`);
+    } catch (e) {
+        alert('שגיאה בעיבוד ה-PDF: ' + e.message);
+    }
+}
+
+async function handleKbExcelUpload(file) {
+    try { await ensureXLSX(); }
+    catch (err) { alert(err.message); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            let count = 0;
+            rows.forEach(row => {
+                const q = findColumn(row, ['שאלה', 'question', 'נושא', 'title']);
+                const a = findColumn(row, ['תשובה', 'answer', 'תוכן', 'content']);
+                if (a) { addKbEntry({ question: q, answer: a, tags: '', source: file.name }); count++; }
+            });
+            saveKB();
+            renderKbList();
+            renderKbStats();
+            showToast(`נוספו ${count} פריטים מ-Excel`);
+        } catch (err) {
+            alert('שגיאה בקריאת קובץ ה-Excel: ' + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+/* ============================================================
+   7. BACKUP
+   ============================================================ */
+function handleBackupExport() {
+    const backup = {
+        faults: STATE.faults,
+        tickets: STATE.tickets,
+        kb: KB,
+        exportedAt: new Date().toISOString(),
+        app: 'EngAssist'
+    };
+    downloadJson(backup, 'engassist-backup.json');
+    showToast('הגיבוי יוצא בהצלחה');
+}
+
+function handleBackupImportFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!confirm('שחזור גיבוי יחליף את כל הנתונים הקיימים. להמשיך?')) return;
+
+            if (data.faults) STATE.faults = data.faults;
+            if (data.tickets) STATE.tickets = data.tickets;
+            if (Array.isArray(data.kb)) KB = data.kb;
+
+            saveState('faults'); saveState('tickets'); saveKB();
+            invalidateModels('faults'); invalidateModels('tickets');
+            renderFullClassifierPanel('faults');
+            renderFullClassifierPanel('tickets');
+            renderKbList(); renderKbStats();
+            showToast('הגיבוי שוחזר בהצלחה');
+        } catch (err) {
+            alert('שגיאה בשחזור הגיבוי: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+/* ============================================================
+   8. TABS
+   ============================================================ */
+function switchTab(tab) {
+    qsa('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    qsa('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+}
+
+/* ============================================================
+   9. FULL PANEL RENDER (per classifier config)
+   ============================================================ */
+function renderFullClassifierPanel(configKey) {
+    const cfg = CLASSIFIER_CONFIGS[configKey];
+    const container = document.getElementById(`tab-${configKey}`);
+    container.innerHTML = classifierPanelHtml(configKey);
+    cfg.dims.forEach(d => { renderDimSelect(configKey, d.key); renderDimChips(configKey, d.key); });
+    renderExamplesList(configKey);
+    renderStats(configKey);
+}
+
+/* ============================================================
+   10. EVENT DELEGATION
+   ============================================================ */
+document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-role]');
+    if (!el) return;
+    const role = el.dataset.role;
+    const configKey = el.dataset.config;
+    const dim = el.dataset.dim;
+
+    switch (role) {
+        case 'tab-btn': switchTab(el.dataset.tab); break;
+        case 'btn-add-example': handleAddExample(configKey); break;
+        case 'btn-train': handleTrain(configKey); break;
+        case 'btn-clear': handleClearConfig(configKey); break;
+        case 'btn-predict': handlePredict(configKey); break;
+        case 'btn-excel-import': qs(`[data-role="file-excel-import"][data-config="${configKey}"]`).click(); break;
+        case 'btn-excel-export': handleExcelExport(configKey); break;
+        case 'dim-add-label': handleAddLabel(configKey, dim); break;
+        case 'chip-delete': handleDeleteLabel(configKey, dim, el.dataset.label); break;
+        case 'example-delete': handleDeleteExample(configKey, parseInt(el.dataset.index, 10)); break;
+        case 'kb-add': handleKbAdd(); break;
+        case 'kb-search': handleKbSearch(); break;
+        case 'kb-delete': handleKbDelete(el.dataset.id); break;
+        case 'kb-upload-pdf': document.getElementById('fileKbPdf').click(); break;
+        case 'kb-upload-excel': document.getElementById('fileKbExcel').click(); break;
+        case 'backup-export': handleBackupExport(); break;
+        case 'backup-import': document.getElementById('fileBackupImport').click(); break;
+    }
 });
 
-// initial render
-renderDocs();
-renderQa();
+document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset && t.dataset.role === 'file-excel-import') {
+        const file = t.files[0]; if (file) handleExcelImport(t.dataset.config, file); t.value = '';
+    } else if (t.id === 'fileKbPdf') {
+        const file = t.files[0]; if (file) handlePdfUpload(file); t.value = '';
+    } else if (t.id === 'fileKbExcel') {
+        const file = t.files[0]; if (file) handleKbExcelUpload(file); t.value = '';
+    } else if (t.id === 'fileBackupImport') {
+        const file = t.files[0]; if (file) handleBackupImportFile(file); t.value = '';
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const active = document.activeElement;
+        if (active && active.dataset && active.dataset.role === 'predict-text') {
+            handlePredict(active.dataset.config);
+        }
+    }
+});
+
+/* ============================================================
+   11. INIT
+   ============================================================ */
+function initSplash() {
+    const splash = document.getElementById('splash');
+    const hide = () => { splash.style.display = 'none'; };
+    setTimeout(hide, 2200);
+    splash.addEventListener('click', hide);
+}
+
+function init() {
+    initSplash();
+
+    loadState('faults');
+    loadState('tickets');
+    loadKB();
+
+    document.getElementById('tab-knowledge').innerHTML = knowledgePanelHtml();
+    renderFullClassifierPanel('faults');
+    renderFullClassifierPanel('tickets');
+    renderKbList();
+    renderKbStats();
+}
+
+init();
 </script>
 </body>
 </html>
