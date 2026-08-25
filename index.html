@@ -15,24 +15,25 @@
   #menu-overlay {
     position:fixed; top:0; left:0; width:100%; height:100%;
     background:radial-gradient(ellipse at center, #0a1a2a 0%, #000308 100%);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:flex-start; justify-content:center;
     z-index:100; color:#7fd8ff;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   #menu-box {
-    text-align:center; padding:40px 60px; border:1px solid rgba(127,216,255,0.4);
+    text-align:center; padding:20px 28px 28px; border:1px solid rgba(127,216,255,0.4);
     background:rgba(10,25,40,0.6); border-radius:8px;
     box-shadow:0 0 40px rgba(80,180,255,0.25), inset 0 0 30px rgba(80,180,255,0.05);
-    max-width:600px;
+    width:100%; max-width:520px; margin:12px auto;
   }
   #menu-box h1 {
-    font-size:2.4em; letter-spacing:4px; color:#a9ecff;
+    font-size:1.7em; letter-spacing:4px; color:#a9ecff;
     text-shadow:0 0 15px rgba(120,220,255,0.8);
-    margin-bottom:8px;
+    margin-bottom:4px;
   }
-  #menu-box .subtitle { color:#5fa8c9; letter-spacing:2px; margin-bottom:25px; font-size:0.9em;}
+  #menu-box .subtitle { color:#5fa8c9; letter-spacing:2px; margin-bottom:10px; font-size:0.8em;}
   .controls-grid {
-    display:grid; grid-template-columns:1fr 1fr; gap:8px 30px;
-    text-align:left; margin:20px 0 30px 0; font-size:0.85em; color:#bfe9ff;
+    display:grid; grid-template-columns:1fr 1fr; gap:5px 20px;
+    text-align:left; margin:10px 0 14px 0; font-size:0.78em; color:#bfe9ff;
   }
   .controls-grid div span.key {
     display:inline-block; min-width:70px; color:#ffd479; font-weight:bold;
@@ -46,6 +47,26 @@
     font-family:inherit;
   }
   #start-btn:hover { background:linear-gradient(180deg,#3fa8ea,#1c6f9c); box-shadow:0 0 30px rgba(80,200,255,0.8); transform:scale(1.03); }
+  #start-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  .ac-card, .wx-card {
+    background:rgba(10,30,50,0.7); border:1px solid rgba(127,216,255,0.3);
+    border-radius:8px; padding:6px 10px; cursor:pointer; font-size:11px;
+    color:#9fe9ff; text-align:center; transition:all 0.15s;
+    line-height:1.4;
+  }
+  .ac-card:hover, .wx-card:hover { border-color:#7fd8ff; background:rgba(20,60,90,0.8); }
+  .ac-card.selected, .wx-card.selected {
+    border-color:#ffd479; color:#ffd479; background:rgba(40,30,10,0.7);
+    box-shadow:0 0 12px rgba(255,212,121,0.4);
+  }
+  .ac-card small { color:#5fa8c9; font-size:10px; }
+  .cl-item {
+    display:flex; align-items:center; gap:8px; margin-bottom:6px;
+    cursor:pointer; color:#bfe9ff; font-size:12px;
+  }
+  .cl-item input { accent-color:#3fa8ea; width:14px; height:14px; cursor:pointer; }
+  .cl-item input:checked + * { color:#5ffcb0; text-decoration:line-through; opacity:0.7; }
 
   #pitch-note {
     font-size:11.5px; color:#9fe9ff; opacity:0.8; margin:-6px 0 14px 0; text-align:center; line-height:1.4;
@@ -580,6 +601,17 @@
   <div id="crash-reset-btn">RESET &#8635;</div>
 </div>
 
+<!-- Landing score popup -->
+<div id="landing-score" style="display:none;position:fixed;top:30%;left:50%;transform:translateX(-50%);
+  z-index:120;text-align:center;pointer-events:none;font-family:'Courier New',monospace;">
+  <div id="ls-grade" style="font-size:52px;"></div>
+  <div id="ls-label" style="font-size:18px;letter-spacing:3px;color:#ffd479;margin-top:4px;"></div>
+  <div id="ls-detail" style="font-size:12px;color:#9fe9ff;margin-top:6px;opacity:0.85;"></div>
+</div>
+
+<!-- Particle canvas for smoke/rain effects (drawn on top of Three.js) -->
+<canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8;"></canvas>
+
 <!-- Touch Controls (auto-shown on touch devices) -->
 <div id="touch-controls">
   <div id="joystick-zone">
@@ -639,7 +671,41 @@
     <h1>&#9992; FLIGHT SIM</h1>
     <div class="subtitle">BROWSER-BASED 3D FLIGHT SIMULATOR</div>
     <div id="airports-note" style="font-size:11.5px; color:#9fe9ff; opacity:0.8; margin:-6px 0 14px 0; text-align:center; line-height:1.4;">3 airports on the map &mdash; the orange needle always points to the nearest runway. Can't land? Press L (or tap AUTO) to let autoland do it for you.</div>
-    <div class="controls-grid" id="kb-controls-grid">
+
+    <!-- Aircraft selection -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">SELECT AIRCRAFT</div>
+      <div id="aircraft-picker" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <div class="ac-card selected" data-ac="cessna">✈ Cessna<br><small>Easy · Slow</small></div>
+        <div class="ac-card" data-ac="jet">🛫 Jet<br><small>Fast · Hard</small></div>
+        <div class="ac-card" data-ac="glider">🪂 Glider<br><small>No engine</small></div>
+      </div>
+    </div>
+
+    <!-- Weather selection -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">WEATHER</div>
+      <div id="weather-picker" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <div class="wx-card selected" data-wx="clear">☀️ Clear</div>
+        <div class="wx-card" data-wx="cloudy">⛅ Cloudy</div>
+        <div class="wx-card" data-wx="rain">🌧 Rain</div>
+        <div class="wx-card" data-wx="fog">🌫 Fog</div>
+        <div class="wx-card" data-wx="night">🌙 Night</div>
+      </div>
+    </div>
+
+    <!-- Pre-flight checklist for kids -->
+    <div id="checklist-box" style="margin-bottom:12px;text-align:left;background:rgba(0,40,60,0.5);border:1px solid rgba(127,216,255,0.2);border-radius:6px;padding:8px 14px;font-size:11px;">
+      <div style="color:#ffd479;letter-spacing:2px;margin-bottom:8px;text-align:center;">📋 PRE-FLIGHT CHECKLIST</div>
+      <label class="cl-item"><input type="checkbox" class="cl-check"> Seatbelt fastened ✓</label>
+      <label class="cl-item"><input type="checkbox" class="cl-check"> Flaps set to 0</label>
+      <label class="cl-item"><input type="checkbox" class="cl-check"> Throttle at 0%</label>
+      <label class="cl-item"><input type="checkbox" class="cl-check"> Parking brake ON</label>
+      <label class="cl-item"><input type="checkbox" class="cl-check"> Ready for takeoff!</label>
+      <div id="checklist-status" style="text-align:center;margin-top:8px;color:#5fa8c9;font-size:11px;">Complete the checklist to unlock START</div>
+    </div>
+    <div id="controls-toggle" style="font-size:10px;color:#5fa8c9;cursor:pointer;letter-spacing:1px;margin-bottom:6px;text-decoration:underline;" onclick="const g=document.getElementById('kb-controls-grid')||document.getElementById('touch-controls-grid');if(g){g.style.display=g.style.display==='none'?'grid':'none';}">▼ Show controls</div>
+    <div class="controls-grid" id="kb-controls-grid" style="display:none;">
       <div><span class="key">W / &#8593;</span>Pitch DOWN (dive)</div>
       <div><span class="key">S / &#8595;</span>Pitch UP (climb)</div>
       <div><span class="key">A / D</span>Roll Left / Right</div>
@@ -681,8 +747,183 @@
 "use strict";
 
 /* =====================================================================
-   SCENE / RENDERER / CAMERA
+   AIRCRAFT CONFIGURATIONS
 ===================================================================== */
+const AIRCRAFT_CONFIGS = {
+  cessna: {
+    name:'Cessna', maxThrust:45, drag:0.0022, lift:0.62,
+    stallSpeed:28, maxSpeed:95, color:0xf0f0e8, accentColor:0x3366cc,
+    mass:1, pitchRate:1.0, rollRate:1.0,
+  },
+  jet: {
+    name:'Jet', maxThrust:90, drag:0.0014, lift:0.48,
+    stallSpeed:42, maxSpeed:220, color:0xe8e8f0, accentColor:0xcc3333,
+    mass:1, pitchRate:1.4, rollRate:1.5,
+  },
+  glider: {
+    name:'Glider', maxThrust:0, drag:0.0006, lift:0.82,
+    stallSpeed:18, maxSpeed:70, color:0xf8f0d8, accentColor:0x44aa44,
+    mass:1, pitchRate:0.8, rollRate:0.7,
+  },
+};
+let selectedAircraft = 'cessna';
+let acConfig = AIRCRAFT_CONFIGS[selectedAircraft];
+
+/* =====================================================================
+   WEATHER SYSTEM
+===================================================================== */
+const WEATHER_CONFIGS = {
+  clear:  { fog:0.0018, fogColor:0xbfe3ff, sky:0x8fd0ff, ambient:0.7, sunIntensity:1.2, rain:false, night:false },
+  cloudy: { fog:0.0028, fogColor:0xb8c8d8, sky:0x7a9ab0, ambient:0.55, sunIntensity:0.7, rain:false, night:false },
+  rain:   { fog:0.0045, fogColor:0x8899aa, sky:0x607080, ambient:0.45, sunIntensity:0.4, rain:true,  night:false },
+  fog:    { fog:0.012,  fogColor:0xd8dde0, sky:0xc0c8cc, ambient:0.5,  sunIntensity:0.3, rain:false, night:false },
+  night:  { fog:0.0022, fogColor:0x050a14, sky:0x020610, ambient:0.12, sunIntensity:0.0, rain:false, night:true  },
+};
+let selectedWeather = 'clear';
+
+/* =====================================================================
+   PARTICLE FX CANVAS (smoke, rain, tire marks)
+===================================================================== */
+const fxCanvas = document.getElementById('fx-canvas');
+const fxCtx = fxCanvas.getContext('2d');
+let particles = [];
+let rainDrops = [];
+
+function resizeFxCanvas(){
+  fxCanvas.width = window.innerWidth;
+  fxCanvas.height = window.innerHeight;
+}
+resizeFxCanvas();
+window.addEventListener('resize', resizeFxCanvas);
+
+function spawnSmoke(count){
+  const cx = fxCanvas.width/2, cy = fxCanvas.height * 0.72;
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: cx + (Math.random()-0.5)*60,
+      y: cy + (Math.random()-0.5)*20,
+      vx: (Math.random()-0.5)*1.5,
+      vy: -Math.random()*1.2 - 0.3,
+      r: 8 + Math.random()*18,
+      life: 1.0,
+      decay: 0.018 + Math.random()*0.012,
+      gray: Math.floor(180+Math.random()*60),
+    });
+  }
+}
+
+function updateParticles(){
+  fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+
+  // Rain
+  const wx = WEATHER_CONFIGS[selectedWeather];
+  if(wx && wx.rain && started){
+    while(rainDrops.length < (isMobileDevice?80:200)){
+      rainDrops.push({
+        x: Math.random()*fxCanvas.width,
+        y: Math.random()*fxCanvas.height,
+        len: 8+Math.random()*14,
+        speed: 6+Math.random()*6,
+      });
+    }
+    fxCtx.strokeStyle='rgba(160,200,255,0.35)';
+    fxCtx.lineWidth=1;
+    for(const d of rainDrops){
+      fxCtx.beginPath();
+      fxCtx.moveTo(d.x, d.y);
+      fxCtx.lineTo(d.x+2, d.y+d.len);
+      fxCtx.stroke();
+      d.y += d.speed;
+      d.x += 1.5;
+      if(d.y > fxCanvas.height){ d.y = -20; d.x = Math.random()*fxCanvas.width; }
+    }
+  } else {
+    rainDrops = [];
+  }
+
+  // Smoke/tire puffs
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.life-=p.decay; p.r+=0.4;
+    if(p.life<=0){ particles.splice(i,1); continue; }
+    fxCtx.beginPath();
+    fxCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    fxCtx.fillStyle=`rgba(${p.gray},${p.gray},${p.gray},${p.life*0.28})`;
+    fxCtx.fill();
+  }
+}
+
+/* =====================================================================
+   LANDING SCORE
+===================================================================== */
+let landingScoreTimer = 0;
+let justLanded = false;
+let prevOnGround = true;
+
+function showLandingScore(vs, speed, onRunway){
+  const vsAbs = Math.abs(vs * 196.85); // m/s to ft/min
+  let grade, label, color;
+  if(!onRunway){
+    grade='💀'; label='OFF RUNWAY'; color='#ff6644';
+  } else if(vsAbs < 80){
+    grade='⭐⭐⭐'; label='PERFECT LANDING!'; color='#ffd700';
+  } else if(vsAbs < 200){
+    grade='⭐⭐'; label='SMOOTH LANDING'; color='#5ffcb0';
+  } else if(vsAbs < 400){
+    grade='⭐'; label='ACCEPTABLE'; color='#9fe9ff';
+  } else {
+    grade='💥'; label='HARD LANDING'; color='#ff9944';
+  }
+  const el = document.getElementById('landing-score');
+  document.getElementById('ls-grade').textContent = grade;
+  document.getElementById('ls-grade').style.color = color;
+  document.getElementById('ls-label').textContent = label;
+  document.getElementById('ls-label').style.color = color;
+  document.getElementById('ls-detail').textContent =
+    `VS: ${Math.round(vsAbs)} ft/min  •  ${Math.round(speed*1.944)} kts`;
+  el.style.display='block';
+  el.style.opacity='1';
+  el.style.transition='none';
+  landingScoreTimer = 3.5;
+}
+
+/* =====================================================================
+   MENU INTERACTIVITY (aircraft / weather / checklist)
+===================================================================== */
+// Aircraft picker
+document.querySelectorAll('.ac-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('.ac-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedAircraft = card.dataset.ac;
+  });
+  card.addEventListener('touchstart', e=>{ e.preventDefault(); card.click(); },{passive:false});
+});
+
+// Weather picker
+document.querySelectorAll('.wx-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('.wx-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedWeather = card.dataset.wx;
+  });
+  card.addEventListener('touchstart', e=>{ e.preventDefault(); card.click(); },{passive:false});
+});
+
+// Checklist - unlock START only when all items ticked
+const clChecks = document.querySelectorAll('.cl-check');
+const startBtn2 = document.getElementById('start-btn');
+startBtn2.disabled = true;
+function updateChecklist(){
+  const all = [...clChecks].every(c=>c.checked);
+  startBtn2.disabled = !all;
+  document.getElementById('checklist-status').textContent =
+    all ? '✅ All clear — ready to fly!' : `${[...clChecks].filter(c=>c.checked).length}/${clChecks.length} items checked`;
+  document.getElementById('checklist-status').style.color = all ? '#5ffcb0' : '#5fa8c9';
+}
+clChecks.forEach(c=>c.addEventListener('change', updateChecklist));
+
+
 if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
   const kb = document.getElementById('kb-controls-grid');
   const tc = document.getElementById('touch-controls-grid');
@@ -778,30 +1019,35 @@ function nearestRunway(x, z) {
   return best;
 }
 function terrainHeight(x, z) {
-  // Flat zone: wide enough for the runway strip (X) plus a 1000m approach corridor (Z) on both
-  // ends - so anyone approaching along the extended centreline has flat, safe ground to fly over
-  // and can land without mountains suddenly appearing in the glidepath.
-  const runwayHalfWidth = 220;   // lateral (X) half-width of flat zone
-  const approachLength = 1000;   // how far beyond each runway end to flatten (m)
-  const runwayHalfLen = 900;     // half of runwayLength (1800m)
+  const runwayHalfWidth = 300;   // lateral half-width of flat zone (wider = more forgiving)
+  const approachLength = 1200;   // flat corridor beyond each runway end (m)
+  const runwayHalfLen  = 900;    // half of runwayLength (1800m)
+  const fadeWidth  = 200;        // lateral taper width
+  const fadeLength = 500;        // longitudinal taper at corridor end
 
   let flatten = 1.0;
   for (const r of RUNWAYS) {
     const dx = Math.abs(x - r.cx);
     const dz = Math.abs(z - r.cz);
 
-    // lateral fade (same as before)
+    // Inside the full corridor (runway + approach on both ends)?
+    const inCorridor = dx < runwayHalfWidth + fadeWidth &&
+                       dz < runwayHalfLen + approachLength + fadeLength;
+    if (!inCorridor) continue;
+
+    // Lateral fade
     let fx = 1.0;
-    if (dx < runwayHalfWidth) fx = 0.0;
-    else if (dx < runwayHalfWidth + 300) fx = (dx - runwayHalfWidth) / 300;
+    if (dx < runwayHalfWidth)             fx = 0.0;
+    else if (dx < runwayHalfWidth + fadeWidth) fx = (dx - runwayHalfWidth) / fadeWidth;
 
-    // longitudinal fade: flat all the way from -runwayHalfLen to +runwayHalfLen (the runway
-    // itself) plus approachLength beyond each end, then a 400m smooth taper back to full terrain
+    // Longitudinal fade — flat through the runway AND the full approach corridor,
+    // then taper back to natural terrain over fadeLength
     let fz = 1.0;
-    if (dz < runwayHalfLen + approachLength) fz = 0.0;
-    else if (dz < runwayHalfLen + approachLength + 400) fz = (dz - (runwayHalfLen + approachLength)) / 400;
+    if (dz < runwayHalfLen + approachLength)              fz = 0.0;
+    else if (dz < runwayHalfLen + approachLength + fadeLength) fz = (dz - (runwayHalfLen + approachLength)) / fadeLength;
 
-    // inside the approach corridor the X and Z factors both have to agree (union)
+    // Take the LARGER fade factor: if you're well inside both, you're fully flat (both ~0).
+    // If you're at the edge of either, you start to see terrain rise.
     const f = Math.max(fx, fz);
     if (f < flatten) flatten = f;
   }
@@ -810,8 +1056,7 @@ function terrainHeight(x, z) {
   h += pseudoNoise(x, z, 1.0) * 140;
   h += pseudoNoise(x*2.1, z*2.1, 4.2) * 45;
   h += pseudoNoise(x*4.7, z*4.7, 9.9) * 14;
-  h = h * flatten;
-  return h;
+  return h * flatten;
 }
 
 const terrainSize = 9000;
@@ -1138,21 +1383,6 @@ function buildAirplane(){
   }
   plane.add(buildWingHalf(-1), buildWingHalf(1));
 
-  // Minimap: draw the airport markers once (their positions are static); the plane marker
-// and view are updated every frame in updateHUD().
-const MINIMAP_RANGE = 4500; // meters shown from edge to edge of the minimap, centered on the plane
-(function initMinimap(){
-  const g = document.getElementById('minimap-airports');
-  if (!g) return;
-  RUNWAYS.forEach((r, i)=>{
-    const el = document.createElementNS('http://www.w3.org/2000/svg','g');
-    el.setAttribute('class','minimap-airport');
-    el.dataset.cx = r.cx; el.dataset.cz = r.cz;
-    el.innerHTML = '<rect x="-2" y="-7" width="4" height="14" rx="1" fill="#ffcc55"/>';
-    g.appendChild(el);
-  });
-})();
-
 // Horizontal stabilizer
   const hstabGeo = new THREE.BoxGeometry(4.1, 0.12, 1.05);
   const hstab = new THREE.Mesh(hstabGeo, bodyMat);
@@ -1248,11 +1478,14 @@ const eulerOrder = 'YXZ';
 // Initial orientation: nose pointing +Z? We'll define forward as -Z in local space to match model built along Z with nose at -Z.
 airplane.position.copy(STATE.position);
 
-const GRAVITY = 9.81;
-const MAX_THRUST = 45;         // m/s^2 equivalent accel at full throttle
-const DRAG_COEFF = 0.0022;
-const LIFT_COEFF = 0.62;
-const STALL_SPEED = 28;        // m/s airspeed below which lift falls off at altitude
+
+// Physics constants — driven by acConfig so aircraft selection changes the feel.
+// These are read each frame from acConfig (set when the player presses START).
+const BASE_GRAVITY = 9.81;
+function MAX_THRUST(){ return acConfig.maxThrust; }
+function DRAG_COEFF(){ return acConfig.drag; }
+function LIFT_COEFF(){ return acConfig.lift; }
+function STALL_SPEED(){ return acConfig.stallSpeed; }
 const GROUND_FRICTION = 0.985;
 
 let cameraMode = 'chase'; // 'chase' | 'cockpit'
@@ -1872,6 +2105,23 @@ const clock = new THREE.Clock();
 let started = false;
 
 document.getElementById('start-btn').addEventListener('click', () => {
+  // Apply aircraft config
+  acConfig = AIRCRAFT_CONFIGS[selectedAircraft];
+
+  // Apply weather
+  const wx = WEATHER_CONFIGS[selectedWeather];
+  scene.fog.density = wx.fog;
+  scene.fog.color.setHex(wx.fogColor);
+  scene.background.setHex(wx.sky);
+  hemi.intensity = wx.ambient;
+  sun.intensity = wx.sunIntensity;
+  if(wx.night){
+    scene.background.setHex(0x020610);
+    // Add a dim moon-like fill light
+    const moon = new THREE.DirectionalLight(0x334466, 0.3);
+    moon.position.set(-200,300,100);
+    scene.add(moon);
+  }
   const invertCheck = document.getElementById('invert-pitch-check');
   pitchInverted = !!(invertCheck && invertCheck.checked);
   document.getElementById('menu-overlay').style.display = 'none';
@@ -2105,11 +2355,10 @@ function updatePhysics(dt){
     yawInput = manualYawInput;
     if (manualThrottleUp) STATE.throttle = Math.min(1, STATE.throttle + dt*0.5);
     if (manualThrottleDown) STATE.throttle = Math.max(0, STATE.throttle - dt*0.5);
-    // Auto-idle on the ground: once you've landed, throttle bleeds down on its own unless
-    // you're actively holding throttle-up for another takeoff - a still-open throttle right at
-    // touchdown was part of what generated enough lift/thrust to bounce the plane back into
-    // the air, and new pilots don't always remember to chop the power themselves in time.
-    if (STATE.onGround && !manualThrottleUp) {
+    // Auto-idle only during landing rollout (speed decreasing = we just landed).
+    // Don't touch throttle during takeoff roll - if the player is pushing throttle up, they're
+    // trying to take off, not land.
+    if (STATE.onGround && !manualThrottleUp && STATE.speed < 20) {
       STATE.throttle = Math.max(0, STATE.throttle - dt*0.7);
     }
   }
@@ -2185,7 +2434,7 @@ function updatePhysics(dt){
   const up = new THREE.Vector3(0,1,0).applyQuaternion(quat);
 
   // ---- Thrust ----
-  const thrustAccel = STATE.throttle * MAX_THRUST;
+  const thrustAccel = STATE.throttle * MAX_THRUST();
 
   // ---- Speed integration along forward axis (simplified point-mass with alignment) ----
   // Project current velocity onto forward to get airspeed-ish scalar, blend toward forward-aligned flight
@@ -2200,10 +2449,15 @@ function updatePhysics(dt){
   // speed, full flap lift is actually MORE than gravity, which is exactly what was launching the
   // plane back into the air the instant it settled instead of letting it stay down.
   const groundClearance = STATE.position.y - groundElevationAt(STATE.position.x, STATE.position.z);
+  // Declare onRunway here (not down in the ground-collision block) because the lift-suppression
+  // logic uses it ~60 lines above where it used to be declared - that was a ReferenceError
+  // every single frame, which is what was causing the "Script error" on mobile.
+  const onRunway = RUNWAYS.some(r =>
+    Math.abs(STATE.position.x - r.cx) < runwayWidth/2 && Math.abs(STATE.position.z - r.cz) < runwayLength/2);
   const nearGround = groundClearance < 8;
   const flapLiftBonus = 1 + (nearGround ? 0 : STATE.flaps) * 0.14;
   const flapDragAccel = STATE.flaps * 0.00045 * airspeed * airspeed;
-  const effectiveStallSpeed = STALL_SPEED - STATE.flaps * 2.6;
+  const effectiveStallSpeed = STALL_SPEED() - STATE.flaps * 2.6;
 
   // Speedbrakes/spoilers: extra drag and reduced lift while deployed - for descending faster
   // without gaining speed, or for extra stopping power just after touchdown.
@@ -2211,16 +2465,16 @@ function updatePhysics(dt){
   const speedbrakeLiftMult = STATE.speedbrake ? 0.82 : 1;
 
   // Drag opposes velocity
-  const dragAccel = DRAG_COEFF * airspeed * airspeed + flapDragAccel + speedbrakeDragAccel;
+  const dragAccel = DRAG_COEFF() * airspeed * airspeed + flapDragAccel + speedbrakeDragAccel;
 
   // Net forward acceleration
   let forwardAccel = thrustAccel - dragAccel;
 
   // Gravity always down
-  const gravityVec = new THREE.Vector3(0,-GRAVITY,0);
+  const gravityVec = new THREE.Vector3(0,-BASE_GRAVITY,0);
 
   // Lift: proportional to speed^2 and controlled by pitch attitude (angle of attack proxy), acts along 'up'
-  const liftMag = LIFT_COEFF * airspeed * airspeed * 0.02 * flapLiftBonus * speedbrakeLiftMult;
+  const liftMag = LIFT_COEFF() * airspeed * airspeed * 0.02 * flapLiftBonus * speedbrakeLiftMult;
   let effectiveLift = liftMag;
 
   STATE.stalling = false;
@@ -2253,7 +2507,9 @@ function updatePhysics(dt){
   // held in; idle/rolling-out power means lift is cut way down so the plane stays down, while a
   // deliberate touch-and-go (throttle back up) still lifts off normally.
   if ((STATE.onGround || groundClearance < 5) && STATE.throttle <= 0.5) {
-    effectiveLift *= 0.05;
+    // Kill lift on touchdown so the plane stays down. Only when throttle is low
+    // (landing/rollout) - at takeoff throttle the plane needs full lift to get airborne.
+    effectiveLift *= onRunway ? 0 : 0.05;
   }
 
   // Thinning air / service ceiling: lift and thrust taper off above a realistic altitude so the
@@ -2283,13 +2539,15 @@ function updatePhysics(dt){
     STATE.velocity.setLength(MAX_SPEED);
   }
 
-  // Slight velocity-vector alignment toward forward direction (arcade stability so plane flies where pointed)
+  // Velocity-vector alignment toward forward direction (arcade stability).
+  // IMPORTANT: we blend direction only - the speed change from thrust/drag already happened
+  // above via forwardAccel. Don't re-clamp to curSpeed here or throttle has no effect on speed.
   const alignFactor = STATE.onGround ? 0.0 : THREE.MathUtils.clamp(dt * 1.2, 0, 0.35);
-  const curSpeed = STATE.velocity.length();
-  if (curSpeed > 0.5) {
+  if (STATE.velocity.length() > 0.5) {
     const curDir = STATE.velocity.clone().normalize();
     const blendedDir = curDir.lerp(forward, alignFactor).normalize();
-    STATE.velocity.copy(blendedDir.multiplyScalar(curSpeed));
+    // Keep the actual speed that physics produced (don't restore curSpeed)
+    STATE.velocity.copy(blendedDir.multiplyScalar(STATE.velocity.length()));
   }
 
   // ---- Position integration ----
@@ -2312,8 +2570,7 @@ function updatePhysics(dt){
   const gearOffset = 1.0;
   const minY = groundY + gearOffset;
 
-  const onRunway = RUNWAYS.some(r =>
-    Math.abs(STATE.position.x - r.cx) < runwayWidth/2 && Math.abs(STATE.position.z - r.cz) < runwayLength/2);
+  // (onRunway already declared above alongside groundClearance)
 
   if (STATE.position.y <= minY) {
     // Capture the impact severity before we zero/modify velocity below - this is what tells a
@@ -2353,6 +2610,15 @@ function updatePhysics(dt){
     STATE.velocity.x *= GROUND_FRICTION;
     STATE.velocity.z *= GROUND_FRICTION;
 
+    // On a runway after landing: automatic braking brings the plane to a stop.
+    // Only applies when decelerating (speed < 55 m/s and throttle low) so it doesn't
+    // fight takeoff roll — at takeoff throttle the plane should accelerate freely.
+    if (onRunway && STATE.throttle < 0.4 && STATE.speed < 55) {
+      const brakingStrength = THREE.MathUtils.mapLinear(STATE.speed, 0, 55, 0.985, 0.91);
+      STATE.velocity.x *= brakingStrength;
+      STATE.velocity.z *= brakingStrength;
+    }
+
     // Wheel brakes (hold Space) and parking brake (P) add much stronger deceleration than
     // normal rolling friction - this is what lets you actually stop on the runway instead of
     // slowly rolling out forever.
@@ -2370,7 +2636,18 @@ function updatePhysics(dt){
       STATE.velocity.multiplyScalar(0.965);
     }
 
-    // level attitude gently when on ground
+    // ---- Landing detection: score + smoke on touchdown ----
+  if(!prevOnGround && STATE.onGround && !STATE.crashed){
+    justLanded = true;
+    showLandingScore(STATE.verticalSpeed, STATE.speed, onRunway);
+    if(onRunway) spawnSmoke(isMobileDevice ? 12 : 28);
+  }
+  prevOnGround = STATE.onGround;
+
+  // Also puff a little ongoing smoke during rollout
+  if(STATE.onGround && onRunway && STATE.speed > 8 && Math.random() < 0.25){
+    spawnSmoke(isMobileDevice ? 2 : 4);
+  }
     STATE.roll *= 0.9;
     STATE.pitch = THREE.MathUtils.lerp(STATE.pitch, 0, 0.08);
 
@@ -2607,12 +2884,18 @@ function updateHUD(dt){
   // ---- Heading compass rose: rotate card opposite to heading so N points to true bearing ----
   hdgCard.style.transform = `rotate(${-STATE.heading}deg)`;
 
-  // ---- Runway navigation: ADF/RMI needle + DME distance, referenced to the runway/airport
-  //      reference point at the world origin. This answers "where's the runway" at a glance,
-  //      the same way a real ADF or GPS-to-nearest-airport needle would. ----
+  // ---- Runway navigation: ADF needle + DME distance ----
+  // Point to the NEARER THRESHOLD of the nearest runway (not the center), so the needle
+  // always points to where you should fly, not sideways to the midpoint.
   const navRwy = nearestRunway(STATE.position.x, STATE.position.z);
+  const threshN = navRwy.cz - runwayLength/2; // north threshold
+  const threshS = navRwy.cz + runwayLength/2; // south threshold
+  const distN = Math.hypot(STATE.position.x - navRwy.cx, STATE.position.z - threshN);
+  const distS = Math.hypot(STATE.position.x - navRwy.cx, STATE.position.z - threshS);
+  const nearThreshZ = distN < distS ? threshN : threshS;
+
   const dxRwy = navRwy.cx - STATE.position.x;
-  const dzRwy = navRwy.cz - STATE.position.z;
+  const dzRwy = nearThreshZ - STATE.position.z;
   const distToRwyM = Math.sqrt(dxRwy*dxRwy + dzRwy*dzRwy);
   const distNm = distToRwyM / 1852;
   let bearingToRwy = THREE.MathUtils.radToDeg(Math.atan2(dxRwy, -dzRwy));
@@ -2707,6 +2990,18 @@ function animate(){
   }
   updateCamera(dt || 0.016);
   renderer.render(scene, camera);
+  updateParticles();
+
+  // Fade out landing score
+  if(landingScoreTimer > 0){
+    landingScoreTimer -= (dt || 0.016);
+    const el = document.getElementById('landing-score');
+    if(landingScoreTimer <= 1.0){
+      el.style.transition = 'opacity 1s';
+      el.style.opacity = Math.max(0, landingScoreTimer).toFixed(2);
+    }
+    if(landingScoreTimer <= 0) el.style.display='none';
+  }
 }
 
 // initial camera position before start
