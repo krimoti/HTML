@@ -238,6 +238,13 @@
   .sl-el-rect{border-radius:4px;}
   .sl-el-table table{width:100%;height:100%;border-collapse:collapse;font-size:13px;}
   .sl-el-table td{border:1px solid #B9D2EA;padding:4px 7px;outline:none;overflow:hidden;}
+  .sl-table-grid{position:relative;width:100%;height:100%;box-sizing:border-box;}
+  .sl-table-cell{
+    position:absolute;box-sizing:border-box;
+    border:1px solid #B9D2EA;padding:4px 7px;
+    outline:none;overflow:hidden;font-size:13px;cursor:text;
+  }
+  .sl-table-cell.cell-selected{box-shadow:inset 0 0 0 2px var(--blue-700);}
   .sl-resize-handle{
     position:absolute;
     width:12px;height:12px;
@@ -277,7 +284,19 @@
     border-inline-start:1px solid var(--border);
     padding:14px;
     overflow-y:auto;
+    position:relative;
+    transition:width .18s ease, padding .18s ease, opacity .12s ease;
   }
+  #slPropsPanel.collapsed{ width:0; padding:0; border:none; overflow:visible; opacity:0; pointer-events:none; }
+  #slPropsToggle{
+    position:absolute; top:14px; left:-16px; z-index:5;
+    width:30px; height:30px; border-radius:50%;
+    background:#fff; border:1px solid var(--border-strong); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    pointer-events:auto;
+  }
+  #slPropsPanel.collapsed #slPropsToggle{ opacity:1; }
 
   /* ===== Document module ===== */
   #docFormatBar{
@@ -309,6 +328,32 @@
     justify-content:center;
     width:100%;
   }
+  #docBody{
+    display:flex;
+    flex:1;
+    min-height:0;
+    width:100%;
+  }
+  #docSidebar{
+    width:250px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-inline-start:1px solid var(--border);
+    padding:16px;
+    overflow-y:auto;
+    position:relative;
+    transition:width .18s ease, padding .18s ease, opacity .12s ease;
+  }
+  #docSidebar.collapsed{ width:0; padding:0; border:none; overflow:visible; opacity:0; pointer-events:none; }
+  #docSidebarToggle{
+    position:absolute; top:14px; left:-16px; z-index:5;
+    width:30px; height:30px; border-radius:50%;
+    background:#fff; border:1px solid var(--border-strong); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    pointer-events:auto;
+  }
+  #docSidebar.collapsed #docSidebarToggle{ opacity:1; }
   #docPage{
     width:794px;
     min-height:1123px;
@@ -350,6 +395,49 @@
     padding:16px;
     width:100%;
   }
+  #sheetBody{
+    display:flex;
+    flex:1;
+    min-height:0;
+    width:100%;
+  }
+  #sheetSidebar{
+    width:270px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-inline-start:1px solid var(--border);
+    padding:16px;
+    overflow-y:auto;
+    position:relative;
+    transition:width .18s ease, padding .18s ease, opacity .12s ease;
+  }
+  #sheetSidebar.collapsed{ width:0; padding:0; border:none; overflow:visible; opacity:0; pointer-events:none; }
+  #sheetSidebarToggle{
+    position:absolute; top:14px; left:-16px; z-index:5;
+    width:30px; height:30px; border-radius:50%;
+    background:#fff; border:1px solid var(--border-strong); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    pointer-events:auto;
+  }
+  #sheetSidebar.collapsed #sheetSidebarToggle{ opacity:1; }
+  .sheet-cell-select{
+    width:100%; border:none; outline:none; background:transparent;
+    font-size:13px; font-family:inherit; color:inherit; cursor:pointer;
+  }
+  .func-item{
+    padding:6px 0; border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .func-item:last-child{ border-bottom:none; }
+  .func-item:hover{ background:#F5FAFF; }
+  .func-item b{ color:var(--blue-700); font-size:12.5px; }
+  .func-item div{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .rule-item{
+    display:flex; align-items:center; justify-content:space-between; gap:6px;
+    font-size:12px; padding:6px 8px; margin-bottom:6px;
+    background:#F5FAFF; border:1px solid var(--border); border-radius:6px;
+  }
+  .rule-item button{ border:none; background:none; cursor:pointer; color:var(--danger, #C0392B); font-size:14px; }
   #sheetGrid{
     border-collapse:collapse;
     background:#fff;
@@ -435,7 +523,31 @@
     border-inline-start:1px solid var(--border);
     padding:16px;
     overflow-y:auto;
+    position:relative;
+    transition:width .18s ease, padding .18s ease, opacity .12s ease;
   }
+  #sidebar.collapsed{ width:0; padding:0; border:none; overflow:visible; opacity:0; pointer-events:none; }
+  #sidebarToggle{
+    position:absolute; top:14px; left:-16px; z-index:5;
+    width:30px; height:30px; border-radius:50%;
+    background:#fff; border:1px solid var(--border-strong); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    pointer-events:auto;
+  }
+  #sidebar.collapsed #sidebarToggle{ opacity:1; }
+  .side-block h3{
+    cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .side-block h3::after{ content:"⌄"; font-size:11px; transition:transform .15s ease; color:var(--text-muted); }
+  .side-block.collapsed h3::after{ transform:rotate(-90deg); }
+  .side-block.collapsed > *:not(h3){ display:none !important; }
+  .theme-preset-btn{
+    flex:1 1 calc(25% - 6px); height:28px; border-radius:6px;
+    border:1px solid var(--border-strong); cursor:pointer;
+  }
+  .theme-preset-btn:hover{ box-shadow:0 0 0 2px var(--blue-700); }
   #sidebar h3{
     margin:0 0 10px;
     font-size:12px;
@@ -931,6 +1043,11 @@
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-group">
+      <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)" disabled>↶</button>
+      <button class="btn" id="btnRedo" title="Redo (Ctrl+Y)" disabled>↷</button>
+    </div>
+    <div class="hdr-sep"></div>
+    <div class="hdr-group">
       <button class="btn" id="btnNew"><span class="icon">＋</span><span data-t="new">חדש</span></button>
       <button class="btn" id="btnExportJson"><span class="icon">⭳</span><span data-t="exportJson">שמירת קובץ</span></button>
       <button class="btn" id="btnImportJson"><span class="icon">⭱</span><span data-t="importJson">טעינת קובץ</span></button>
@@ -1046,8 +1163,16 @@
     </div>
 
     <div id="sidebar">
+      <button id="sidebarToggle" title="פתח/סגור סרגל צד">‹</button>
       <div class="side-block">
         <h3 data-t="chartSettings">הגדרות תרשים</h3>
+        <div class="field">
+          <label data-t="layoutDirection">כיוון פריסה</label>
+          <select id="layoutDirectionSelect">
+            <option value="vertical" data-t="layoutVertical">מלמעלה למטה</option>
+            <option value="horizontal" data-t="layoutHorizontal">מימין לשמאל</option>
+          </select>
+        </div>
         <div class="field">
           <label data-t="connectorStyle">סוג קו מחבר</label>
           <select id="lineStyleSelect">
@@ -1055,6 +1180,10 @@
             <option value="elbow" data-t="lineElbow">זוויתי (ישר)</option>
             <option value="straight" data-t="lineStraight">אלכסוני ישר</option>
           </select>
+        </div>
+        <div class="field">
+          <label data-t="themePresets">ערכת עיצוב לכל התרשים</label>
+          <div class="btn-row" id="themePresetRow"></div>
         </div>
         <div class="field">
           <label data-t="companyLogo">לוגו החברה</label>
@@ -1173,6 +1302,7 @@
       </div>
 
       <div id="slPropsPanel">
+        <button id="slPropsToggle" title="פתח/סגור סרגל צד">‹</button>
         <div id="slNoSelection" class="empty-hint" data-t-slides="propsHint">בחרו רכיב בשקופית כדי לערוך אותו, או הוסיפו רכיב חדש מסרגל הכלים.</div>
         <div id="slProps" style="display:none;"></div>
       </div>
@@ -1203,13 +1333,67 @@
         <button class="sl-tool-btn" id="docInsHr"><span class="icon">―</span><span data-t-doc="insHr">קו מפריד</span></button>
         <input type="file" id="docImageInput" accept="image/*" style="display:none;">
       </div>
-      <div id="docPageWrap">
-        <div id="docPage" contenteditable="true" dir="rtl"></div>
+      <div id="docBody">
+        <div id="docPageWrap">
+          <div id="docPage" contenteditable="true" dir="rtl" spellcheck="true"></div>
+        </div>
+        <div id="docSidebar">
+          <button id="docSidebarToggle" title="פתח/סגור סרגל צד">‹</button>
+          <div class="side-block">
+            <h3 data-t-doc="sidebarFont">גופן וצבע</h3>
+            <div class="field">
+              <label data-t-doc="textFont">גופן</label>
+              <select id="docFontFamily" title="Font">
+                <option value="'Segoe UI', Tahoma, Arial, sans-serif" data-t-doc="fontSans">רגיל</option>
+                <option value="Georgia, 'Times New Roman', serif" data-t-doc="fontSerif">סריף</option>
+                <option value="'Courier New', monospace" data-t-doc="fontMono">קבוע-רוחב</option>
+                <option value="Tahoma, Verdana, sans-serif" data-t-doc="fontSans2">רגיל (חלופי)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label data-t-doc="textColor">צבע טקסט</label>
+              <div class="swatches" id="docTextColorSwatches"></div>
+            </div>
+            <div class="field">
+              <label data-t-doc="highlight">הדגשה</label>
+              <div class="swatches" id="docHighlightSwatches"></div>
+            </div>
+          </div>
+          <div class="side-block">
+            <h3 data-t-doc="sidebarSymbols">סמלים</h3>
+            <div class="btn-row" id="docSymbolRow"></div>
+          </div>
+          <div class="side-block">
+            <h3 data-t-doc="sidebarImage">יישור תמונה</h3>
+            <div class="btn-row">
+              <button class="sl-tool-btn" id="docImgAlignLeft" title="Image left">⇤🖼</button>
+              <button class="sl-tool-btn" id="docImgAlignCenter" title="Image center">↔🖼</button>
+              <button class="sl-tool-btn" id="docImgAlignRight" title="Image right">🖼⇥</button>
+            </div>
+          </div>
+          <div class="side-block">
+            <h3 data-t-doc="cellTools">כלי תא בטבלה</h3>
+            <div class="field">
+              <label data-t-doc="color">צבע תא</label>
+              <div class="swatches" id="docCellColorSwatches"></div>
+            </div>
+            <div class="field">
+              <label data-t-doc="cellSize">גודל תא (px)</label>
+              <div class="btn-row">
+                <input type="number" id="docCellWidth" min="5" max="600" placeholder="W">
+                <input type="number" id="docCellHeight" min="5" max="400" placeholder="H">
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="tab-panel" id="tabpanel-sheet" style="display:none;">
       <div id="sheetToolbar">
+        <button class="sl-tool-btn" id="shUndoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+        <button class="sl-tool-btn" id="shRedoBtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+        <div class="hdr-sep"></div>
         <button class="sl-tool-btn" id="shAddRow"><span class="icon">＋⎯</span><span data-t-sheet="addRow">שורה</span></button>
         <button class="sl-tool-btn" id="shDelRow"><span class="icon">－⎯</span><span data-t-sheet="delRow">שורה</span></button>
         <div class="hdr-sep"></div>
@@ -1218,8 +1402,92 @@
         <div class="hdr-sep"></div>
         <span class="field-hint" data-t-sheet="formulaHint" style="margin:0;">תומך בנוסחאות כגון =SUM(A1:A5) ו-=AVERAGE(A1:A5)</span>
       </div>
-      <div id="sheetGridWrap">
-        <table id="sheetGrid"></table>
+      <div id="sheetBody">
+        <div id="sheetGridWrap">
+          <table id="sheetGrid"></table>
+        </div>
+        <div id="sheetSidebar">
+          <button id="sheetSidebarToggle" title="פתח/סגור סרגל צד">‹</button>
+
+          <div class="side-block">
+            <h3 data-t-sheet="funcLibrary">ספריית פונקציות</h3>
+            <div class="field-hint" data-t-sheet="funcLibraryHint" style="margin-bottom:8px;">לחצו על פונקציה כדי להכניס אותה לתא הנבחר.</div>
+            <div id="funcLibraryList"></div>
+          </div>
+
+          <div class="side-block">
+            <h3 data-t-sheet="cellFormat">עיצוב תאים</h3>
+            <div class="field-hint" data-t-sheet="formatAppliesTo" style="margin-bottom:6px;">חל על התא שנבחר בגיליון.</div>
+            <div class="btn-row">
+              <button class="side-btn" id="fmtBold" style="font-weight:700;">B</button>
+              <button class="side-btn" id="fmtItalic" style="font-style:italic;">I</button>
+              <button class="side-btn" id="fmtAlignRight">⇥</button>
+              <button class="side-btn" id="fmtAlignCenter">↔</button>
+              <button class="side-btn" id="fmtAlignLeft">⇤</button>
+            </div>
+            <div class="field">
+              <label data-t-sheet="textColor">צבע טקסט</label>
+              <div class="swatches" id="fmtTextColorSwatches"></div>
+            </div>
+            <div class="field">
+              <label data-t-sheet="cellBg">צבע רקע</label>
+              <div class="swatches" id="fmtBgColorSwatches"></div>
+            </div>
+          </div>
+
+          <div class="side-block">
+            <h3 data-t-sheet="condFormat">עיצוב מותנה</h3>
+            <div class="field">
+              <label data-t-sheet="range">טווח (למשל A1:A10)</label>
+              <input type="text" id="condRange" placeholder="A1:A10">
+            </div>
+            <div class="field">
+              <label data-t-sheet="condition">תנאי</label>
+              <select id="condOp">
+                <option value="gt" data-t-sheet="condGt">גדול מ-</option>
+                <option value="lt" data-t-sheet="condLt">קטן מ-</option>
+                <option value="eq" data-t-sheet="condEq">שווה ל-</option>
+                <option value="contains" data-t-sheet="condContains">מכיל טקסט</option>
+                <option value="empty" data-t-sheet="condEmpty">ריק</option>
+                <option value="notempty" data-t-sheet="condNotEmpty">לא ריק</option>
+              </select>
+            </div>
+            <div class="field">
+              <label data-t-sheet="value">ערך</label>
+              <input type="text" id="condValue">
+            </div>
+            <div class="field">
+              <label data-t-sheet="cellBg">צבע רקע להדגשה</label>
+              <div class="swatches" id="condBgSwatches"></div>
+            </div>
+            <button class="side-btn full" id="condAddBtn"><span class="icon">＋</span><span data-t-sheet="addRule">הוסף כלל</span></button>
+            <div id="condRulesList" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="side-block">
+            <h3 data-t-sheet="mergeCells">מיזוג תאים</h3>
+            <div class="field">
+              <label data-t-sheet="range">טווח (למשל A1:C1)</label>
+              <input type="text" id="mergeRange" placeholder="A1:C1">
+            </div>
+            <button class="side-btn full" id="mergeAddBtn"><span class="icon">⛶</span><span data-t-sheet="mergeBtn">מזג תאים</span></button>
+            <div id="mergesList" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="side-block">
+            <h3 data-t-sheet="dropdownList">רשימה נגררת</h3>
+            <div class="field">
+              <label data-t-sheet="range">טווח (למשל B1:B10)</label>
+              <input type="text" id="validRange" placeholder="B1:B10">
+            </div>
+            <div class="field">
+              <label data-t-sheet="optionsCommaSep">אפשרויות (מופרדות בפסיקים)</label>
+              <textarea id="validOptions" rows="2" placeholder="כן, לא, אולי"></textarea>
+            </div>
+            <button class="side-btn full" id="validAddBtn"><span class="icon">＋</span><span data-t-sheet="addRule">הוסף רשימה</span></button>
+            <div id="validationsList" style="margin-top:10px;"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1623,9 +1891,26 @@
     } else if (type === "table"){
       base.rows=3; base.cols=3;
       base.cells=[]; for (var r=0;r<3;r++){ var row=[]; for (var c=0;c<3;c++) row.push(""); base.cells.push(row); }
+      base.colWidths=[1/3,1/3,1/3]; base.rowHeights=[1/3,1/3,1/3];
+      base.cellColors=[]; for (var r2=0;r2<3;r2++){ var crow=[]; for (var c2=0;c2<3;c2++) crow.push(null); base.cellColors.push(crow); }
+      base.selectedCell = null;
       base.w=280; base.h=110;
     }
     return base;
+  }
+
+  // Backward-compatible defaults for tables saved before per-cell sizing/coloring existed.
+  function normalizeFractions(n){
+    return Array.apply(null, Array(n)).map(function(){ return 1/n; });
+  }
+  function ensureTableGrids(el){
+    if (!el.colWidths || el.colWidths.length !== el.cols) el.colWidths = normalizeFractions(el.cols);
+    if (!el.rowHeights || el.rowHeights.length !== el.rows) el.rowHeights = normalizeFractions(el.rows);
+    if (!el.cellColors) el.cellColors = [];
+    for (var r=0;r<el.rows;r++){
+      if (!el.cellColors[r]) el.cellColors[r] = [];
+      for (var c=0;c<el.cols;c++){ if (el.cellColors[r][c] === undefined) el.cellColors[r][c] = null; }
+    }
   }
 
   function activeSlide(){ return state.slides[state.activeSlideIdx] || null; }
@@ -1848,12 +2133,22 @@
       div.style.userSelect = "none";
       div.textContent = el.symbol || "$";
     } else if (el.type === "table"){
-      var table = document.createElement("table");
+      ensureTableGrids(el);
+      var grid = document.createElement("div");
+      grid.className = "sl-table-grid";
+      var top = 0;
       for (var r=0;r<el.rows;r++){
-        var tr = document.createElement("tr");
+        var rowHPct = el.rowHeights[r]*100;
+        var left = 0;
         for (var c=0;c<el.cols;c++){
-          var td = document.createElement("td");
+          var colWPct = el.colWidths[c]*100;
+          var td = document.createElement("div");
+          td.className = "sl-table-cell" + (el.selectedCell && el.selectedCell.r===r && el.selectedCell.c===c ? " cell-selected" : "");
           td.contentEditable = true;
+          td.style.left = left+"%"; td.style.top = top+"%";
+          td.style.width = colWPct+"%"; td.style.height = rowHPct+"%";
+          var cc0 = (el.cellColors[r] && el.cellColors[r][c]) || "";
+          td.style.background = cc0 || "transparent";
           td.setAttribute("data-row", r);
           td.setAttribute("data-col", c);
           td.textContent = (el.cells[r] && el.cells[r][c]) || "";
@@ -1869,19 +2164,21 @@
               if (state.selectedElId !== el.id){
                 commitActiveEdit();
                 state.selectedElId = el.id;
-                renderProps();
                 // intentionally skip renderCanvas() here — re-rendering would
-                // destroy this just-clicked <td> before it receives focus,
+                // destroy this just-clicked cell before it receives focus,
                 // losing the click. The selection outline catches up on the
                 // next re-render triggered elsewhere.
               }
+              el.selectedCell = { r: rr, c: cc };
+              renderProps();
             });
           })(r,c);
-          tr.appendChild(td);
+          grid.appendChild(td);
+          left += colWPct;
         }
-        table.appendChild(tr);
+        top += rowHPct;
       }
-      div.appendChild(table);
+      div.appendChild(grid);
     }
 
     div.addEventListener("mousedown", function(ev){
@@ -1910,14 +2207,14 @@
     if (!el) return;
     if (el.type === "text" && ae === wrapper){
       el.text = ae.textContent;
-    } else if (el.type === "table" && ae.tagName === "TD"){
+    } else if (el.type === "table" && ae.classList && ae.classList.contains("sl-table-cell")){
       var r = parseInt(ae.getAttribute("data-row"), 10);
       var c = parseInt(ae.getAttribute("data-col"), 10);
       if (!isNaN(r) && !isNaN(c) && el.cells[r]) el.cells[r][c] = ae.textContent;
     }
     // deliberately no ae.blur() call here — the element is about to be
     // destroyed by the caller's renderCanvas() anyway, and calling .blur()
-    // programmatically on a <td> mid-mousedown triggers a Chromium quirk
+    // programmatically on a table cell mid-mousedown triggers a Chromium quirk
     // that clears its content before the blur handler can read it.
   }
 
@@ -2203,17 +2500,112 @@
       sw3.appendChild(sl3); sw3.appendChild(strokeSw2); props.appendChild(sw3);
 
     } else if (el.type === "table"){
+      ensureTableGrids(el);
       var btnRow2 = document.createElement("div"); btnRow2.className="btn-row";
       function addTableBtn(labelKey, fn){
         var b = document.createElement("button"); b.className="side-btn"; b.textContent=t(labelKey);
         b.addEventListener("click", fn);
         btnRow2.appendChild(b);
       }
-      addTableBtn("addRow", function(){ var row=[]; for(var c=0;c<el.cols;c++) row.push(""); el.cells.push(row); el.rows++; renderCanvas(); scheduleSave(); });
-      addTableBtn("addCol", function(){ el.cells.forEach(function(row){row.push("");}); el.cols++; renderCanvas(); scheduleSave(); });
-      addTableBtn("delRow", function(){ if (el.rows>1){ el.cells.pop(); el.rows--; renderCanvas(); scheduleSave(); } });
-      addTableBtn("delCol", function(){ if (el.cols>1){ el.cells.forEach(function(row){row.pop();}); el.cols--; renderCanvas(); scheduleSave(); } });
+      addTableBtn("addRow", function(){
+        var row=[]; for(var c=0;c<el.cols;c++) row.push(""); el.cells.push(row); el.rows++;
+        el.rowHeights.push(1/el.rows);
+        var sum=el.rowHeights.reduce(function(a,b){return a+b;},0); el.rowHeights = el.rowHeights.map(function(v){return v/sum;});
+        el.cellColors.push(Array.apply(null, Array(el.cols)).map(function(){ return null; }));
+        renderCanvas(); renderProps(); scheduleSave();
+      });
+      addTableBtn("addCol", function(){
+        el.cells.forEach(function(row){row.push("");}); el.cols++;
+        el.colWidths.push(1/el.cols);
+        var sum2=el.colWidths.reduce(function(a,b){return a+b;},0); el.colWidths = el.colWidths.map(function(v){return v/sum2;});
+        el.cellColors.forEach(function(row){ row.push(null); });
+        renderCanvas(); renderProps(); scheduleSave();
+      });
+      addTableBtn("delRow", function(){
+        if (el.rows>1){
+          el.cells.pop(); el.rows--; el.rowHeights.pop(); el.cellColors.pop();
+          var sum3=el.rowHeights.reduce(function(a,b){return a+b;},0); el.rowHeights = el.rowHeights.map(function(v){return v/sum3;});
+          if (el.selectedCell && el.selectedCell.r >= el.rows) el.selectedCell = null;
+          renderCanvas(); renderProps(); scheduleSave();
+        }
+      });
+      addTableBtn("delCol", function(){
+        if (el.cols>1){
+          el.cells.forEach(function(row){row.pop();}); el.cols--; el.colWidths.pop();
+          el.cellColors.forEach(function(row){ row.pop(); });
+          var sum4=el.colWidths.reduce(function(a,b){return a+b;},0); el.colWidths = el.colWidths.map(function(v){return v/sum4;});
+          if (el.selectedCell && el.selectedCell.c >= el.cols) el.selectedCell = null;
+          renderCanvas(); renderProps(); scheduleSave();
+        }
+      });
       props.appendChild(btnRow2);
+
+      // per-column width controls (shown as % of the table's total width)
+      var colWrapAll = document.createElement("div"); colWrapAll.className="field";
+      var colLbl = document.createElement("label"); colLbl.textContent = t("tableCols");
+      var colInputsRow = document.createElement("div"); colInputsRow.className="btn-row";
+      el.colWidths.forEach(function(frac, ci){
+        var inp = document.createElement("input"); inp.type="number"; inp.min="5"; inp.max="90"; inp.style.width="56px";
+        inp.value = Math.round(frac*100);
+        inp.addEventListener("change", function(){
+          var pct = Math.max(5, Math.min(90, parseFloat(this.value)||10))/100;
+          var others = el.colWidths.reduce(function(s,v,i){ return i===ci ? s : s+v; }, 0);
+          var remaining = 1 - pct;
+          el.colWidths = el.colWidths.map(function(v,i){
+            if (i===ci) return pct;
+            return others>0 ? (v/others)*remaining : remaining/(el.cols-1);
+          });
+          renderCanvas(); renderProps(); scheduleSave();
+        });
+        colInputsRow.appendChild(inp);
+      });
+      colWrapAll.appendChild(colLbl); colWrapAll.appendChild(colInputsRow); props.appendChild(colWrapAll);
+
+      // per-row height controls (shown as % of the table's total height)
+      var rowWrapAll = document.createElement("div"); rowWrapAll.className="field";
+      var rowLbl = document.createElement("label"); rowLbl.textContent = t("tableRows");
+      var rowInputsRow = document.createElement("div"); rowInputsRow.className="btn-row";
+      el.rowHeights.forEach(function(frac, ri){
+        var inp = document.createElement("input"); inp.type="number"; inp.min="5"; inp.max="90"; inp.style.width="56px";
+        inp.value = Math.round(frac*100);
+        inp.addEventListener("change", function(){
+          var pct = Math.max(5, Math.min(90, parseFloat(this.value)||10))/100;
+          var others = el.rowHeights.reduce(function(s,v,i){ return i===ri ? s : s+v; }, 0);
+          var remaining = 1 - pct;
+          el.rowHeights = el.rowHeights.map(function(v,i){
+            if (i===ri) return pct;
+            return others>0 ? (v/others)*remaining : remaining/(el.rows-1);
+          });
+          renderCanvas(); renderProps(); scheduleSave();
+        });
+        rowInputsRow.appendChild(inp);
+      });
+      rowWrapAll.appendChild(rowLbl); rowWrapAll.appendChild(rowInputsRow); props.appendChild(rowWrapAll);
+
+      // per-cell background color — only shown once a specific cell was clicked
+      if (el.selectedCell && el.selectedCell.r < el.rows && el.selectedCell.c < el.cols){
+        var rSel = el.selectedCell.r, cSel = el.selectedCell.c;
+        var cellSw = document.createElement("div"); cellSw.className="swatches";
+        var noColorSw = document.createElement("div"); noColorSw.className="swatch"+(!el.cellColors[rSel][cSel]?" active":"");
+        noColorSw.style.background = "#FFFFFF"; noColorSw.style.backgroundImage = "linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%)";
+        noColorSw.style.backgroundSize = "8px 8px"; noColorSw.style.backgroundPosition = "0 0, 4px 4px";
+        noColorSw.addEventListener("click", function(){ el.cellColors[rSel][cSel]=null; renderCanvas(); renderProps(); scheduleSave(); });
+        cellSw.appendChild(noColorSw);
+        COLORS.concat(["#DCEBF9","#FFFFFF"]).forEach(function(c){
+          var s=document.createElement("div"); s.className="swatch"+(el.cellColors[rSel][cSel]===c?" active":""); s.style.background=c;
+          s.addEventListener("click", function(){ el.cellColors[rSel][cSel]=c; renderCanvas(); renderProps(); scheduleSave(); });
+          cellSw.appendChild(s);
+        });
+        addFreeColorPicker(cellSw, { get cellColor(){ return el.cellColors[rSel][cSel]; }, set cellColor(v){ el.cellColors[rSel][cSel]=v; } }, "cellColor");
+        var cellWrap=document.createElement("div"); cellWrap.className="field";
+        var cellLbl=document.createElement("label");
+        cellLbl.textContent = (LANG==="he" ? "צביעת תא (שורה "+(rSel+1)+", עמודה "+(cSel+1)+")" : "Cell color (row "+(rSel+1)+", col "+(cSel+1)+")");
+        cellWrap.appendChild(cellLbl); cellWrap.appendChild(cellSw); props.appendChild(cellWrap);
+      } else {
+        var hint = document.createElement("div"); hint.className="empty-hint";
+        hint.textContent = (LANG==="he" ? "לחצו על תא בטבלה כדי לצבוע אותו" : "Click a cell in the table to color it");
+        props.appendChild(hint);
+      }
     }
   }
 
@@ -2236,6 +2628,12 @@
     s.elements = s.elements.filter(function(e){ return e.id !== state.selectedElId; });
     state.selectedElId = null;
     renderCanvas(); renderProps(); scheduleSave();
+  });
+
+  document.getElementById("slPropsToggle").addEventListener("click", function(){
+    var panel = document.getElementById("slPropsPanel");
+    var collapsed = panel.classList.toggle("collapsed");
+    this.textContent = collapsed ? "›" : "‹";
   });
 
   document.getElementById("slBgColor").addEventListener("input", function(){
@@ -2483,17 +2881,24 @@
       ctx.lineTo(el.x2-headLen*Math.cos(angle+Math.PI/6), el.y2-headLen*Math.sin(angle+Math.PI/6));
       ctx.closePath(); ctx.fillStyle = el.stroke; ctx.fill();
     } else if (el.type === "table"){
-      var cw = el.w/el.cols, ch = el.h/el.rows;
+      ensureTableGrids(el);
       ctx.strokeStyle = "#B9D2EA"; ctx.lineWidth = 1;
-      ctx.font = "13px Segoe UI, Arial, sans-serif"; ctx.fillStyle = "#16283B";
+      ctx.font = "13px Segoe UI, Arial, sans-serif";
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      var topY = el.y;
       for (var r=0;r<el.rows;r++){
+        var ch = el.rowHeights[r]*el.h;
+        var leftX = el.x;
         for (var c=0;c<el.cols;c++){
-          var cx = el.x+c*cw, cy = el.y+r*ch;
-          ctx.strokeRect(cx, cy, cw, ch);
+          var cw = el.colWidths[c]*el.w;
+          var cellBg = (el.cellColors[r] && el.cellColors[r][c]) || null;
+          if (cellBg){ ctx.fillStyle = cellBg; ctx.fillRect(leftX, topY, cw, ch); }
+          ctx.strokeRect(leftX, topY, cw, ch);
           var txt = (el.cells[r] && el.cells[r][c]) || "";
-          if (txt) ctx.fillText(txt, cx+cw-7, cy+ch/2);
+          if (txt){ ctx.fillStyle = "#16283B"; ctx.fillText(txt, leftX+cw-7, topY+ch/2); }
+          leftX += cw;
         }
+        topY += ch;
       }
     }
   }
@@ -2574,10 +2979,18 @@
             align: "center", valign: "middle"
           });
         } else if (el.type === "table"){
-          var rows = (el.cells||[]).map(function(row){
-            return row.map(function(cell){ return { text: cell || "" }; });
+          ensureTableGrids(el);
+          var rows = (el.cells||[]).map(function(row, ri){
+            return row.map(function(cell, ci){
+              var opts = { text: cell || "" };
+              var cbg = el.cellColors[ri] && el.cellColors[ri][ci];
+              if (cbg) opts.fill = { color: hex(cbg) };
+              return opts;
+            });
           });
-          if (rows.length) slide.addTable(rows, { x:x, y:y, w:w, h:h });
+          var colW = el.colWidths.map(function(f){ return f*w; });
+          var rowH = el.rowHeights.map(function(f){ return f*h; });
+          if (rows.length) slide.addTable(rows, { x:x, y:y, w:w, h:h, colW:colW, rowH:rowH });
         }
       });
       if (s.notes) slide.addNotes(s.notes);
@@ -2612,6 +3025,9 @@
       exportRtf:"ייצוא ל-Word (RTF)", saved:"נשמר אוטומטית", saving:"שומר...",
       normal:"רגיל", heading1:"כותרת 1", heading2:"כותרת 2", heading3:"כותרת 3",
       insImage:"תמונה", insTable:"טבלה", insHr:"קו מפריד",
+      fontSans:"רגיל", fontSerif:"סריף", fontMono:"קבוע-רוחב", fontSans2:"רגיל (חלופי)",
+      cellTools:"כלי תא בטבלה", selectImageFirst:"בחרו תמונה תחילה", selectCellFirst:"בחרו תא בטבלה תחילה", freeColor:"צבע חופשי",
+      sidebarFont:"גופן וצבע", sidebarSymbols:"סמלים", sidebarImage:"יישור תמונה", textColor:"צבע טקסט", highlight:"הדגשה", cellSize:"גודל תא (px)", color:"צבע תא",
       confirmNewTitle:"מסמך חדש", confirmNewBody:"פעולה זו תמחק את המסמך הנוכחי. להמשיך?",
       cancel:"ביטול", confirm:"אישור", invalidFile:"קובץ לא תקין",
       toastExported:"הקובץ נשמר בהצלחה", toastImported:"הקובץ נטען בהצלחה", toastRtf:"קובץ ה-Word יוצא בהצלחה",
@@ -2622,6 +3038,9 @@
       exportRtf:"Export to Word (RTF)", saved:"Auto-saved", saving:"Saving...",
       normal:"Normal", heading1:"Heading 1", heading2:"Heading 2", heading3:"Heading 3",
       insImage:"Image", insTable:"Table", insHr:"Divider",
+      fontSans:"Sans", fontSerif:"Serif", fontMono:"Monospace", fontSans2:"Sans (alt)",
+      cellTools:"Table cell tools", selectImageFirst:"Select an image first", selectCellFirst:"Select a table cell first", freeColor:"Custom color",
+      sidebarFont:"Font & color", sidebarSymbols:"Symbols", sidebarImage:"Image alignment", textColor:"Text color", highlight:"Highlight", cellSize:"Cell size (px)", color:"Cell color",
       confirmNewTitle:"New document", confirmNewBody:"This will discard the current document. Continue?",
       cancel:"Cancel", confirm:"Confirm", invalidFile:"Invalid file",
       toastExported:"File saved", toastImported:"File loaded", toastRtf:"Word file exported",
@@ -2697,6 +3116,107 @@
     exec("formatBlock", "<"+this.value+">");
   });
   document.getElementById("docInsHr").addEventListener("click", function(){ exec("insertHorizontalRule"); });
+
+  /* ---------- font family ---------- */
+  document.getElementById("docFontFamily").addEventListener("change", function(){
+    exec("fontName", this.value);
+  });
+
+  /* ---------- text color / highlight palette ---------- */
+  var DOC_COLORS = ["#2569A8","#1B998B","#6C5CE7","#E67E22","#27AE60","#C0392B","#8E44AD","#16283B"];
+  function buildSwatchRow(container, presets, onPick){
+    presets.forEach(function(c){
+      var s = document.createElement("div"); s.className="swatch"; s.style.background=c;
+      s.addEventListener("mousedown", function(ev){ ev.preventDefault(); }); // keep the text selection alive
+      s.addEventListener("click", function(){ onPick(c); });
+      container.appendChild(s);
+    });
+    var picker = document.createElement("input");
+    picker.type="color"; picker.className="free-color-picker"; picker.title = t("freeColor") || "Custom color";
+    picker.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    picker.addEventListener("input", function(){ onPick(this.value); });
+    container.appendChild(picker);
+  }
+  buildSwatchRow(document.getElementById("docTextColorSwatches"), DOC_COLORS, function(c){ exec("foreColor", c); });
+  buildSwatchRow(document.getElementById("docHighlightSwatches"), DOC_COLORS.concat(["#FFF3B0","#FFFFFF"]), function(c){
+    if (document.queryCommandSupported && document.queryCommandSupported("hiliteColor")) exec("hiliteColor", c);
+    else exec("backColor", c);
+  });
+
+  /* ---------- symbol / currency insertion ---------- */
+  var DOC_SYMBOLS = ["$","€","₪","£","¥","%","+","−","✓","★"];
+  var symRow = document.getElementById("docSymbolRow");
+  DOC_SYMBOLS.forEach(function(sym){
+    var b = document.createElement("button"); b.className="sl-tool-btn"; b.textContent=sym;
+    b.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    b.addEventListener("click", function(){ exec("insertText", sym); });
+    symRow.appendChild(b);
+  });
+
+  /* ---------- image alignment (native browser handles already allow resizing) ---------- */
+  var selectedImg = null;
+  docPage.addEventListener("click", function(e){
+    if (e.target.tagName === "IMG") selectedImg = e.target;
+  });
+  function setImgAlign(mode){
+    if (!selectedImg || !docPage.contains(selectedImg)){ showDocToast(t("selectImageFirst")); return; }
+    selectedImg.style.float = ""; selectedImg.style.display = ""; selectedImg.style.margin = "";
+    if (mode === "left"){ selectedImg.style.float = "left"; selectedImg.style.margin = "0 12px 8px 0"; }
+    else if (mode === "right"){ selectedImg.style.float = "right"; selectedImg.style.margin = "0 0 8px 12px"; }
+    else { selectedImg.style.display = "block"; selectedImg.style.margin = "8px auto"; }
+    scheduleSave();
+  }
+  document.getElementById("docImgAlignLeft").addEventListener("click", function(){ setImgAlign("left"); });
+  document.getElementById("docImgAlignCenter").addEventListener("click", function(){ setImgAlign("center"); });
+  document.getElementById("docImgAlignRight").addEventListener("click", function(){ setImgAlign("right"); });
+
+  /* ---------- table cell tools: shading + explicit width/height ---------- */
+  var selectedCell = null;
+  docPage.addEventListener("click", function(e){
+    var cell = e.target.closest ? e.target.closest("td,th") : null;
+    if (cell && docPage.contains(cell)) selectedCell = cell;
+  });
+  function setCellColor(c){
+    if (!selectedCell || !docPage.contains(selectedCell)){ showDocToast(t("selectCellFirst")); return; }
+    selectedCell.style.background = c || "";
+    scheduleSave();
+  }
+  (function(){
+    var container = document.getElementById("docCellColorSwatches");
+    var noSw = document.createElement("div"); noSw.className="swatch";
+    noSw.style.background = "linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%)";
+    noSw.style.backgroundSize = "8px 8px"; noSw.style.backgroundPosition = "0 0, 4px 4px";
+    noSw.title = "No color";
+    noSw.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    noSw.addEventListener("click", function(){ setCellColor(""); });
+    container.appendChild(noSw);
+    buildSwatchRow(container, DOC_COLORS.concat(["#DCEBF9","#FFFFFF"]), setCellColor);
+  })();
+  document.getElementById("docCellWidth").addEventListener("change", function(){
+    if (!selectedCell || !docPage.contains(selectedCell)){ showDocToast(t("selectCellFirst")); this.value=""; return; }
+    var v = parseInt(this.value, 10);
+    if (v > 0) selectedCell.style.width = v+"px";
+    scheduleSave();
+  });
+  document.getElementById("docCellHeight").addEventListener("change", function(){
+    if (!selectedCell || !docPage.contains(selectedCell)){ showDocToast(t("selectCellFirst")); this.value=""; return; }
+    var v = parseInt(this.value, 10);
+    if (v > 0) selectedCell.style.height = v+"px";
+    scheduleSave();
+  });
+
+  /* ---------- sidebar collapse + accordion ---------- */
+  document.getElementById("docSidebarToggle").addEventListener("click", function(){
+    var sb = document.getElementById("docSidebar");
+    var collapsed = sb.classList.toggle("collapsed");
+    this.textContent = collapsed ? "›" : "‹";
+  });
+  document.getElementById("docSidebar").addEventListener("click", function(e){
+    var h3 = e.target.closest ? e.target.closest("h3") : null;
+    if (h3 && h3.parentElement && h3.parentElement.classList.contains("side-block")){
+      h3.parentElement.classList.toggle("collapsed");
+    }
+  });
 
   document.getElementById("docInsImage").addEventListener("click", function(){
     document.getElementById("docImageInput").click();
@@ -2805,6 +3325,51 @@
   });
 
   /* ---------- RTF export ---------- */
+  var rtfColorLookup = null, rtfFontLookup = null;
+  function normalizeColorToHex(c){
+    if (!c) return null;
+    c = String(c).trim();
+    if (c === "" || c === "transparent") return null;
+    if (c[0] === "#"){
+      if (c.length === 4) return ("#"+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]).toUpperCase();
+      if (c.length === 7) return c.toUpperCase();
+      return null;
+    }
+    var m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (m){
+      return "#"+[1,2,3].map(function(i){
+        var h = parseInt(m[i],10).toString(16);
+        return h.length<2 ? "0"+h : h;
+      }).join("").toUpperCase();
+    }
+    return null;
+  }
+  function prescanFormatting(root){
+    var colorList = [], colorSet = {};
+    var fontList = ["Arial"], fontSet = { "arial": 0 };
+    function addColor(hex){ if (hex && !(hex in colorSet)){ colorList.push(hex); colorSet[hex] = colorList.length; } }
+    function addFont(fam){
+      if (!fam) return;
+      var primary = fam.split(",")[0].replace(/['"]/g,"").trim();
+      var key = primary.toLowerCase();
+      if (!(key in fontSet)){ fontList.push(primary); fontSet[key] = fontList.length-1; }
+    }
+    root.querySelectorAll("*").forEach(function(el){
+      addColor(normalizeColorToHex((el.style && el.style.color) || el.getAttribute("color")));
+      addColor(normalizeColorToHex(el.style && el.style.backgroundColor));
+      addFont((el.style && el.style.fontFamily) || el.getAttribute("face"));
+    });
+    return {
+      colorList: colorList,
+      fontList: fontList,
+      colorIdx: function(hex){ return hex ? (colorSet[hex]||0) : 0; },
+      fontIdx: function(fam){
+        if (!fam) return 0;
+        var primary = fam.split(",")[0].replace(/['"]/g,"").trim();
+        return fontSet[primary.toLowerCase()] || 0;
+      }
+    };
+  }
   function rtfEscapeText(str){
     var out = "";
     for (var i=0;i<str.length;i++){
@@ -2828,6 +3393,9 @@
     node.childNodes.forEach(function(child){
       if (child.nodeType === 3){
         var run = "";
+        if (fmt.font !== undefined) run += "\\f"+fmt.font+" ";
+        if (fmt.color !== undefined) run += "\\cf"+fmt.color+" ";
+        if (fmt.highlight !== undefined) run += "\\highlight"+fmt.highlight+" ";
         if (fmt.bold) run += "\\b ";
         if (fmt.italic) run += "\\i ";
         if (fmt.underline) run += "\\ul ";
@@ -2835,15 +3403,26 @@
         if (fmt.underline) run += "\\ulnone ";
         if (fmt.italic) run += "\\i0 ";
         if (fmt.bold) run += "\\b0 ";
+        if (fmt.highlight !== undefined) run += "\\highlight0 ";
+        if (fmt.color !== undefined) run += "\\cf0 ";
+        if (fmt.font !== undefined) run += "\\f0 ";
         out += run;
       } else if (child.nodeType === 1){
         var tag = child.tagName.toLowerCase();
+        var childFmt = fmt;
+        var hexColor = normalizeColorToHex((child.style && child.style.color) || child.getAttribute("color"));
+        if (hexColor) childFmt = Object.assign({}, childFmt, { color: rtfColorLookup ? rtfColorLookup(hexColor) : 0 });
+        var hexBg = normalizeColorToHex(child.style && child.style.backgroundColor);
+        if (hexBg) childFmt = Object.assign({}, childFmt, { highlight: rtfColorLookup ? rtfColorLookup(hexBg) : 0 });
+        var fam = (child.style && child.style.fontFamily) || child.getAttribute("face");
+        if (fam) childFmt = Object.assign({}, childFmt, { font: rtfFontLookup ? rtfFontLookup(fam) : 0 });
+
         if (tag === "b" || tag === "strong"){
-          out += inlineToRtf(child, Object.assign({}, fmt, {bold:true}));
+          out += inlineToRtf(child, Object.assign({}, childFmt, {bold:true}));
         } else if (tag === "i" || tag === "em"){
-          out += inlineToRtf(child, Object.assign({}, fmt, {italic:true}));
+          out += inlineToRtf(child, Object.assign({}, childFmt, {italic:true}));
         } else if (tag === "u"){
-          out += inlineToRtf(child, Object.assign({}, fmt, {underline:true}));
+          out += inlineToRtf(child, Object.assign({}, childFmt, {underline:true}));
         } else if (tag === "br"){
           out += "\\line ";
         } else if (tag === "img"){
@@ -2851,7 +3430,7 @@
         } else if (tag === "table"){
           out += "\\par\n" + tableToRtf(child) + "\\pard\\rtlpar\\qr ";
         } else {
-          out += inlineToRtf(child, fmt);
+          out += inlineToRtf(child, childFmt);
         }
       }
     });
@@ -2876,8 +3455,13 @@
       var cellWidth = Math.floor(9000 / Math.max(1, cells.length));
       var x = 0;
       out += "\\trowd\\trgaph108\\trleft-108\\rtlrow ";
-      cells.forEach(function(){
+      cells.forEach(function(td){
         x += cellWidth;
+        var hexBg = normalizeColorToHex(td.style && td.style.backgroundColor);
+        if (hexBg){
+          var idx = rtfColorLookup ? rtfColorLookup(hexBg) : 0;
+          if (idx) out += "\\clcbpat"+idx+"\\clshdng10000 ";
+        }
         out += "\\cellx"+x+" ";
       });
       cells.forEach(function(td){
@@ -2954,9 +3538,18 @@
       }));
     });
     Promise.all(promises).then(function(){
+      var scan = prescanFormatting(docPage);
+      rtfColorLookup = scan.colorIdx;
+      rtfFontLookup = scan.fontIdx;
+      var fonttbl = "{\\fonttbl" + scan.fontList.map(function(name,i){ return "{\\f"+i+"\\fswiss "+name+";}"; }).join("") + "}";
+      var colortbl = "{\\colortbl;" + scan.colorList.map(function(hex){
+        var r=parseInt(hex.substr(1,2),16), g=parseInt(hex.substr(3,2),16), b=parseInt(hex.substr(5,2),16);
+        return "\\red"+r+"\\green"+g+"\\blue"+b+";";
+      }).join("") + "}";
       var body = blockToRtf(docPage);
+      rtfColorLookup = null; rtfFontLookup = null;
       var rtf = "{\\rtf1\\ansi\\ansicpg1255\\deff0\\uc1"+
-                "{\\fonttbl{\\f0\\fswiss Arial;}}"+
+                fonttbl + colortbl +
                 "\\viewkind4\\uc1\\pard\\rtlpar\\qr\\f0\\fs24\n"+
                 body+"}";
       var blob = new Blob([rtf], {type:"application/rtf"});
@@ -2981,14 +3574,27 @@
       var runs = [];
       node.childNodes.forEach(function(child){
         if (child.nodeType === 3){
-          if (child.textContent) runs.push(new D.TextRun({ text: child.textContent, bold: !!fmt.bold, italics: !!fmt.italic, underline: fmt.underline ? {} : undefined, rightToLeft: true }));
+          if (child.textContent) runs.push(new D.TextRun({
+            text: child.textContent, bold: !!fmt.bold, italics: !!fmt.italic,
+            underline: fmt.underline ? {} : undefined, rightToLeft: true,
+            color: fmt.color, font: fmt.font,
+            shading: fmt.highlightFill ? { fill: fmt.highlightFill, type: D.ShadingType.CLEAR, color: "auto" } : undefined
+          }));
         } else if (child.nodeType === 1){
           var tag = child.tagName.toLowerCase();
-          if (tag === "b" || tag === "strong") runs = runs.concat(inlineRuns(child, Object.assign({}, fmt, {bold:true})));
-          else if (tag === "i" || tag === "em") runs = runs.concat(inlineRuns(child, Object.assign({}, fmt, {italic:true})));
-          else if (tag === "u") runs = runs.concat(inlineRuns(child, Object.assign({}, fmt, {underline:true})));
+          var childFmt = fmt;
+          var hexColor = normalizeColorToHex((child.style && child.style.color) || child.getAttribute("color"));
+          if (hexColor) childFmt = Object.assign({}, childFmt, { color: hexColor.replace("#","") });
+          var hexBg = normalizeColorToHex(child.style && child.style.backgroundColor);
+          if (hexBg) childFmt = Object.assign({}, childFmt, { highlightFill: hexBg.replace("#","") });
+          var fam = (child.style && child.style.fontFamily) || child.getAttribute("face");
+          if (fam) childFmt = Object.assign({}, childFmt, { font: fam.split(",")[0].replace(/['"]/g,"").trim() });
+
+          if (tag === "b" || tag === "strong") runs = runs.concat(inlineRuns(child, Object.assign({}, childFmt, {bold:true})));
+          else if (tag === "i" || tag === "em") runs = runs.concat(inlineRuns(child, Object.assign({}, childFmt, {italic:true})));
+          else if (tag === "u") runs = runs.concat(inlineRuns(child, Object.assign({}, childFmt, {underline:true})));
           else if (tag === "br") runs.push(new D.TextRun({ text: "", break: 1 }));
-          else runs = runs.concat(inlineRuns(child, fmt));
+          else runs = runs.concat(inlineRuns(child, childFmt));
         }
       });
       return runs;
@@ -3015,7 +3621,10 @@
           node.querySelectorAll("tr").forEach(function(tr){
             var cells = [];
             tr.querySelectorAll("td,th").forEach(function(td){
-              cells.push(new D.TableCell({ children: [new D.Paragraph({ children: inlineRuns(td,{}), alignment: D.AlignmentType.RIGHT })] }));
+              var cellOpts = { children: [new D.Paragraph({ children: inlineRuns(td,{}), alignment: D.AlignmentType.RIGHT })] };
+              var hexBg = normalizeColorToHex(td.style && td.style.backgroundColor);
+              if (hexBg) cellOpts.shading = { fill: hexBg.replace("#",""), type: D.ShadingType.CLEAR, color: "auto" };
+              cells.push(new D.TableCell(cellOpts));
             });
             rows.push(new D.TableRow({ children: cells }));
           });
@@ -3067,7 +3676,13 @@
       new:"חדש", saveFile:"שמירת קובץ", loadFile:"טעינת קובץ", print:"הדפסה / PDF",
       exportCsv:"ייצוא ל-Excel (CSV)", saved:"נשמר אוטומטית", saving:"שומר...",
       addRow:"שורה", delRow:"שורה", addCol:"עמודה", delCol:"עמודה",
-      formulaHint:"תומך בנוסחאות כגון =SUM(A1:A5) ו-=AVERAGE(A1:A5)",
+      formulaHint:"תומך בנוסחאות: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, PRODUCT, ABS, SQRT, POWER, MOD, ROUND, ROUNDUP, ROUNDDOWN, IF, IFERROR, AND, OR, NOT, CONCATENATE, LEN, UPPER, LOWER, TRIM, TODAY, NOW, VLOOKUP, INDEX, MATCH — פעולות חשבון (+ - * / ^ %), השוואות והפניות לטווחים (A1:B5)",
+      funcLibrary:"ספריית פונקציות", funcLibraryHint:"לחצו על פונקציה כדי להכניס אותה לתא הנבחר.",
+      cellFormat:"עיצוב תאים", formatAppliesTo:"חל על התא שנבחר בגיליון.", textColor:"צבע טקסט", cellBg:"צבע רקע",
+      condFormat:"עיצוב מותנה", range:"טווח (למשל A1:A10)", condition:"תנאי",
+      condGt:"גדול מ-", condLt:"קטן מ-", condEq:"שווה ל-", condContains:"מכיל טקסט", condEmpty:"ריק", condNotEmpty:"לא ריק",
+      value:"ערך", addRule:"הוסף כלל", dropdownList:"רשימה נגררת", optionsCommaSep:"אפשרויות (מופרדות בפסיקים)",
+      deleteRule:"מחק", noRulesYet:"אין כללים עדיין", mergeCells:"מיזוג תאים", mergeBtn:"מזג תאים", selectCellFirst:"בחרו תא תחילה",
       confirmNewTitle:"גיליון חדש", confirmNewBody:"פעולה זו תמחק את הגיליון הנוכחי. להמשיך?",
       cancel:"ביטול", confirm:"אישור", invalidFile:"קובץ לא תקין",
       toastExported:"הקובץ נשמר בהצלחה", toastImported:"הקובץ נטען בהצלחה", toastCsv:"קובץ ה-CSV יוצא בהצלחה"
@@ -3076,7 +3691,13 @@
       new:"New", saveFile:"Save file", loadFile:"Load file", print:"Print / PDF",
       exportCsv:"Export to Excel (CSV)", saved:"Auto-saved", saving:"Saving...",
       addRow:"Row", delRow:"Row", addCol:"Column", delCol:"Column",
-      formulaHint:"Supports formulas like =SUM(A1:A5) and =AVERAGE(A1:A5)",
+      formulaHint:"Supports: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, PRODUCT, ABS, SQRT, POWER, MOD, ROUND, ROUNDUP, ROUNDDOWN, IF, IFERROR, AND, OR, NOT, CONCATENATE, LEN, UPPER, LOWER, TRIM, TODAY, NOW, VLOOKUP, INDEX, MATCH — arithmetic (+ - * / ^ %), comparisons, and range references (A1:B5)",
+      funcLibrary:"Function library", funcLibraryHint:"Click a function to insert it into the selected cell.",
+      cellFormat:"Cell formatting", formatAppliesTo:"Applies to the selected cell in the sheet.", textColor:"Text color", cellBg:"Background color",
+      condFormat:"Conditional formatting", range:"Range (e.g. A1:A10)", condition:"Condition",
+      condGt:"Greater than", condLt:"Less than", condEq:"Equals", condContains:"Contains text", condEmpty:"Empty", condNotEmpty:"Not empty",
+      value:"Value", addRule:"Add rule", dropdownList:"Dropdown list", optionsCommaSep:"Options (comma-separated)",
+      deleteRule:"Delete", noRulesYet:"No rules yet", mergeCells:"Merge cells", mergeBtn:"Merge cells", selectCellFirst:"Select a cell first",
       confirmNewTitle:"New sheet", confirmNewBody:"This will discard the current sheet. Continue?",
       cancel:"Cancel", confirm:"Confirm", invalidFile:"Invalid file",
       toastExported:"File saved", toastImported:"File loaded", toastCsv:"CSV file exported"
@@ -3097,10 +3718,14 @@
   });
 
   var DEFAULT_ROWS = 15, DEFAULT_COLS = 8;
-  var state = { title: "גיליון ללא שם", rows: DEFAULT_ROWS, cols: DEFAULT_COLS, data: [] };
+  var state = { title: "גיליון ללא שם", rows: DEFAULT_ROWS, cols: DEFAULT_COLS, data: [], formats: {}, condRules: [], validations: [], merges: [] };
   var gridEl = document.getElementById("sheetGrid");
   var STORAGE_KEY = "officeSuite.sheet.v1";
   var saveTimer = null;
+  var selectedCell = null;
+  var nextRuleId = 1;
+  var undoStack = [], redoStack = [], lastSnapshot = null, undoDebounceTimer = null, isRestoringUndo = false;
+  var UNDO_MAX = 50;
 
   function ensureRow(r){
     if (!state.data[r]) state.data[r] = [];
@@ -3129,29 +3754,489 @@
     for (var i=0;i<m[1].length;i++){ col = col*26 + (m[1].charCodeAt(i)-64); }
     return { r: parseInt(m[2],10)-1, c: col-1 };
   }
-  function computeCell(r,c){
-    var raw = rawValue(r,c);
-    if (typeof raw !== "string" || raw.charAt(0) !== "=") return raw;
-    var m = raw.match(/^=(SUM|AVERAGE)\(([A-Za-z]+\d+):([A-Za-z]+\d+)\)$/i);
-    if (!m) return raw;
-    var fn = m[1].toUpperCase();
-    var start = cellRefToRC(m[2]), end = cellRefToRC(m[3]);
-    if (!start || !end) return "#ERR";
-    var sum = 0, count = 0;
-    for (var rr=Math.min(start.r,end.r); rr<=Math.max(start.r,end.r); rr++){
-      for (var cc=Math.min(start.c,end.c); cc<=Math.max(start.c,end.c); cc++){
-        var v = parseFloat(rawValue(rr,cc));
-        if (!isNaN(v)){ sum += v; count++; }
+
+  /* ---------- cell formatting / conditional formatting / dropdown lists ---------- */
+  function cellKey(r,c){ return r+","+c; }
+  function getFormat(r,c){ return state.formats[cellKey(r,c)] || null; }
+  function setFormatProp(r,c,prop,val){
+    var k = cellKey(r,c);
+    if (!state.formats[k]) state.formats[k] = {};
+    state.formats[k][prop] = val;
+  }
+  function rangeContains(rangeStr, r, c){
+    if (!rangeStr) return false;
+    var parts = rangeStr.split(":");
+    var a = cellRefToRC(parts[0]), b = cellRefToRC(parts[1] || parts[0]);
+    if (!a || !b) return false;
+    var minR=Math.min(a.r,b.r), maxR=Math.max(a.r,b.r), minC=Math.min(a.c,b.c), maxC=Math.max(a.c,b.c);
+    return r>=minR && r<=maxR && c>=minC && c<=maxC;
+  }
+  function matchCondRule(rule, value){
+    var num = parseFloat(value);
+    switch(rule.op){
+      case "gt": return !isNaN(num) && num > parseFloat(rule.value);
+      case "lt": return !isNaN(num) && num < parseFloat(rule.value);
+      case "eq": return String(value) === String(rule.value);
+      case "contains": return String(value).indexOf(rule.value) !== -1;
+      case "empty": return value === "" || value === null || value === undefined;
+      case "notempty": return !(value === "" || value === null || value === undefined);
+    }
+    return false;
+  }
+  function applyCellStyle(td, r, c, displayValue){
+    var fmt = getFormat(r,c);
+    td.style.fontWeight = (fmt && fmt.bold) ? "700" : "";
+    td.style.fontStyle = (fmt && fmt.italic) ? "italic" : "";
+    td.style.color = (fmt && fmt.color) || "";
+    td.style.background = (fmt && fmt.bg) || "";
+    td.style.textAlign = (fmt && fmt.align) || "";
+    for (var i=0;i<state.condRules.length;i++){
+      var rule = state.condRules[i];
+      if (rangeContains(rule.range, r, c) && matchCondRule(rule, displayValue)){
+        if (rule.bg) td.style.background = rule.bg;
+        if (rule.color) td.style.color = rule.color;
       }
     }
-    if (fn === "SUM") return sum;
-    return count ? +(sum/count).toFixed(4) : 0;
+  }
+  function findValidation(r,c){
+    for (var i=0;i<state.validations.length;i++){
+      if (rangeContains(state.validations[i].range, r, c)) return state.validations[i];
+    }
+    return null;
+  }
+  function mergeAt(r,c){
+    for (var i=0;i<state.merges.length;i++){
+      var m = state.merges[i];
+      var parts = m.range.split(":");
+      var a = cellRefToRC(parts[0]), b = cellRefToRC(parts[1] || parts[0]);
+      if (!a || !b) continue;
+      var minR=Math.min(a.r,b.r), maxR=Math.max(a.r,b.r), minC=Math.min(a.c,b.c), maxC=Math.max(a.c,b.c);
+      if (r>=minR && r<=maxR && c>=minC && c<=maxC){
+        return { rule:m, minR:minR, maxR:maxR, minC:minC, maxC:maxC, isAnchor:(r===minR && c===minC) };
+      }
+    }
+    return null;
+  }
+  function computeCell(r,c){
+    return computeCellInternal(r,c,{});
+  }
+
+  /* ============================================================
+     FORMULA ENGINE — tokenizer, recursive-descent parser, evaluator.
+     Supports: + - * / ^ % & (concat), comparisons (= <> < > <= >=),
+     cell refs (A1) and ranges (A1:B5), parentheses, string literals,
+     TRUE/FALSE, and a standard function library. Cycle-safe.
+     ============================================================ */
+  function computeCellInternal(r, c, visiting){
+    var key = r+","+c;
+    if (visiting[key]) return "#CYCLE!";
+    var raw = rawValue(r,c);
+    if (typeof raw !== "string" || raw.charAt(0) !== "=") return raw;
+    var nextVisiting = Object.assign({}, visiting); nextVisiting[key] = true;
+    try{
+      var tokens = tokenizeFormula(raw.slice(1));
+      var ast = parseFormulaTokens(tokens);
+      var result = evalAst(ast, nextVisiting);
+      if (Array.isArray(result)) result = result.length ? result[0] : "";
+      if (typeof result === "number" && !isFinite(result)) return "#ERR";
+      return result;
+    }catch(e){
+      return (e && e.message && e.message.charAt(0) === "#") ? e.message : "#ERR";
+    }
+  }
+
+  function tokenizeFormula(src){
+    var tokens = [];
+    var re = /\s*(?:(\d+(?:\.\d+)?)|("(?:[^"]|"")*")|([A-Za-z]+\d+)|([A-Za-z_][A-Za-z0-9_]*)|(<=|>=|<>|[+\-*/^&=<>(),:%]))/y;
+    var i = 0;
+    while (i < src.length){
+      if (/^\s*$/.test(src.slice(i))) break;
+      re.lastIndex = i;
+      var m = re.exec(src);
+      if (!m || m.index !== i) throw new Error("#ERR");
+      i = re.lastIndex;
+      if (m[1] !== undefined) tokens.push({type:"NUM", value: parseFloat(m[1])});
+      else if (m[2] !== undefined) tokens.push({type:"STR", value: m[2].slice(1,-1).replace(/""/g,'"')});
+      else if (m[3] !== undefined) tokens.push({type:"REF", value: m[3].toUpperCase()});
+      else if (m[4] !== undefined) tokens.push({type:"IDENT", value: m[4].toUpperCase()});
+      else if (m[5] !== undefined) tokens.push({type:"OP", value: m[5]});
+    }
+    tokens.push({type:"EOF"});
+    return tokens;
+  }
+
+  function parseFormulaTokens(tokens){
+    var pos = 0;
+    function peek(){ return tokens[pos]; }
+    function next(){ return tokens[pos++]; }
+    function isOp(v){ var t=peek(); return t.type==="OP" && t.value===v; }
+
+    function parseExpression(){ return parseComparison(); }
+    function parseComparison(){
+      var left = parseConcat();
+      while (true){
+        var t = peek();
+        if (t.type==="OP" && ["=","<>","<=",">=","<",">"].indexOf(t.value)>=0){
+          pos++; left = { type:"cmp", op:t.value, left:left, right:parseConcat() };
+        } else break;
+      }
+      return left;
+    }
+    function parseConcat(){
+      var left = parseAdditive();
+      while (isOp("&")){ pos++; left = { type:"concat", left:left, right:parseAdditive() }; }
+      return left;
+    }
+    function parseAdditive(){
+      var left = parseTerm();
+      while (isOp("+") || isOp("-")){ var op=next().value; left = { type:"bin", op:op, left:left, right:parseTerm() }; }
+      return left;
+    }
+    function parseTerm(){
+      var left = parsePower();
+      while (isOp("*") || isOp("/")){ var op=next().value; left = { type:"bin", op:op, left:left, right:parsePower() }; }
+      return left;
+    }
+    function parsePower(){
+      var left = parseUnary();
+      if (isOp("^")){ pos++; left = { type:"bin", op:"^", left:left, right:parsePower() }; }
+      return left;
+    }
+    function parseUnary(){
+      if (isOp("+") || isOp("-")){ var op=next().value; return { type:"unary", op:op, expr: parseUnary() }; }
+      return parsePostfix();
+    }
+    function parsePostfix(){
+      var node = parsePrimary();
+      if (isOp("%")){ pos++; node = { type:"percent", expr: node }; }
+      return node;
+    }
+    function parsePrimary(){
+      var t = peek();
+      if (t.type==="NUM"){ pos++; return { type:"num", value:t.value }; }
+      if (t.type==="STR"){ pos++; return { type:"str", value:t.value }; }
+      if (t.type==="REF"){
+        pos++;
+        if (isOp(":")){ pos++; var t2=next(); if (t2.type!=="REF") throw new Error("#ERR"); return { type:"range", from:t.value, to:t2.value }; }
+        return { type:"ref", value:t.value };
+      }
+      if (t.type==="IDENT"){
+        pos++;
+        if (t.value==="TRUE") return { type:"bool", value:true };
+        if (t.value==="FALSE") return { type:"bool", value:false };
+        if (isOp("(")){
+          pos++;
+          var args = [];
+          if (!isOp(")")){
+            args.push(parseExpression());
+            while (isOp(",")){ pos++; args.push(parseExpression()); }
+          }
+          if (!isOp(")")) throw new Error("#ERR");
+          pos++;
+          return { type:"call", name:t.value, args:args };
+        }
+        throw new Error("#NAME?");
+      }
+      if (isOp("(")){
+        pos++;
+        var e = parseExpression();
+        if (!isOp(")")) throw new Error("#ERR");
+        pos++;
+        return e;
+      }
+      throw new Error("#ERR");
+    }
+
+    var ast = parseExpression();
+    if (peek().type !== "EOF") throw new Error("#ERR");
+    return ast;
+  }
+
+  function toNumber(v){
+    if (typeof v === "number") return v;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "string"){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+    return 0;
+  }
+  function toBool(v){
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string") return v.toUpperCase() === "TRUE";
+    return !!v;
+  }
+  function toDisplayString(v){
+    if (v === null || v === undefined) return "";
+    if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+    return String(v);
+  }
+  function toNumberOrNull(v){
+    if (typeof v === "number") return isNaN(v) ? null : v;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "string" && v.trim()!=="" && isFinite(v)) return parseFloat(v);
+    return null;
+  }
+  function flattenArgsToNumbers(argVals){
+    var out = [];
+    argVals.forEach(function(v){
+      (Array.isArray(v) ? v : [v]).forEach(function(x){ var n=toNumberOrNull(x); if (n!==null) out.push(n); });
+    });
+    return out;
+  }
+  function flattenArgsRaw(argVals){
+    var out = [];
+    argVals.forEach(function(v){ out = out.concat(Array.isArray(v) ? v : [v]); });
+    return out;
+  }
+
+  function flattenRange(fromRef, toRef, visiting){
+    var start = cellRefToRC(fromRef), end = cellRefToRC(toRef);
+    if (!start || !end) throw new Error("#REF!");
+    var vals = [];
+    for (var rr=Math.min(start.r,end.r); rr<=Math.max(start.r,end.r); rr++){
+      for (var cc=Math.min(start.c,end.c); cc<=Math.max(start.c,end.c); cc++){
+        vals.push(computeCellInternal(rr,cc,visiting));
+      }
+    }
+    return vals;
+  }
+  // preserves row/column shape — needed for VLOOKUP/INDEX, unlike flattenRange
+  function evalRange2D(rangeNode, visiting){
+    var start = cellRefToRC(rangeNode.from), end = cellRefToRC(rangeNode.to);
+    if (!start || !end) throw new Error("#REF!");
+    var minR=Math.min(start.r,end.r), maxR=Math.max(start.r,end.r);
+    var minC=Math.min(start.c,end.c), maxC=Math.max(start.c,end.c);
+    var rows = [];
+    for (var r=minR; r<=maxR; r++){
+      var row = [];
+      for (var c=minC; c<=maxC; c++){ row.push(computeCellInternal(r,c,visiting)); }
+      rows.push(row);
+    }
+    return rows;
+  }
+  function evalArg(node, visiting){
+    if (node.type === "range") return flattenRange(node.from, node.to, visiting);
+    return evalAst(node, visiting);
+  }
+
+  function evalAst(node, visiting){
+    switch(node.type){
+      case "num": return node.value;
+      case "str": return node.value;
+      case "bool": return node.value;
+      case "ref": {
+        var rc = cellRefToRC(node.value);
+        if (!rc) throw new Error("#REF!");
+        return computeCellInternal(rc.r, rc.c, visiting);
+      }
+      case "range": return flattenRange(node.from, node.to, visiting);
+      case "unary": {
+        var v = toNumber(evalAst(node.expr, visiting));
+        return node.op === "-" ? -v : +v;
+      }
+      case "percent": return toNumber(evalAst(node.expr, visiting)) / 100;
+      case "bin": {
+        var l = toNumber(evalAst(node.left, visiting)), rr2 = toNumber(evalAst(node.right, visiting));
+        switch(node.op){
+          case "+": return l+rr2;
+          case "-": return l-rr2;
+          case "*": return l*rr2;
+          case "/": if (rr2===0) throw new Error("#DIV/0!"); return l/rr2;
+          case "^": return Math.pow(l,rr2);
+        }
+        break;
+      }
+      case "concat": return toDisplayString(evalAst(node.left, visiting)) + toDisplayString(evalAst(node.right, visiting));
+      case "cmp": {
+        var lv = evalAst(node.left, visiting), rv = evalAst(node.right, visiting);
+        var ln = (typeof lv === "number") ? lv : parseFloat(lv);
+        var rn = (typeof rv === "number") ? rv : parseFloat(rv);
+        var bothNum = !isNaN(ln) && !isNaN(rn) && typeof lv !== "boolean" && typeof rv !== "boolean";
+        var a = bothNum ? ln : String(lv), b = bothNum ? rn : String(rv);
+        switch(node.op){
+          case "=": return a===b;
+          case "<>": return a!==b;
+          case "<": return a<b;
+          case ">": return a>b;
+          case "<=": return a<=b;
+          case ">=": return a>=b;
+        }
+        break;
+      }
+      case "call": return callFunction(node.name, node.args, visiting);
+    }
+    throw new Error("#ERR");
+  }
+
+  var FUNCTIONS = {
+    SUM: function(a){ return flattenArgsToNumbers(a).reduce(function(x,y){return x+y;},0); },
+    AVERAGE: function(a){ var n=flattenArgsToNumbers(a); return n.length ? n.reduce(function(x,y){return x+y;},0)/n.length : 0; },
+    MIN: function(a){ var n=flattenArgsToNumbers(a); return n.length ? Math.min.apply(null,n) : 0; },
+    MAX: function(a){ var n=flattenArgsToNumbers(a); return n.length ? Math.max.apply(null,n) : 0; },
+    COUNT: function(a){ return flattenArgsToNumbers(a).length; },
+    COUNTA: function(a){ return flattenArgsRaw(a).filter(function(v){ return v!==""&&v!==null&&v!==undefined; }).length; },
+    PRODUCT: function(a){ var n=flattenArgsToNumbers(a); return n.length ? n.reduce(function(x,y){return x*y;},1) : 0; },
+    ABS: function(a){ var n=flattenArgsToNumbers(a); return Math.abs(n.length?n[0]:0); },
+    SQRT: function(a){ var n=flattenArgsToNumbers(a); return Math.sqrt(n.length?n[0]:0); },
+    POWER: function(a){ return Math.pow(toNumber(a[0]), toNumber(a[1])); },
+    MOD: function(a){ var x=toNumber(a[0]), y=toNumber(a[1]); if (y===0) throw new Error("#DIV/0!"); return x - y*Math.floor(x/y); },
+    ROUND: function(a){ var n=toNumber(a[0]), d=a.length>1?toNumber(a[1]):0, f=Math.pow(10,d); return Math.round(n*f)/f; },
+    ROUNDUP: function(a){ var n=toNumber(a[0]), d=a.length>1?toNumber(a[1]):0, f=Math.pow(10,d); return (n>=0?Math.ceil(n*f):Math.floor(n*f))/f; },
+    ROUNDDOWN: function(a){ var n=toNumber(a[0]), d=a.length>1?toNumber(a[1]):0, f=Math.pow(10,d); return (n>=0?Math.floor(n*f):Math.ceil(n*f))/f; },
+    CONCATENATE: function(a){ return flattenArgsRaw(a).map(toDisplayString).join(""); },
+    LEN: function(a){ return toDisplayString(a[0]).length; },
+    UPPER: function(a){ return toDisplayString(a[0]).toUpperCase(); },
+    LOWER: function(a){ return toDisplayString(a[0]).toLowerCase(); },
+    TRIM: function(a){ return toDisplayString(a[0]).trim(); }
+  };
+
+  function callFunction(name, argNodes, visiting){
+    name = name.toUpperCase();
+    if (name === "IF"){
+      var cond = toBool(evalAst(argNodes[0], visiting));
+      if (cond) return argNodes.length>1 ? evalAst(argNodes[1], visiting) : true;
+      return argNodes.length>2 ? evalAst(argNodes[2], visiting) : false;
+    }
+    if (name === "IFERROR"){
+      try{ return evalAst(argNodes[0], visiting); }
+      catch(e){ return argNodes.length>1 ? evalAst(argNodes[1], visiting) : ""; }
+    }
+    if (name === "AND") return argNodes.every(function(n){ return toBool(evalArg(n, visiting)); });
+    if (name === "OR") return argNodes.some(function(n){ return toBool(evalArg(n, visiting)); });
+    if (name === "NOT") return !toBool(evalArg(argNodes[0], visiting));
+    if (name === "TODAY") return new Date().toISOString().slice(0,10);
+    if (name === "NOW") return new Date().toLocaleString();
+
+    if (name === "VLOOKUP"){
+      var lookupVal = evalAst(argNodes[0], visiting);
+      if (argNodes[1].type !== "range") throw new Error("#REF!");
+      var table = evalRange2D(argNodes[1], visiting);
+      var colIdx = Math.round(toNumber(evalAst(argNodes[2], visiting))) - 1;
+      var approx = argNodes.length>3 ? toBool(evalAst(argNodes[3], visiting)) : false;
+      if (!approx){
+        for (var i=0;i<table.length;i++){
+          if (String(table[i][0]) === String(lookupVal)){
+            if (colIdx<0 || colIdx>=table[i].length) throw new Error("#REF!");
+            return table[i][colIdx];
+          }
+        }
+        throw new Error("#N/A");
+      }
+      var bestIdx = -1;
+      for (var j=0;j<table.length;j++){
+        var kn = toNumber(table[j][0]);
+        if (kn <= toNumber(lookupVal) && (bestIdx===-1 || kn > toNumber(table[bestIdx][0]))) bestIdx = j;
+      }
+      if (bestIdx===-1) throw new Error("#N/A");
+      if (colIdx<0 || colIdx>=table[bestIdx].length) throw new Error("#REF!");
+      return table[bestIdx][colIdx];
+    }
+    if (name === "INDEX"){
+      if (argNodes[0].type !== "range") throw new Error("#REF!");
+      var tbl = evalRange2D(argNodes[0], visiting);
+      var rowNum = Math.round(toNumber(evalAst(argNodes[1], visiting)));
+      var colNum = argNodes.length>2 ? Math.round(toNumber(evalAst(argNodes[2], visiting))) : 1;
+      if (rowNum<1 || rowNum>tbl.length) throw new Error("#REF!");
+      var rowArr = tbl[rowNum-1];
+      if (colNum<1 || colNum>rowArr.length) throw new Error("#REF!");
+      return rowArr[colNum-1];
+    }
+    if (name === "MATCH"){
+      var lv = evalAst(argNodes[0], visiting);
+      var arr = evalArg(argNodes[1], visiting);
+      if (!Array.isArray(arr)) arr = [arr];
+      var matchType = argNodes.length>2 ? Math.round(toNumber(evalAst(argNodes[2], visiting))) : 1;
+      if (matchType === 0){
+        for (var k=0;k<arr.length;k++){ if (String(arr[k])===String(lv)) return k+1; }
+        throw new Error("#N/A");
+      } else if (matchType === 1){
+        var bi=-1;
+        for (var m=0;m<arr.length;m++){ var an=toNumber(arr[m]); if (an<=toNumber(lv) && (bi===-1||an>toNumber(arr[bi]))) bi=m; }
+        if (bi===-1) throw new Error("#N/A");
+        return bi+1;
+      } else {
+        var bi2=-1;
+        for (var n=0;n<arr.length;n++){ var an2=toNumber(arr[n]); if (an2>=toNumber(lv) && (bi2===-1||an2<toNumber(arr[bi2]))) bi2=n; }
+        if (bi2===-1) throw new Error("#N/A");
+        return bi2+1;
+      }
+    }
+
+    var fn = FUNCTIONS[name];
+    if (!fn) throw new Error("#NAME?");
+    var argVals = argNodes.map(function(n){ return evalArg(n, visiting); });
+    return fn(argVals);
   }
 
   function currentDataObject(){
-    return { title: state.title, rows: state.rows, cols: state.cols, data: state.data };
+    return { title: state.title, rows: state.rows, cols: state.cols, data: state.data, formats: state.formats, condRules: state.condRules, validations: state.validations, merges: state.merges };
+  }
+
+  /* ---------- undo / redo ---------- */
+  function snapshotState(){ return JSON.stringify(currentDataObject()); }
+  function restoreSnapshot(json){
+    var data = JSON.parse(json);
+    state.title = data.title; state.rows = data.rows; state.cols = data.cols; state.data = data.data;
+    state.formats = data.formats || {}; state.condRules = data.condRules || [];
+    state.validations = data.validations || []; state.merges = data.merges || [];
+    document.getElementById("sheetTitle").value = state.title;
+    buildGrid();
+    renderCondRulesList(); renderValidationsList(); renderMergesList();
+  }
+  function updateUndoRedoButtons(){
+    var u = document.getElementById("shUndoBtn"), r = document.getElementById("shRedoBtn");
+    if (u) u.disabled = !undoStack.length;
+    if (r) r.disabled = !redoStack.length;
+  }
+  function scheduleUndoSnapshot(){
+    if (isRestoringUndo) return;
+    clearTimeout(undoDebounceTimer);
+    undoDebounceTimer = setTimeout(function(){
+      var snap = snapshotState();
+      if (snap !== lastSnapshot){
+        undoStack.push(lastSnapshot);
+        if (undoStack.length > UNDO_MAX) undoStack.shift();
+        redoStack = [];
+        lastSnapshot = snap;
+        updateUndoRedoButtons();
+      }
+    }, 800);
+  }
+  function doUndo(){
+    clearTimeout(undoDebounceTimer);
+    var current = snapshotState();
+    if (current !== lastSnapshot){
+      // an uncommitted burst is in flight (debounce hasn't fired yet) — undo just discards it
+      redoStack.push(current);
+      isRestoringUndo = true;
+      restoreSnapshot(lastSnapshot);
+      isRestoringUndo = false;
+      updateUndoRedoButtons();
+      return;
+    }
+    if (!undoStack.length) return;
+    redoStack.push(lastSnapshot);
+    var prev = undoStack.pop();
+    isRestoringUndo = true;
+    restoreSnapshot(prev);
+    isRestoringUndo = false;
+    lastSnapshot = prev;
+    scheduleSave();
+    updateUndoRedoButtons();
+  }
+  function doRedo(){
+    if (!redoStack.length) return;
+    var current = snapshotState();
+    undoStack.push(current);
+    var next = redoStack.pop();
+    isRestoringUndo = true;
+    restoreSnapshot(next);
+    isRestoringUndo = false;
+    lastSnapshot = next;
+    scheduleSave();
+    updateUndoRedoButtons();
   }
   function scheduleSave(){
+    scheduleUndoSnapshot();
     var el = document.getElementById("shSaveStatus");
     el.textContent = t("saving");
     if (saveTimer) clearTimeout(saveTimer);
@@ -3171,6 +4256,10 @@
       state.rows = data.rows || DEFAULT_ROWS;
       state.cols = data.cols || DEFAULT_COLS;
       state.data = data.data || [];
+      state.formats = data.formats || {};
+      state.condRules = data.condRules || [];
+      state.validations = data.validations || [];
+      state.merges = data.merges || [];
       return true;
     }catch(e){ return false; }
   }
@@ -3205,18 +4294,49 @@
     rowHead.textContent = (r+1);
     tr.appendChild(rowHead);
     for (var c=0;c<state.cols;c++){
-      tr.appendChild(buildCell(r,c));
+      var m = mergeAt(r,c);
+      if (m && !m.isAnchor) continue; // covered by a merged range — don't render its own cell
+      var cell = buildCell(r,c);
+      if (m && m.isAnchor){
+        cell.rowSpan = m.maxR - m.minR + 1;
+        cell.colSpan = m.maxC - m.minC + 1;
+      }
+      tr.appendChild(cell);
     }
     return tr;
   }
 
   function buildCell(r,c){
+    var validation = findValidation(r,c);
     var td = document.createElement("td");
-    td.contentEditable = true;
     td.setAttribute("data-row", r);
     td.setAttribute("data-col", c);
+
+    if (validation){
+      var sel = document.createElement("select");
+      sel.className = "sheet-cell-select";
+      var blankOpt = document.createElement("option"); blankOpt.value=""; blankOpt.textContent="";
+      sel.appendChild(blankOpt);
+      validation.options.forEach(function(opt){
+        var o = document.createElement("option"); o.value=opt; o.textContent=opt;
+        sel.appendChild(o);
+      });
+      sel.value = rawValue(r,c);
+      sel.addEventListener("focus", function(){ selectedCell = {r:r, c:c}; });
+      sel.addEventListener("change", function(){
+        setRawValue(r,c, sel.value);
+        scheduleSave();
+        refreshComputedDisplay();
+      });
+      td.appendChild(sel);
+      applyCellStyle(td, r, c, rawValue(r,c));
+      return td;
+    }
+
+    td.contentEditable = true;
     td.textContent = computeCell(r,c);
     td.addEventListener("focus", function(){
+      selectedCell = {r:r, c:c};
       td.textContent = rawValue(r,c);
     });
     td.addEventListener("blur", function(){
@@ -3228,16 +4348,22 @@
     td.addEventListener("keydown", function(ev){
       if (ev.key === "Enter"){ ev.preventDefault(); td.blur(); }
     });
+    applyCellStyle(td, r, c, computeCell(r,c));
     return td;
   }
 
   function refreshComputedDisplay(){
     var cells = gridEl.querySelectorAll("td");
     cells.forEach(function(td){
-      if (td === document.activeElement) return;
       var r = parseInt(td.getAttribute("data-row"),10);
       var c = parseInt(td.getAttribute("data-col"),10);
-      td.textContent = computeCell(r,c);
+      var val = computeCell(r,c);
+      if (td !== document.activeElement){
+        var sel = td.querySelector("select");
+        if (sel) sel.value = rawValue(r,c);
+        else td.textContent = val;
+      }
+      applyCellStyle(td, r, c, val);
     });
   }
 
@@ -3251,6 +4377,16 @@
   }
 
   /* ---------- toolbar: add/remove row/col (incremental DOM ops) ---------- */
+  document.getElementById("shUndoBtn").addEventListener("click", doUndo);
+  document.getElementById("shRedoBtn").addEventListener("click", doRedo);
+  document.addEventListener("keydown", function(ev){
+    if (document.getElementById("tabpanel-sheet").style.display === "none") return;
+    var mod = ev.ctrlKey || ev.metaKey;
+    if (!mod) return;
+    if (!ev.shiftKey && (ev.key === "z" || ev.key === "Z")){ ev.preventDefault(); doUndo(); }
+    else if ((ev.key === "y" || ev.key === "Y") || (ev.shiftKey && (ev.key === "z" || ev.key === "Z"))){ ev.preventDefault(); doRedo(); }
+  });
+
   document.getElementById("shAddRow").addEventListener("click", function(){
     commitActiveSheetEdit();
     var tbody = gridEl.querySelector("tbody");
@@ -3327,8 +4463,10 @@
     openSheetModal(t("confirmNewTitle"), t("confirmNewBody"), function(){
       state.title = (LANG==="he" ? "גיליון ללא שם" : "Untitled sheet");
       state.rows = DEFAULT_ROWS; state.cols = DEFAULT_COLS; state.data = [];
+      state.formats = {}; state.condRules = []; state.validations = []; state.merges = [];
       document.getElementById("sheetTitle").value = state.title;
       buildGrid();
+      renderCondRulesList(); renderValidationsList(); renderMergesList();
       scheduleSave();
     });
   });
@@ -3362,8 +4500,13 @@
           state.rows = data.rows || DEFAULT_ROWS;
           state.cols = data.cols || DEFAULT_COLS;
           state.data = data.data || [];
+          state.formats = data.formats || {};
+          state.condRules = data.condRules || [];
+          state.validations = data.validations || [];
+          state.merges = data.merges || [];
           document.getElementById("sheetTitle").value = state.title;
           buildGrid();
+          renderCondRulesList(); renderValidationsList(); renderMergesList();
           scheduleSave();
           showSheetToast(t("toastImported"));
         });
@@ -3371,6 +4514,226 @@
     };
     reader.readAsText(file);
     this.value = "";
+  });
+
+  /* ---------- sidebar collapse + accordion ---------- */
+  document.getElementById("sheetSidebarToggle").addEventListener("click", function(){
+    var sb = document.getElementById("sheetSidebar");
+    var collapsed = sb.classList.toggle("collapsed");
+    this.textContent = collapsed ? "›" : "‹";
+  });
+  document.getElementById("sheetSidebar").addEventListener("click", function(e){
+    var h3 = e.target.closest ? e.target.closest("h3") : null;
+    if (h3 && h3.parentElement && h3.parentElement.classList.contains("side-block")){
+      h3.parentElement.classList.toggle("collapsed");
+    }
+  });
+
+  /* ---------- function library (quick reference + insert) ---------- */
+  var FUNCTION_LIBRARY = [
+    {name:"SUM", sig:"SUM(range)", desc:"Sum of numbers"},
+    {name:"AVERAGE", sig:"AVERAGE(range)", desc:"Average of numbers"},
+    {name:"MIN", sig:"MIN(range)", desc:"Smallest value"},
+    {name:"MAX", sig:"MAX(range)", desc:"Largest value"},
+    {name:"COUNT", sig:"COUNT(range)", desc:"Count numeric cells"},
+    {name:"COUNTA", sig:"COUNTA(range)", desc:"Count non-empty cells"},
+    {name:"PRODUCT", sig:"PRODUCT(range)", desc:"Multiply numbers"},
+    {name:"ABS", sig:"ABS(number)", desc:"Absolute value"},
+    {name:"SQRT", sig:"SQRT(number)", desc:"Square root"},
+    {name:"POWER", sig:"POWER(number,power)", desc:"Exponent"},
+    {name:"MOD", sig:"MOD(number,divisor)", desc:"Remainder"},
+    {name:"ROUND", sig:"ROUND(number,digits)", desc:"Round to N digits"},
+    {name:"ROUNDUP", sig:"ROUNDUP(number,digits)", desc:"Round up"},
+    {name:"ROUNDDOWN", sig:"ROUNDDOWN(number,digits)", desc:"Round down"},
+    {name:"IF", sig:"IF(cond,yes,no)", desc:"Conditional value"},
+    {name:"IFERROR", sig:"IFERROR(value,fallback)", desc:"Fallback on error"},
+    {name:"AND", sig:"AND(cond1,cond2,...)", desc:"All conditions true"},
+    {name:"OR", sig:"OR(cond1,cond2,...)", desc:"Any condition true"},
+    {name:"NOT", sig:"NOT(cond)", desc:"Negate a condition"},
+    {name:"CONCATENATE", sig:"CONCATENATE(a,b,...)", desc:"Join text"},
+    {name:"LEN", sig:"LEN(text)", desc:"Text length"},
+    {name:"UPPER", sig:"UPPER(text)", desc:"Uppercase"},
+    {name:"LOWER", sig:"LOWER(text)", desc:"Lowercase"},
+    {name:"TRIM", sig:"TRIM(text)", desc:"Remove extra spaces"},
+    {name:"TODAY", sig:"TODAY()", desc:"Current date"},
+    {name:"NOW", sig:"NOW()", desc:"Current date and time"},
+    {name:"VLOOKUP", sig:"VLOOKUP(value,table,col,[approx])", desc:"Look up a value in the first column of a range"},
+    {name:"INDEX", sig:"INDEX(range,row,[col])", desc:"Value at a row/column position in a range"},
+    {name:"MATCH", sig:"MATCH(value,range,[type])", desc:"Position of a value within a range"}
+  ];
+  (function(){
+    var list = document.getElementById("funcLibraryList");
+    FUNCTION_LIBRARY.forEach(function(fn){
+      var item = document.createElement("div");
+      item.className = "func-item";
+      item.innerHTML = "<b>"+fn.sig+"</b><div>"+fn.desc+"</div>";
+      item.addEventListener("click", function(){
+        if (!selectedCell){ showSheetToast(t("selectCellFirst") || "Select a cell first"); return; }
+        var td = gridEl.querySelector('td[data-row="'+selectedCell.r+'"][data-col="'+selectedCell.c+'"]');
+        setRawValue(selectedCell.r, selectedCell.c, "="+fn.name+"(");
+        if (td && !td.querySelector("select")){ td.focus(); td.textContent = rawValue(selectedCell.r, selectedCell.c); }
+        scheduleSave();
+        refreshComputedDisplay();
+      });
+      list.appendChild(item);
+    });
+  })();
+
+  /* ---------- cell formatting (bold/italic/align/colors) ---------- */
+  var SHEET_COLORS = ["#2569A8","#1B998B","#6C5CE7","#E67E22","#27AE60","#C0392B","#8E44AD","#16283B"];
+  function requireSelectedCell(){
+    if (!selectedCell){ showSheetToast(t("selectCellFirst") || "Select a cell first"); return null; }
+    return selectedCell;
+  }
+  function refreshSelectedCellStyle(){
+    if (!selectedCell) return;
+    var td = gridEl.querySelector('td[data-row="'+selectedCell.r+'"][data-col="'+selectedCell.c+'"]');
+    if (td) applyCellStyle(td, selectedCell.r, selectedCell.c, computeCell(selectedCell.r, selectedCell.c));
+    scheduleSave();
+  }
+  document.getElementById("fmtBold").addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+  document.getElementById("fmtBold").addEventListener("click", function(){
+    var sc = requireSelectedCell(); if (!sc) return;
+    var fmt = getFormat(sc.r, sc.c);
+    setFormatProp(sc.r, sc.c, "bold", !(fmt && fmt.bold));
+    refreshSelectedCellStyle();
+  });
+  document.getElementById("fmtItalic").addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+  document.getElementById("fmtItalic").addEventListener("click", function(){
+    var sc = requireSelectedCell(); if (!sc) return;
+    var fmt = getFormat(sc.r, sc.c);
+    setFormatProp(sc.r, sc.c, "italic", !(fmt && fmt.italic));
+    refreshSelectedCellStyle();
+  });
+  [["fmtAlignRight","right"],["fmtAlignCenter","center"],["fmtAlignLeft","left"]].forEach(function(pair){
+    var btn = document.getElementById(pair[0]);
+    btn.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    btn.addEventListener("click", function(){
+      var sc = requireSelectedCell(); if (!sc) return;
+      setFormatProp(sc.r, sc.c, "align", pair[1]);
+      refreshSelectedCellStyle();
+    });
+  });
+  function buildSheetSwatchRow(container, onPick){
+    SHEET_COLORS.forEach(function(c){
+      var s = document.createElement("div"); s.className="swatch"; s.style.background=c;
+      s.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+      s.addEventListener("click", function(){ onPick(c); });
+      container.appendChild(s);
+    });
+    var picker = document.createElement("input");
+    picker.type="color"; picker.className="free-color-picker";
+    picker.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    picker.addEventListener("input", function(){ onPick(this.value); });
+    container.appendChild(picker);
+  }
+  buildSheetSwatchRow(document.getElementById("fmtTextColorSwatches"), function(c){
+    var sc = requireSelectedCell(); if (!sc) return;
+    setFormatProp(sc.r, sc.c, "color", c);
+    refreshSelectedCellStyle();
+  });
+  buildSheetSwatchRow(document.getElementById("fmtBgColorSwatches"), function(c){
+    var sc = requireSelectedCell(); if (!sc) return;
+    setFormatProp(sc.r, sc.c, "bg", c);
+    refreshSelectedCellStyle();
+  });
+
+  /* ---------- conditional formatting ---------- */
+  var condBgColor = SHEET_COLORS[4];
+  buildSheetSwatchRow(document.getElementById("condBgSwatches"), function(c){ condBgColor = c; });
+  function renderCondRulesList(){
+    var wrap = document.getElementById("condRulesList");
+    wrap.innerHTML = "";
+    if (!state.condRules.length){
+      var hint = document.createElement("div"); hint.className="field-hint"; hint.textContent = t("noRulesYet");
+      wrap.appendChild(hint);
+      return;
+    }
+    state.condRules.forEach(function(rule){
+      var row = document.createElement("div"); row.className="rule-item";
+      var label = document.createElement("span");
+      label.textContent = rule.range+" "+t("cond"+rule.op.charAt(0).toUpperCase()+rule.op.slice(1))+" "+(rule.value||"");
+      var del = document.createElement("button"); del.textContent="✕"; del.title=t("deleteRule");
+      del.addEventListener("click", function(){
+        state.condRules = state.condRules.filter(function(r){ return r.id !== rule.id; });
+        renderCondRulesList(); refreshComputedDisplay(); scheduleSave();
+      });
+      row.appendChild(label); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+  document.getElementById("condAddBtn").addEventListener("click", function(){
+    var range = document.getElementById("condRange").value.trim();
+    var op = document.getElementById("condOp").value;
+    var value = document.getElementById("condValue").value.trim();
+    if (!range || !cellRefToRC(range.split(":")[0])){ showSheetToast(t("invalidFile") || "Invalid range"); return; }
+    state.condRules.push({ id: nextRuleId++, range: range, op: op, value: value, bg: condBgColor });
+    document.getElementById("condRange").value = ""; document.getElementById("condValue").value = "";
+    renderCondRulesList(); refreshComputedDisplay(); scheduleSave();
+  });
+
+  /* ---------- dropdown lists (data validation) ---------- */
+  function renderValidationsList(){
+    var wrap = document.getElementById("validationsList");
+    wrap.innerHTML = "";
+    if (!state.validations.length){
+      var hint = document.createElement("div"); hint.className="field-hint"; hint.textContent = t("noRulesYet");
+      wrap.appendChild(hint);
+      return;
+    }
+    state.validations.forEach(function(rule){
+      var row = document.createElement("div"); row.className="rule-item";
+      var label = document.createElement("span");
+      label.textContent = rule.range+": "+rule.options.join(", ");
+      var del = document.createElement("button"); del.textContent="✕"; del.title=t("deleteRule");
+      del.addEventListener("click", function(){
+        state.validations = state.validations.filter(function(r){ return r.id !== rule.id; });
+        renderValidationsList(); buildGrid(); scheduleSave();
+      });
+      row.appendChild(label); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+  document.getElementById("validAddBtn").addEventListener("click", function(){
+    var range = document.getElementById("validRange").value.trim();
+    var optionsRaw = document.getElementById("validOptions").value.trim();
+    var options = optionsRaw.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+    if (!range || !cellRefToRC(range.split(":")[0]) || !options.length){ showSheetToast(t("invalidFile") || "Invalid range or options"); return; }
+    commitActiveSheetEdit();
+    state.validations.push({ id: nextRuleId++, range: range, options: options });
+    document.getElementById("validRange").value = ""; document.getElementById("validOptions").value = "";
+    renderValidationsList(); buildGrid(); scheduleSave();
+  });
+
+  /* ---------- cell merge ---------- */
+  function renderMergesList(){
+    var wrap = document.getElementById("mergesList");
+    wrap.innerHTML = "";
+    if (!state.merges.length){
+      var hint = document.createElement("div"); hint.className="field-hint"; hint.textContent = t("noRulesYet");
+      wrap.appendChild(hint);
+      return;
+    }
+    state.merges.forEach(function(m){
+      var row = document.createElement("div"); row.className="rule-item";
+      var label = document.createElement("span"); label.textContent = m.range;
+      var del = document.createElement("button"); del.textContent="✕"; del.title=t("deleteRule");
+      del.addEventListener("click", function(){
+        state.merges = state.merges.filter(function(x){ return x.id !== m.id; });
+        renderMergesList(); buildGrid(); scheduleSave();
+      });
+      row.appendChild(label); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+  document.getElementById("mergeAddBtn").addEventListener("click", function(){
+    var range = document.getElementById("mergeRange").value.trim();
+    var parts = range.split(":");
+    if (!range || !cellRefToRC(parts[0]) || !cellRefToRC(parts[1] || parts[0])){ showSheetToast(t("invalidFile") || "Invalid range"); return; }
+    commitActiveSheetEdit();
+    state.merges.push({ id: nextRuleId++, range: range });
+    document.getElementById("mergeRange").value = "";
+    renderMergesList(); buildGrid(); scheduleSave();
   });
 
   document.getElementById("shPrint").addEventListener("click", function(){
@@ -3419,6 +4782,18 @@
       aoa.push(row);
     }
     var ws = window.XLSX.utils.aoa_to_sheet(aoa);
+    // embed the *real* formulas too (not just their computed values) so the
+    // exported file stays fully live and editable when opened in Excel.
+    for (var r2=0;r2<state.rows;r2++){
+      for (var c2=0;c2<state.cols;c2++){
+        var raw = rawValue(r2,c2);
+        if (typeof raw === "string" && raw.charAt(0) === "="){
+          var addr = window.XLSX.utils.encode_cell({r:r2, c:c2});
+          if (!ws[addr]) ws[addr] = { t:"n", v:0 };
+          ws[addr].f = raw.slice(1);
+        }
+      }
+    }
     var wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
     window.XLSX.writeFile(wb, suggestedFileName("xlsx"));
@@ -3430,6 +4805,11 @@
     document.getElementById("sheetTitle").value = state.title;
     buildGrid();
     applyLangSheet();
+    renderCondRulesList();
+    renderValidationsList();
+    renderMergesList();
+    lastSnapshot = snapshotState();
+    updateUndoRedoButtons();
   }
   init();
 })();
@@ -3467,6 +4847,8 @@
       linkExists:"הקישור כבר קיים", imgTooBig:"התמונה גדולה מדי, נסו קובץ אחר",
       chartSettings:"הגדרות תרשים", connectorStyle:"סוג קו מחבר",
       lineCurved:"מעוגל", lineElbow:"זוויתי (ישר)", lineStraight:"אלכסוני ישר",
+      layoutDirection:"כיוון פריסה", layoutVertical:"מלמעלה למטה", layoutHorizontal:"מימין לשמאל",
+      themePresets:"ערכת עיצוב לכל התרשים", themeCorporate:"ארגוני", themeEarth:"אדמה", themeModern:"מודרני", themeNeutral:"ניטרלי",
       saveNow:"שמור עכשיו", reconnect:"חבר מחדש לקובץ",
       toastLinked:"הקובץ מחובר — שמירה אוטומטית פעילה", toastLinkFailed:"השמירה לקובץ נכשלה",
       toastReconnected:"חובר מחדש לקובץ בהצלחה", invalidFile:"קובץ לא תקין",
@@ -3506,6 +4888,8 @@
       linkExists:"That link already exists", imgTooBig:"Image too large, try another file",
       chartSettings:"Chart settings", connectorStyle:"Connector line style",
       lineCurved:"Curved", lineElbow:"Elbow (right-angle)", lineStraight:"Straight diagonal",
+      layoutDirection:"Layout direction", layoutVertical:"Top to bottom", layoutHorizontal:"Right to left",
+      themePresets:"Theme for the whole chart", themeCorporate:"Corporate", themeEarth:"Earth", themeModern:"Modern", themeNeutral:"Neutral",
       saveNow:"Save now", reconnect:"Reconnect file",
       toastLinked:"File linked — auto-save is active", toastLinkFailed:"Saving to file failed",
       toastReconnected:"Reconnected to file", invalidFile:"Invalid file",
@@ -3565,6 +4949,7 @@
     panY: 40,
     dottedLinks: [],
     lineStyle: "curved",
+    layoutDirection: "vertical",
     companyLogo: null,
     fileHandle: null,
     fileName: "",
@@ -3668,6 +5053,7 @@
       root: cleanNode(state.root),
       dottedLinks: state.dottedLinks,
       lineStyle: state.lineStyle,
+      layoutDirection: state.layoutDirection,
       companyLogo: state.companyLogo,
       nextId: nextId
     };
@@ -3706,7 +5092,91 @@
   }
 
   var saveTimer = null;
+  /* ---------- undo / redo ---------- */
+  var undoStack = [], redoStack = [], lastSnapshot = null, undoDebounceTimer = null, isRestoringUndo = false;
+  var UNDO_MAX = 50;
+  function snapshotState(){ return JSON.stringify(currentDataObject()); }
+  function restoreSnapshot(json){
+    var data = JSON.parse(json);
+    state.companyName = data.companyName || state.companyName;
+    state.root = data.root || null;
+    state.dottedLinks = data.dottedLinks || [];
+    state.lineStyle = data.lineStyle || "curved";
+    state.layoutDirection = data.layoutDirection || "vertical";
+    state.companyLogo = data.companyLogo || null;
+    nextId = data.nextId || nextId;
+    state.selectedId = null;
+    document.getElementById("companyName").value = state.companyName;
+    document.getElementById("lineStyleSelect").value = state.lineStyle;
+    document.getElementById("layoutDirectionSelect").value = state.layoutDirection;
+    renderLogoUI();
+    render(); renderSidebar();
+    // deliberately no fitToScreen() here — undo/redo should not reset the user's zoom/pan
+  }
+  function updateUndoRedoButtons(){
+    var u = document.getElementById("btnUndo"), r = document.getElementById("btnRedo");
+    if (u) u.disabled = !undoStack.length;
+    if (r) r.disabled = !redoStack.length;
+  }
+  function scheduleUndoSnapshot(){
+    if (isRestoringUndo) return;
+    clearTimeout(undoDebounceTimer);
+    undoDebounceTimer = setTimeout(function(){
+      var snap = snapshotState();
+      if (snap !== lastSnapshot){
+        undoStack.push(lastSnapshot);
+        if (undoStack.length > UNDO_MAX) undoStack.shift();
+        redoStack = [];
+        lastSnapshot = snap;
+        updateUndoRedoButtons();
+      }
+    }, 800);
+  }
+  function doUndo(){
+    clearTimeout(undoDebounceTimer);
+    var current = snapshotState();
+    if (current !== lastSnapshot){
+      redoStack.push(current);
+      isRestoringUndo = true;
+      restoreSnapshot(lastSnapshot);
+      isRestoringUndo = false;
+      updateUndoRedoButtons();
+      return;
+    }
+    if (!undoStack.length) return;
+    redoStack.push(lastSnapshot);
+    var prev = undoStack.pop();
+    isRestoringUndo = true;
+    restoreSnapshot(prev);
+    isRestoringUndo = false;
+    lastSnapshot = prev;
+    scheduleSave();
+    updateUndoRedoButtons();
+  }
+  function doRedo(){
+    if (!redoStack.length) return;
+    var current = snapshotState();
+    undoStack.push(current);
+    var next = redoStack.pop();
+    isRestoringUndo = true;
+    restoreSnapshot(next);
+    isRestoringUndo = false;
+    lastSnapshot = next;
+    scheduleSave();
+    updateUndoRedoButtons();
+  }
+  document.getElementById("btnUndo").addEventListener("click", doUndo);
+  document.getElementById("btnRedo").addEventListener("click", doRedo);
+  document.addEventListener("keydown", function(ev){
+    if (document.getElementById("tabpanel-orgchart").style.display === "none") return;
+    var mod = ev.ctrlKey || ev.metaKey;
+    if (!mod) return;
+    if (!ev.shiftKey && (ev.key === "z" || ev.key === "Z")){ ev.preventDefault(); doUndo(); }
+    else if ((ev.key === "y" || ev.key === "Y") || (ev.shiftKey && (ev.key === "z" || ev.key === "Z"))){ ev.preventDefault(); doRedo(); }
+  });
+
   function scheduleSave(){
+    scheduleUndoSnapshot();
     var el = document.getElementById("saveStatus");
     el.textContent = (LANG==="he" ? "שומר..." : "Saving...");
     if (saveTimer) clearTimeout(saveTimer);
@@ -3729,6 +5199,7 @@
       state.root = data.root || null;
       state.dottedLinks = data.dottedLinks || [];
       state.lineStyle = data.lineStyle || "curved";
+      state.layoutDirection = data.layoutDirection || "vertical";
       state.companyLogo = data.companyLogo || null;
       nextId = data.nextId || 1;
       return true;
@@ -3740,9 +5211,11 @@
   /* ================= Layout (tree) ================= */
   var NODE_W = 260, NODE_H = 114, HGAP = 44, VGAP = 70;
 
+  function crossSize(){ return state.layoutDirection === "horizontal" ? NODE_H : NODE_W; }
+
   function layoutWidth(node){
     if (!node.children || node.children.length === 0){
-      node._w = NODE_W;
+      node._w = crossSize();
       return node._w;
     }
     var sum = 0;
@@ -3750,15 +5223,19 @@
       sum += layoutWidth(node.children[i]);
       if (i < node.children.length - 1) sum += HGAP;
     }
-    node._w = Math.max(NODE_W, sum);
+    node._w = Math.max(crossSize(), sum);
     return node._w;
   }
 
   function assignPos(node, left, depth){
     node._depth = depth;
-    node._y = depth * (NODE_H + VGAP);
+    var horizontal = state.layoutDirection === "horizontal";
+    var primaryPos = depth * ((horizontal ? NODE_W : NODE_H) + VGAP);
+    if (horizontal) node._x = primaryPos; else node._y = primaryPos;
+
     if (!node.children || node.children.length === 0){
-      node._x = left + (node._w - NODE_W)/2;
+      var crossPos = left + (node._w - crossSize())/2;
+      if (horizontal) node._y = crossPos; else node._x = crossPos;
       return;
     }
     var childrenTotalW = 0;
@@ -3775,8 +5252,13 @@
     // center parent over its children
     var firstC = node.children[0];
     var lastC = node.children[node.children.length-1];
-    var centerX = (firstC._x + lastC._x + NODE_W)/2;
-    node._x = centerX - NODE_W/2;
+    if (horizontal){
+      var centerY = (firstC._y + lastC._y + NODE_H)/2;
+      node._y = centerY - NODE_H/2;
+    } else {
+      var centerX = (firstC._x + lastC._x + NODE_W)/2;
+      node._x = centerX - NODE_W/2;
+    }
   }
 
   function countDescendants(node){
@@ -3890,15 +5372,18 @@
   function drawNode(node){
     // connectors to children
     if (node.children && node.children.length){
-      var parentX = node._x + NODE_W/2;
-      var parentY = node._y + NODE_H;
+      var horizontal = state.layoutDirection === "horizontal";
+      var parentX, parentY;
+      if (horizontal){ parentX = node._x + NODE_W; parentY = node._y + NODE_H/2; }
+      else { parentX = node._x + NODE_W/2; parentY = node._y + NODE_H; }
 
       for (var i=0;i<node.children.length;i++){
         var c = node.children[i];
-        var childX = c._x + NODE_W/2;
-        var childY = c._y;
+        var childX, childY;
+        if (horizontal){ childX = c._x; childY = c._y + NODE_H/2; }
+        else { childX = c._x + NODE_W/2; childY = c._y; }
         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-        path.setAttribute("d", connectorPath(parentX, parentY, childX, childY, "vertical"));
+        path.setAttribute("d", connectorPath(parentX, parentY, childX, childY, horizontal ? "horizontal" : "vertical"));
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", "#A9C6E4");
         path.setAttribute("stroke-width", "2");
@@ -4406,6 +5891,55 @@
     scheduleSave();
   });
 
+  /* ================= Sidebar collapse + accordion ================= */
+  document.getElementById("sidebarToggle").addEventListener("click", function(){
+    var sb = document.getElementById("sidebar");
+    var collapsed = sb.classList.toggle("collapsed");
+    this.textContent = collapsed ? "›" : "‹";
+  });
+  document.getElementById("sidebar").addEventListener("click", function(e){
+    var h3 = e.target.closest ? e.target.closest("h3") : null;
+    if (h3 && h3.parentElement && h3.parentElement.classList.contains("side-block")){
+      h3.parentElement.classList.toggle("collapsed");
+    }
+  });
+
+  /* ================= Layout direction ================= */
+  document.getElementById("layoutDirectionSelect").addEventListener("change", function(){
+    state.layoutDirection = this.value;
+    render();
+    scheduleSave();
+  });
+
+  /* ================= Theme presets — bulk-recolor every node by depth ================= */
+  var THEME_PRESETS = {
+    corporate: ["#2569A8","#1B998B","#6C5CE7","#16283B"],
+    earth: ["#8B5E34","#6B8E4E","#C9A227","#4A4238"],
+    modern: ["#6C5CE7","#E67E22","#27AE60","#2569A8"],
+    neutral: ["#4A4A4A","#6B6B6B","#8C8C8C","#2E2E2E"]
+  };
+  function applyThemePreset(key){
+    var palette = THEME_PRESETS[key];
+    if (!palette || !state.root) return;
+    (function walk(node, depth){
+      node.color = palette[depth % palette.length];
+      (node.children||[]).forEach(function(c){ walk(c, depth+1); });
+    })(state.root, 0);
+    render(); renderSidebar(); scheduleSave();
+  }
+  (function(){
+    var row = document.getElementById("themePresetRow");
+    Object.keys(THEME_PRESETS).forEach(function(key){
+      var b = document.createElement("button");
+      b.className = "theme-preset-btn";
+      b.title = t("theme"+key.charAt(0).toUpperCase()+key.slice(1));
+      var stops = THEME_PRESETS[key].map(function(c,i){ return c+" "+(i*25)+"%,"+c+" "+((i+1)*25)+"%"; }).join(",");
+      b.style.background = "linear-gradient(90deg,"+stops+")";
+      b.addEventListener("click", function(){ applyThemePreset(key); });
+      row.appendChild(b);
+    });
+  })();
+
   /* ================= Line style ================= */
   document.getElementById("lineStyleSelect").addEventListener("change", function(){
     state.lineStyle = this.value;
@@ -4535,11 +6069,13 @@
     state.root = data.root || null;
     state.dottedLinks = data.dottedLinks || [];
     state.lineStyle = data.lineStyle || "curved";
+    state.layoutDirection = data.layoutDirection || "vertical";
     state.companyLogo = data.companyLogo || null;
     nextId = data.nextId || nextId;
     state.selectedId = null;
     document.getElementById("companyName").value = state.companyName;
     document.getElementById("lineStyleSelect").value = state.lineStyle;
+    document.getElementById("layoutDirectionSelect").value = state.layoutDirection;
     renderLogoUI();
     render(); renderSidebar(); fitToScreen();
   }
@@ -4929,6 +6465,38 @@
       while (s.length > 1 && ctx.measureText(s+"…").width > maxW){ s = s.slice(0,-1); }
       return s + "…";
     }
+    function drawConnectorsCanvas(node){
+      if (!node.children || !node.children.length) return;
+      var horizontal = state.layoutDirection === "horizontal";
+      var parentX, parentY;
+      if (horizontal){ parentX = node._x + NODE_W; parentY = node._y + NODE_H/2; }
+      else { parentX = node._x + NODE_W/2; parentY = node._y + NODE_H; }
+      for (var i=0;i<node.children.length;i++){
+        var c = node.children[i];
+        var childX, childY;
+        if (horizontal){ childX = c._x; childY = c._y + NODE_H/2; }
+        else { childX = c._x + NODE_W/2; childY = c._y; }
+        ctx.beginPath();
+        ctx.moveTo(parentX, parentY);
+        var style = state.lineStyle;
+        if (style === "straight"){
+          ctx.lineTo(childX, childY);
+        } else if (!horizontal){
+          var midY = (parentY+childY)/2;
+          if (style === "elbow"){ ctx.lineTo(parentX, midY); ctx.lineTo(childX, midY); ctx.lineTo(childX, childY); }
+          else { ctx.bezierCurveTo(parentX, midY, childX, midY, childX, childY); }
+        } else {
+          var midX = (parentX+childX)/2;
+          if (style === "elbow"){ ctx.lineTo(midX, parentY); ctx.lineTo(midX, childY); ctx.lineTo(childX, childY); }
+          else { ctx.bezierCurveTo(midX, parentY, midX, childY, childX, childY); }
+        }
+        ctx.strokeStyle = "#A9C6E4";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        drawConnectorsCanvas(c);
+      }
+    }
+    drawConnectorsCanvas(state.root);
     drawNodeCanvas(state.root);
     ctx.restore();
 
@@ -4999,6 +6567,7 @@
     var had = loadFromStorage();
     document.getElementById("companyName").value = state.companyName;
     document.getElementById("lineStyleSelect").value = state.lineStyle;
+    document.getElementById("layoutDirectionSelect").value = state.layoutDirection;
     applyLang();
     renderLogoUI();
     render();
