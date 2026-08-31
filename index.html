@@ -803,6 +803,54 @@ const WEATHER_CONFIGS = {
 let selectedWeather = 'clear';
 
 /* =====================================================================
+   DAY/NIGHT CYCLE - once flying, sky/fog/sun/ambient slowly drift from
+   day toward dusk/night and back on a long, gentle loop, so a longer
+   flight sees the light change instead of staying static all session.
+   Purely visual (like the weather colors it blends from), no gameplay
+   effect. Skipped if the player explicitly picked the Night weather
+   preset, since that's already night.
+===================================================================== */
+const DAYNIGHT = {
+  enabled: true,
+  cycleSeconds: 300, // one full day -> night -> day loop, in seconds
+  elapsed: 0,
+  baseSky: new THREE.Color(0x8fd0ff),
+  baseFog: new THREE.Color(0xbfe3ff),
+  baseAmbient: 0.7,
+  baseSun: 1.2,
+  nightSky: new THREE.Color(0x030814),
+  nightFog: new THREE.Color(0x0a1020),
+  moonLight: null,
+  nightFactor: 0,
+};
+const _dnSkyColor = new THREE.Color();
+const _dnFogColor = new THREE.Color();
+
+function updateDayNightCycle(dt){
+  if (!DAYNIGHT.enabled) { DAYNIGHT.nightFactor = 1; return; } // explicit Night weather: always dark
+  DAYNIGHT.elapsed += dt;
+  const phase = (DAYNIGHT.elapsed % DAYNIGHT.cycleSeconds) / DAYNIGHT.cycleSeconds; // 0..1
+  // Smooth wave: 0 = full day, 1 = full night, eases back to day - no hard cuts.
+  const nightFactor = (1 - Math.cos(phase * Math.PI * 2)) / 2;
+  DAYNIGHT.nightFactor = nightFactor;
+
+  _dnSkyColor.copy(DAYNIGHT.baseSky).lerp(DAYNIGHT.nightSky, nightFactor);
+  _dnFogColor.copy(DAYNIGHT.baseFog).lerp(DAYNIGHT.nightFog, nightFactor);
+  scene.background.copy(_dnSkyColor);
+  scene.fog.color.copy(_dnFogColor);
+  hemi.intensity = THREE.MathUtils.lerp(DAYNIGHT.baseAmbient, DAYNIGHT.baseAmbient * 0.18, nightFactor);
+  sun.intensity = THREE.MathUtils.lerp(DAYNIGHT.baseSun, DAYNIGHT.baseSun * 0.05, nightFactor);
+
+  if (!DAYNIGHT.moonLight) {
+    DAYNIGHT.moonLight = new THREE.DirectionalLight(0x445577, 0);
+    DAYNIGHT.moonLight.position.set(300, 500, -200);
+    scene.add(DAYNIGHT.moonLight);
+  }
+  const moonStrength = Math.max(0, nightFactor - 0.35) / 0.65; // fades in only for the darkest stretch
+  DAYNIGHT.moonLight.intensity = moonStrength * 0.35;
+}
+
+/* =====================================================================
    PARTICLE FX CANVAS (smoke, rain, tire marks)
 ===================================================================== */
 const fxCanvas = document.getElementById('fx-canvas');
@@ -1018,25 +1066,6 @@ sun.shadow.camera.near = 100;
 sun.shadow.camera.far = 4000;
 sun.shadow.bias = -0.0007;
 scene.add(sun);
-
-/* ---- Star field for the day/night cycle - a simple points sprite dome, invisible by day ---- */
-const starGeo = new THREE.BufferGeometry();
-const STAR_COUNT = isMobileDevice ? 250 : 600;
-const starPositions = new Float32Array(STAR_COUNT * 3);
-for (let i = 0; i < STAR_COUNT; i++) {
-  // Distribute over the upper hemisphere only (no point buying stars below the horizon)
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.random() * Math.PI * 0.5; // 0 = straight up, PI/2 = horizon
-  const r = 3000;
-  starPositions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-  starPositions[i*3+1] = r * Math.cos(phi) + 50; // keep well above the terrain
-  starPositions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
-}
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0 });
-const starField = new THREE.Points(starGeo, starMat);
-scene.add(starField);
-
 scene.add(sun.target);
 
 /* =====================================================================
@@ -1292,148 +1321,65 @@ function buildTree(x,z){
   scene.add(g);
 }
 
-/* =====================================================================
-   AIRPORT DESTINATION SIGNS - a canvas-texture board near each runway
-   showing a randomly-picked destination name, lit up at night via the
-   materials collected in airportLitMaterials below.
-===================================================================== */
-const DESTINATION_NAME_POOL = [
-  'RIVERBEND', 'CLEARWATER FIELD', 'MOUNT ASHDOWN', 'SUNSET MESA', 'PORT ALDRIN',
-  'SILVERPINE', 'HAWTHORNE BAY', 'GOLDEN VALLEY', 'NORTHSTAR FIELD', 'CEDAR HOLLOW',
-  'BLUE HARBOR', 'STONE RIDGE', 'FALCON CROSSING', 'AMBERLIGHT', 'WREN ISLAND',
-];
-// Collects every material that should visually "turn on" as it gets dark - sign backlight,
-// building windows, etc. A single shared update loop (see updateAirportLighting) just walks
-// this list and sets emissiveIntensity, so adding more lit objects later is a one-line addition.
-const airportLitMaterials = [];
-
-function makeTextCanvasTexture(text, w, h, bg, fg){
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = fg;
-  ctx.font = `bold ${Math.floor(h*0.42)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, w/2, h/2);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function buildDestinationSign(x, z, rotY, name){
+/* Small houses scattered near each airport, each with 1-2 windows that glow
+   at night. Like the runway lights, the window material is always-on and
+   unlit (MeshBasicMaterial) so it costs nothing extra to render, but the
+   yellow glow only really reads once the surroundings go dark. */
+const houseWallMat = new THREE.MeshStandardMaterial({ color:0xd8c9a8, roughness:0.85 });
+const houseRoofMat = new THREE.MeshStandardMaterial({ color:0x7a3b30, roughness:0.8 });
+const houseWindowMat = new THREE.MeshBasicMaterial({ color:0xffdd88 });
+function buildHouse(x,z){
   const g = new THREE.Group();
-  // Two support posts
-  const postGeo = new THREE.CylinderGeometry(0.25, 0.25, 5, 6);
-  const postMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-  const postL = new THREE.Mesh(postGeo, postMat);
-  postL.position.set(-4, 2.5, 0);
-  const postR = new THREE.Mesh(postGeo, postMat);
-  postR.position.set(4, 2.5, 0);
-  g.add(postL, postR);
-
-  // Board - dark background, light text drawn once into a canvas texture. A separate thin
-  // "backlight" plane sits just behind it with an emissive material that ramps up at night,
-  // so the sign reads as illuminated from within rather than needing a spotlight aimed at it.
-  const boardTex = makeTextCanvasTexture(name, 512, 128, '#0c1c14', '#eafff0');
-  const boardMat = new THREE.MeshBasicMaterial({ map: boardTex });
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2), boardMat);
-  board.position.set(0, 4.6, 0);
-  g.add(board);
-
-  const backlightMat = new THREE.MeshStandardMaterial({
-    color: 0x0c1c14, emissive: 0x8fffc0, emissiveIntensity: 0, side: THREE.DoubleSide,
-  });
-  const backlight = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 2.4), backlightMat);
-  backlight.position.set(0, 4.6, -0.05);
-  g.add(backlight);
-  airportLitMaterials.push(backlightMat);
-
-  g.position.set(x, terrainHeight(x, z), z);
-  g.rotation.y = rotY;
-  scene.add(g);
-}
-
-/* =====================================================================
-   TERMINAL BUILDINGS - simple rectangular buildings near each airport with
-   a window-strip texture that lights up at night (same airportLitMaterials
-   list the destination signs use).
-===================================================================== */
-function makeWindowStripTexture(cols, rows){
-  const cw = 32, rh = 32;
-  const canvas = document.createElement('canvas');
-  canvas.width = cols*cw; canvas.height = rows*rh;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#3a3f46';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#ffe9a8';
-  for (let r=0; r<rows; r++){
-    for (let c=0; c<cols; c++){
-      if (Math.random() < 0.7) { // most windows lit, a few dark - reads more like a real building
-        ctx.fillRect(c*cw+6, r*rh+6, cw-12, rh-12);
-      }
-    }
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function buildTerminalBuilding(x, z, rotY, w, h, d){
-  const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcfd2d6 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
+  const w = 6 + Math.random()*4, d = 6 + Math.random()*4, h = 4 + Math.random()*2.5;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), houseWallMat);
   body.position.y = h/2;
   body.castShadow = true; body.receiveShadow = true;
   g.add(body);
 
-  // Window strip wraps the two long faces only - simplest way to get a convincing lit-building
-  // look without a full 4-sided unwrap.
-  const cols = Math.max(4, Math.round(w/2.2));
-  const rows = Math.max(2, Math.round(h/3));
-  const winTex = makeWindowStripTexture(cols, rows);
-  const winMat = new THREE.MeshStandardMaterial({
-    map: winTex, color: 0x888888, emissive: 0xffe9a8, emissiveMap: winTex, emissiveIntensity: 0,
-  });
-  const winPlaneGeo = new THREE.PlaneGeometry(w*0.92, h*0.7);
-  const winFront = new THREE.Mesh(winPlaneGeo, winMat);
-  winFront.position.set(0, h*0.5, d/2 + 0.05);
-  const winBack = new THREE.Mesh(winPlaneGeo, winMat);
-  winBack.position.set(0, h*0.5, -d/2 - 0.05);
-  winBack.rotation.y = Math.PI;
-  g.add(winFront, winBack);
-  airportLitMaterials.push(winMat);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*0.75, h*0.6, 4), houseRoofMat);
+  roof.rotation.y = Math.PI/4;
+  roof.position.y = h + (h*0.6)/2;
+  roof.castShadow = true;
+  g.add(roof);
 
-  g.position.set(x, terrainHeight(x, z), z);
-  g.rotation.y = rotY;
+  // 1-2 glowing windows per house, placed on a random face
+  const windowCount = 1 + (Math.random()<0.5 ? 1 : 0);
+  for (let i=0;i<windowCount;i++){
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), houseWindowMat);
+    const face = Math.floor(Math.random()*4);
+    const wy = h*0.55;
+    if (face===0){ win.position.set(0, wy, d/2+0.02); }
+    else if (face===1){ win.position.set(0, wy, -d/2-0.02); win.rotation.y = Math.PI; }
+    else if (face===2){ win.position.set(w/2+0.02, wy, 0); win.rotation.y = Math.PI/2; }
+    else { win.position.set(-w/2-0.02, wy, 0); win.rotation.y = -Math.PI/2; }
+    g.add(win);
+  }
+
+  g.position.set(x, terrainHeight(x,z), z);
+  g.rotation.y = Math.random()*Math.PI*2;
   scene.add(g);
 }
 
-// Called every frame - keeps every sign/building light in sync with the day/night cycle (or the
-// fixed night flag when the cycle is off) without each system needing to know about the other.
-function updateAirportLighting(){
-  for (const mat of airportLitMaterials) {
-    mat.emissiveIntensity = currentNightAmount;
-  }
-}
-
-// Build every airport: runway, tower, hangars, destination sign, terminal building, and trees
+// Build every airport: runway, tower, hangars, surrounding trees, and a small
+// scattered neighborhood of houses further back from the runway.
 const treeCountPerAirport = Math.round((isMobileDevice ? 60 : 140) / RUNWAYS.length);
-const shuffledDestinationNames = [...DESTINATION_NAME_POOL].sort(()=>Math.random()-0.5);
+const houseCountPerAirport = Math.round((isMobileDevice ? 16 : 32) / RUNWAYS.length);
 RUNWAYS.forEach((r, idx)=>{
   buildRunwayAt(r.cx, r.cz);
   buildTower(r.cx + 140, r.cz - 400);
   buildHangar(r.cx + 150, r.cz - 250, 0);
   buildHangar(r.cx + 150, r.cz - 180, 0);
-  buildTerminalBuilding(r.cx + 150, r.cz - 100, 0, 34, 12, 14);
-  buildDestinationSign(r.cx - 40, r.cz - (runwayLength/2 + 30), 0, shuffledDestinationNames[idx % shuffledDestinationNames.length]);
   for (let i=0;i<treeCountPerAirport;i++){
     const side = Math.random()<0.5?-1:1;
     const x = r.cx + side*(runwayWidth/2 + 40 + Math.random()*260);
     const z = r.cz + (Math.random()-0.5)*runwayLength*1.4;
     buildTree(x,z);
+  }
+  for (let i=0;i<houseCountPerAirport;i++){
+    const side = Math.random()<0.5?-1:1;
+    const x = r.cx + side*(runwayWidth/2 + 320 + Math.random()*500);
+    const z = r.cz + (Math.random()-0.5)*runwayLength*1.6;
+    buildHouse(x,z);
   }
 });
 
@@ -1456,54 +1402,6 @@ let minimapAirportNodes = [];
 /* =====================================================================
    PROCEDURAL AIRPLANE MODEL
 ===================================================================== */
-// Tracks how "dark" it currently is (0 = full day, 1 = full night), driven by the day/night
-// cycle when enabled, or set once from the picked weather's night flag otherwise. Read by the
-// player's own landing light so it's dim and pointless-looking by day but genuinely useful (and
-// visible as a light beam) after dark, without needing every light-consuming system to know
-// about the day/night cycle internals.
-let currentNightAmount = 0;
-
-// Shared by all three aircraft types: steady red/green wingtip nav lights (real aircraft convention
-// - red left, green right), a blinking white strobe, and a forward-facing landing light that casts
-// an actual visible beam once it's dark. `noseZ` is the local-space Z of the nose tip (negative,
-// since forward is -Z in this model), used to aim the landing light and position its lens.
-function addNavStrobeAndLandingLight(plane, leftTipPos, rightTipPos, tailPos, noseZ){
-  const navGeo = new THREE.SphereGeometry(0.09, 6, 6);
-  const navR = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0xff3333 }));
-  navR.position.copy(leftTipPos);
-  plane.add(navR);
-  const navG = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0x33ff55 }));
-  navG.position.copy(rightTipPos);
-  plane.add(navG);
-
-  // White strobe - this is the light that actually blinks on a real aircraft (nav lights are
-  // steady). Its brightness is animated per-frame in animate() via plane.userData.strobeMat.
-  const strobeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), strobeMat);
-  strobe.position.copy(tailPos);
-  plane.add(strobe);
-  plane.userData.strobeMat = strobeMat;
-  plane.userData.strobePhase = Math.random()*Math.PI*2;
-
-  // Landing light: a real SpotLight (so it actually lights up the ground/runway ahead in the
-  // dark, not just a glowing dot) plus a small emissive-looking lens mesh so the light source
-  // itself is visible from outside the cockpit too. Aimed straight down the nose.
-  const lensGeo = new THREE.CircleGeometry(0.07, 8);
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
-  const lens = new THREE.Mesh(lensGeo, lensMat);
-  lens.position.set(0, -0.05, noseZ + 0.02);
-  lens.rotation.y = Math.PI; // face forward (-Z)
-  plane.add(lens);
-
-  const landingLight = new THREE.SpotLight(0xfff6d8, 0, 220, Math.PI/7, 0.4, 1.2);
-  landingLight.position.set(0, -0.05, noseZ);
-  const landingTarget = new THREE.Object3D();
-  landingTarget.position.set(0, -8, noseZ - 60); // aimed forward and slightly down
-  plane.add(landingLight, landingTarget);
-  landingLight.target = landingTarget;
-  plane.userData.landingLight = landingLight;
-}
-
 function buildAirplane(type){
   type = type || 'cessna';
   const plane = new THREE.Group();
@@ -1642,14 +1540,14 @@ function buildAirplane(type){
     plane.add(gearL, gearR, gearNose);
     gearParts = [gearL, gearR, gearNose];
 
-    // Nav, strobe, and landing lights (shared helper - see addNavStrobeAndLandingLight)
-    addNavStrobeAndLandingLight(
-      plane,
-      new THREE.Vector3(-4.75, WING_Y+0.12, WING_Z+2.35),
-      new THREE.Vector3(4.75, WING_Y+0.12, WING_Z+2.35),
-      new THREE.Vector3(0, 1.55, 5.1), // tail-mounted strobe
-      NOSE_Z
-    );
+    // Nav lights
+    const navGeoR = new THREE.SphereGeometry(0.1,6,6);
+    const navR = new THREE.Mesh(navGeoR, new THREE.MeshBasicMaterial({color:0xff3333}));
+    navR.position.set(-4.75, WING_Y+0.12, WING_Z+2.35);
+    plane.add(navR);
+    const navG = new THREE.Mesh(navGeoR, new THREE.MeshBasicMaterial({color:0x33ff55}));
+    navG.position.set(4.75, WING_Y+0.12, WING_Z+2.35);
+    plane.add(navG);
 
   } else if (type === 'glider') {
     // ==================== GLIDER: slender fuselage, very long thin wings, no engine, T-tail ====================
@@ -1735,14 +1633,14 @@ function buildAirplane(type){
     plane.add(skidGroup);
     gearParts = [skidGroup];
 
-    // Nav, strobe, and landing lights (shared helper - see addNavStrobeAndLandingLight)
-    addNavStrobeAndLandingLight(
-      plane,
-      new THREE.Vector3(-(5.2+4.6+2.6), WING_Y-0.04, WING_Z+0.15),
-      new THREE.Vector3(5.2+4.6+2.6, WING_Y-0.04, WING_Z+0.15),
-      new THREE.Vector3(0, 0.9, 4.9), // tail-mounted strobe
-      NOSE_Z
-    );
+    // Nav lights
+    const navGeoR = new THREE.SphereGeometry(0.08,6,6);
+    const navR = new THREE.Mesh(navGeoR, new THREE.MeshBasicMaterial({color:0xff3333}));
+    navR.position.set(-(5.2+4.6+2.6), WING_Y-0.04, WING_Z+0.15);
+    plane.add(navR);
+    const navG = new THREE.Mesh(navGeoR, new THREE.MeshBasicMaterial({color:0x33ff55}));
+    navG.position.set(5.2+4.6+2.6, WING_Y-0.04, WING_Z+0.15);
+    plane.add(navG);
 
   } else {
     // ==================== CESSNA (default): high wing, single nose prop, tricycle gear ====================
@@ -1879,20 +1777,129 @@ function buildAirplane(type){
     const gearNose = makeGear(0, -2.9, 0.85);
     plane.add(gearL, gearR, gearNose);
     gearParts = [gearL, gearR, gearNose];
-
-    // Nav, strobe, and landing lights (shared helper - see addNavStrobeAndLandingLight)
-    addNavStrobeAndLandingLight(
-      plane,
-      new THREE.Vector3(-(3.1+3.2+0.25), WING_Y-0.03, WING_Z+0.25),
-      new THREE.Vector3(3.1+3.2+0.25, WING_Y-0.03, WING_Z+0.25),
-      new THREE.Vector3(0, 0.85, 4.0), // tail-mounted strobe
-      NOSE_Z
-    );
   }
 
   plane.userData.propeller = propGroup; // null for jet/glider - guarded at call site
   plane.userData.gear = gearParts;
+
+  /* =====================================================================
+     EXTERIOR LIGHTS - modeled on how real aircraft actually light up:
+     - Navigation (position) lights: red left wingtip / green right wingtip /
+       white tail. STEADY - these never blink, they just mark the plane's
+       shape and heading to other traffic.
+     - Anti-collision beacon: red, on top of the fuselage, pulses slowly
+       and continuously any time the aircraft is powered up.
+     - Strobe lights: bright white, wingtips + tail, fire in a quick
+       double-flash burst with a long gap between bursts - the sharp
+       "blink" people usually picture when they think of aircraft lights.
+     - Landing light: a real forward-facing spotlight, white, mounted at
+       the nose. Pilots switch it on for taxi/takeoff/climb/approach/
+       landing and off at cruise - modeled here the same way, driven by
+       altitude above ground.
+  ===================================================================== */
+  plane.updateMatrixWorld(true);
+  const planeBounds = new THREE.Box3().setFromObject(plane);
+  const halfSpan = Math.max(1.2, (planeBounds.max.x - planeBounds.min.x) / 2);
+  const tailZ = planeBounds.max.z;
+  const noseZ = planeBounds.min.z;
+  const bulbGeo = new THREE.SphereGeometry(0.11, 8, 8);
+  const strobeGeo = new THREE.SphereGeometry(0.09, 8, 8);
+
+  // Steady navigation lights (never blink, real aircraft keep these on and constant).
+  const navLightMatL = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+  const navLightL = new THREE.Mesh(bulbGeo, navLightMatL);
+  navLightL.position.set(-halfSpan, 0, 0.2);
+  plane.add(navLightL);
+
+  const navLightMatR = new THREE.MeshBasicMaterial({ color: 0x22ff44 });
+  const navLightR = new THREE.Mesh(bulbGeo, navLightMatR);
+  navLightR.position.set(halfSpan, 0, 0.2);
+  plane.add(navLightR);
+
+  const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const tailLight = new THREE.Mesh(bulbGeo, tailLightMat);
+  tailLight.position.set(0, 0.15, tailZ - 0.1);
+  plane.add(tailLight);
+
+  // Anti-collision beacon: slow continuous red pulse on top of the fuselage.
+  const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff2222, transparent: true, opacity: 1 });
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), beaconMat);
+  beacon.position.set(0, 0.55, -0.3);
+  plane.add(beacon);
+
+  // Strobe lights: bright white, quick double-flash, mounted just inboard of the nav lights
+  // plus one on the tail - this is the actual "blinking" light on real aircraft.
+  const strobeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const strobeL = new THREE.Mesh(strobeGeo, strobeMat.clone());
+  strobeL.position.set(-halfSpan * 0.94, 0, 0.5);
+  plane.add(strobeL);
+  const strobeR = new THREE.Mesh(strobeGeo, strobeMat.clone());
+  strobeR.position.set(halfSpan * 0.94, 0, 0.5);
+  plane.add(strobeR);
+  const strobeTail = new THREE.Mesh(strobeGeo, strobeMat.clone());
+  strobeTail.position.set(0, 0.5, tailZ - 0.3);
+  plane.add(strobeTail);
+
+  // Landing light: forward-facing spotlight at the nose, plus its visible bulb. Off by
+  // default (day, at altitude) - updateAirplaneLights() switches it on near the ground.
+  const landingBulbMat = new THREE.MeshBasicMaterial({ color: 0x998a6a });
+  const landingBulb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), landingBulbMat);
+  landingBulb.position.set(0, -0.2, noseZ + 0.35);
+  plane.add(landingBulb);
+
+  const landingLight = new THREE.SpotLight(0xfff6d8, 0, 260, Math.PI/7, 0.4, 1.3);
+  landingLight.position.copy(landingBulb.position);
+  plane.add(landingLight);
+  const landingTarget = new THREE.Object3D();
+  landingTarget.position.set(0, -6, noseZ - 60); // aimed forward and slightly down, like a real landing light
+  plane.add(landingTarget);
+  landingLight.target = landingTarget;
+
+  // Soft glow that only lights up the aircraft itself once it's dark; cheap (one light).
+  const navGlow = new THREE.PointLight(0xffffff, 0, 12);
+  navGlow.position.set(0, 0.3, 0);
+  plane.add(navGlow);
+
+  plane.userData.lights = {
+    beacon, beaconMat, navGlow,
+    strobeL, strobeR, strobeTail,
+    landingLight, landingBulbMat,
+  };
   return plane;
+}
+
+/* Drives all the blinking/pulsing lights and the altitude-based landing light,
+   and fades the aircraft's own glow light in as the day/night cycle darkens -
+   called once per frame for the player's plane only (distant/ambient planes
+   don't need this level of detail). */
+function updateAirplaneLights(planeObj, dt, elapsed, nightFactor){
+  const L = planeObj.userData && planeObj.userData.lights;
+  if (!L) return;
+
+  // Beacon: slow continuous pulse - real anti-collision beacons rotate/pulse
+  // steadily the whole time the aircraft is powered, not just at night.
+  const beaconPulse = (Math.sin(elapsed * 3.0) + 1) / 2;
+  L.beaconMat.opacity = 0.25 + 0.75 * Math.pow(beaconPulse, 3);
+
+  // Strobes: sharp double-flash burst then a long gap - this is the light that
+  // actually reads as "blinking" on a real aircraft.
+  const cyc = elapsed % 1.3;
+  const strobeOn = (cyc < 0.06) || (cyc > 0.16 && cyc < 0.22);
+  L.strobeL.visible = strobeOn;
+  L.strobeR.visible = strobeOn;
+  L.strobeTail.visible = strobeOn;
+
+  // Landing light: on for taxi/takeoff/climb/approach/landing (low altitude or on the
+  // ground), off at cruise - matches real operating procedure instead of just being
+  // a night-only effect.
+  const groundY = terrainHeight(planeObj.position.x, planeObj.position.z);
+  const agl = planeObj.position.y - groundY;
+  const wantLandingLight = STATE.onGround || agl < 250;
+  L.landingLight.intensity = wantLandingLight ? 4 : 0;
+  L.landingBulbMat.color.setHex(wantLandingLight ? 0xfff6d8 : 0x998a6a);
+
+  // Soft glow that only lights up the aircraft itself once it's dark; cheap (one light).
+  L.navGlow.intensity = Math.max(0, nightFactor - 0.25) * 0.6;
 }
 
 // The airplane is a persistent Group whose CHILDREN get swapped out by rebuildAirplaneModel()
@@ -1911,9 +1918,7 @@ function rebuildAirplaneModel(type){
   while (built.children.length) airplane.add(built.children[0]);
   airplane.userData.propeller = built.userData.propeller;
   airplane.userData.gear = built.userData.gear;
-  airplane.userData.strobeMat = built.userData.strobeMat;
-  airplane.userData.strobePhase = built.userData.strobePhase;
-  airplane.userData.landingLight = built.userData.landingLight;
+  airplane.userData.lights = built.userData.lights;
   airplane.userData.__builtType = type;
 }
 rebuildAirplaneModel(selectedAircraft);
@@ -2608,46 +2613,6 @@ function updateAudioButtonUI(){
 const clock = new THREE.Clock();
 let started = false;
 
-/* ---- Day/night cycle state (declared here, populated at Start) ---- */
-let dayNightCycleEnabled = false;
-let dayNightBase = null; // { fogColor, sky, ambient, sunIntensity } - the picked weather's "daytime" look
-let dayNightElapsed = 0; // seconds of flight time, drives the cycle phase
-const DAY_NIGHT_CYCLE_DURATION = 300; // seconds for one full day -> night -> day cycle
-const NIGHT_TARGET = { fogColor: new THREE.Color(0x050a14), sky: new THREE.Color(0x020610), ambient: 0.12, sunIntensity: 0.0 };
-let cycleMoonLight = null; // lazily created the first time the cycle actually reaches night
-
-function updateDayNightCycle(dt){
-  if (!dayNightCycleEnabled || !dayNightBase) return;
-  dayNightElapsed += dt;
-  const phase = (dayNightElapsed % DAY_NIGHT_CYCLE_DURATION) / DAY_NIGHT_CYCLE_DURATION; // 0..1
-  // 0 at phase 0 (full "day", matching the picked weather exactly), rising smoothly to 1 at
-  // phase 0.5 (full night), and back down to 0 at phase 1 - a smooth sine-based oscillation
-  // rather than a linear ramp, so the transition eases in and out instead of feeling mechanical.
-  const nightAmount = (1 - Math.cos(phase * Math.PI * 2)) / 2;
-  currentNightAmount = nightAmount;
-
-  scene.fog.color.copy(dayNightBase.fogColor).lerp(NIGHT_TARGET.fogColor, nightAmount);
-  scene.background.copy(dayNightBase.sky).lerp(NIGHT_TARGET.sky, nightAmount);
-  hemi.intensity = THREE.MathUtils.lerp(dayNightBase.ambient, NIGHT_TARGET.ambient, nightAmount);
-  sun.intensity = THREE.MathUtils.lerp(dayNightBase.sunIntensity, NIGHT_TARGET.sunIntensity, nightAmount);
-
-  // Stars fade in only once night is reasonably deep (nightAmount > ~0.5), not from the first
-  // hint of dusk - real stars aren't visible until the sky has actually darkened.
-  starMat.opacity = THREE.MathUtils.clamp((nightAmount - 0.5) / 0.5, 0, 1) * 0.9;
-
-  // A dim moon fill light fades in alongside the stars, created once on first use.
-  if (nightAmount > 0.55) {
-    if (!cycleMoonLight) {
-      cycleMoonLight = new THREE.DirectionalLight(0x334466, 0);
-      cycleMoonLight.position.set(-200, 300, 100);
-      scene.add(cycleMoonLight);
-    }
-    cycleMoonLight.intensity = THREE.MathUtils.clamp((nightAmount - 0.55) / 0.45, 0, 1) * 0.3;
-  } else if (cycleMoonLight) {
-    cycleMoonLight.intensity = 0;
-  }
-}
-
 document.getElementById('start-btn').addEventListener('click', () => {
   // Apply aircraft config
   acConfig = AIRCRAFT_CONFIGS[selectedAircraft];
@@ -2671,18 +2636,14 @@ document.getElementById('start-btn').addEventListener('click', () => {
     moon.position.set(-200,300,100);
     scene.add(moon);
   }
-  // Remember the chosen weather's "daytime" light levels - the day/night cycle below blends
-  // between these and full night, so whatever weather was picked (clear, cloudy, rain, fog)
-  // still comes through, it's just brighter at "midday" and darker at "midnight". Skipped
-  // entirely if the player explicitly chose Night, since they already asked for full darkness.
-  dayNightCycleEnabled = !wx.night;
-  currentNightAmount = wx.night ? 1 : 0; // fixed value when the cycle is off; overwritten every frame when it's on
-  dayNightBase = {
-    fogColor: new THREE.Color(wx.fogColor),
-    sky: new THREE.Color(wx.sky),
-    ambient: wx.ambient,
-    sunIntensity: wx.sunIntensity,
-  };
+  // Snapshot the chosen weather's colors/intensities as the "day" baseline for the
+  // day/night drift, then let it run - unless the player explicitly picked Night already.
+  DAYNIGHT.baseSky.setHex(wx.night ? 0x020610 : wx.sky);
+  DAYNIGHT.baseFog.setHex(wx.fogColor);
+  DAYNIGHT.baseAmbient = hemi.intensity;
+  DAYNIGHT.baseSun = sun.intensity;
+  DAYNIGHT.elapsed = 0;
+  DAYNIGHT.enabled = !wx.night;
   const invertCheck = document.getElementById('invert-pitch-check');
   pitchInverted = !!(invertCheck && invertCheck.checked);
   document.getElementById('menu-overlay').style.display = 'none';
@@ -3359,18 +3320,6 @@ function updatePhysics(dt){
     airplane.userData.propeller.rotation.z += dt * (STATE.throttle * 45);
   }
 
-  // Player aircraft strobe blink (same sparse on/off pattern as the passing planes, for
-  // consistency) and landing light - dim and pointless-looking by day, a genuinely visible beam
-  // cutting through the dark once night has fallen.
-  if (airplane.userData.strobeMat) {
-    const tNow = performance.now() * 0.001;
-    const blink = ((tNow + airplane.userData.strobePhase) % 2.2) < 0.12;
-    airplane.userData.strobeMat.color.setScalar(blink ? 1 : 0.08);
-  }
-  if (airplane.userData.landingLight) {
-    airplane.userData.landingLight.intensity = currentNightAmount * 3.5;
-  }
-
   // Sun follows plane loosely (keep shadow frustum near player)
   sun.position.set(STATE.position.x - 800, STATE.position.y + 900, STATE.position.z - 400);
   sun.target.position.copy(STATE.position);
@@ -3691,16 +3640,19 @@ function updateHUD(dt){
    no collision - they don't affect flight physics.
 ===================================================================== */
 const birdFlocks = [];
-let nextBirdFlockCheckIn = 8 + Math.random()*12; // seconds until we first roll the dice
+let nextBirdFlockCheckIn = 4 + Math.random()*6; // seconds until we first roll the dice
 
 function buildBird(){
   const bird = new THREE.Group();
-  const wingMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
-  const wingGeo = new THREE.PlaneGeometry(0.9, 0.32);
+  const wingMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, side: THREE.DoubleSide });
+  // Sized up from a realistic bird so it actually reads as a shape at flight-sim
+  // viewing distances, rather than a sub-pixel speck that's technically there
+  // but never visible - which is what real bird proportions worked out to.
+  const wingGeo = new THREE.PlaneGeometry(2.4, 0.85);
   const left = new THREE.Mesh(wingGeo, wingMat);
-  left.position.x = -0.45;
+  left.position.x = -1.2;
   const right = new THREE.Mesh(wingGeo, wingMat);
-  right.position.x = 0.45;
+  right.position.x = 1.2;
   bird.add(left, right);
   bird.userData.leftWing = left;
   bird.userData.rightWing = right;
@@ -3713,15 +3665,16 @@ function maybeSpawnBirdFlock(dt){
   if (!started || STATE.onGround) return; // only in the air - a flock on the runway would look odd
   nextBirdFlockCheckIn -= dt;
   if (nextBirdFlockCheckIn > 0) return;
-  nextBirdFlockCheckIn = 25 + Math.random()*35; // next flock sometime in the next 25-60s
+  nextBirdFlockCheckIn = 12 + Math.random()*18; // next flock sometime in the next 12-30s
 
   // Spawn ahead of the plane, offset to one side, roughly at the plane's altitude - a flock
   // crossing the flight path reads as "alive sky", not a hazard, since there's no collision.
+  // Kept fairly close and near the flightpath so it's actually noticed, not just technically present.
   const fwd = new THREE.Vector3(0,0,1).applyQuaternion(airplane.quaternion);
   const side = new THREE.Vector3(1,0,0).applyQuaternion(airplane.quaternion);
-  const aheadDist = 180 + Math.random()*160;
-  const lateral = (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random()*70);
-  const vertical = (Math.random()-0.5) * 30;
+  const aheadDist = 90 + Math.random()*90;
+  const lateral = (Math.random() < 0.5 ? -1 : 1) * (15 + Math.random()*35);
+  const vertical = (Math.random()-0.5) * 20;
   const origin = airplane.position.clone()
     .addScaledVector(fwd, aheadDist)
     .addScaledVector(side, lateral);
@@ -3735,7 +3688,7 @@ function maybeSpawnBirdFlock(dt){
     const bird = buildBird();
     const row = Math.ceil(i/2);
     const sign = (i % 2 === 0) ? -1 : 1;
-    bird.position.set(sign*row*1.8 + (Math.random()-0.5)*0.6, (Math.random()-0.5)*1.2, -row*1.6 + (Math.random()-0.5)*0.8);
+    bird.position.set(sign*row*4.2 + (Math.random()-0.5)*1.4, (Math.random()-0.5)*2.5, -row*3.6 + (Math.random()-0.5)*1.8);
     group.add(bird);
     birds.push(bird);
   }
@@ -3775,95 +3728,80 @@ function updateBirdFlocks(dt){
 }
 
 /* =====================================================================
-   PASSING PLANES (ambience) - distant airliners crossing the sky far away,
-   with blinking nav/strobe lights. Purely visual, no collision, never close
-   enough to be mistaken for a traffic hazard.
+   PASSING AIRLINER (ambience) - occasionally a distant airliner crosses
+   the sky far overhead, contrail and all, purely for atmosphere. Like
+   the birds, it never interacts with flight physics or collision.
 ===================================================================== */
-const passingPlanes = [];
-let nextPassingPlaneCheckIn = 20 + Math.random()*25;
+const distantPlanes = [];
+let nextDistantPlaneCheckIn = 15 + Math.random()*20;
 
-function buildPassingPlane(){
-  const g = new THREE.Group();
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xd8dde2 });
-  // Kept deliberately simple (flat-shaded, unlit MeshBasicMaterial) since these are always far
-  // away and small on screen - full PBR detail here would be wasted render cost for no visible
-  // benefit, unlike the player's own aircraft which fills much more of the frame up close.
-  const fuseGeo = new THREE.CylinderGeometry(1.1, 1.1, 22, 8);
-  fuseGeo.rotateX(Math.PI/2);
-  const fuselage = new THREE.Mesh(fuseGeo, bodyMat);
-  g.add(fuselage);
-  const wingGeo = new THREE.BoxGeometry(26, 0.3, 3);
-  const wing = new THREE.Mesh(wingGeo, bodyMat);
-  wing.position.z = 1;
-  g.add(wing);
-  const tailGeo = new THREE.BoxGeometry(0.3, 3.5, 2.5);
-  const tail = new THREE.Mesh(tailGeo, bodyMat);
-  tail.position.set(0, 1.8, 9.5);
-  g.add(tail);
+function buildDistantPlane(){
+  const plane = new THREE.Group();
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xe8ecef });
+  const wingMat = new THREE.MeshBasicMaterial({ color: 0xd0d6da, side: THREE.DoubleSide });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 14), bodyMat);
+  plane.add(body);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.4, 2.2), wingMat);
+  wing.position.z = -0.5;
+  plane.add(wing);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 1.6), wingMat);
+  tail.position.z = -6.3;
+  plane.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), bodyMat);
+  fin.position.set(0, 1.1, -6.3);
+  plane.add(fin);
 
-  // Blinking white strobe + steady red/green nav lights - small emissive-looking dots via
-  // MeshBasicMaterial (no real light emission needed, just needs to read as "lit" at a distance).
-  const navGeo = new THREE.SphereGeometry(0.5, 6, 6);
-  const navR = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0xff3333 }));
-  navR.position.set(-13, 0, 0);
-  g.add(navR);
-  const navG = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0x33ff55 }));
-  navG.position.set(13, 0, 0);
-  g.add(navG);
-  const strobeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const strobe = new THREE.Mesh(navGeo, strobeMat);
-  strobe.position.set(0, 1.8, 9.5);
-  g.add(strobe);
-  g.userData.strobeMat = strobeMat;
-  g.userData.strobePhase = Math.random()*Math.PI*2;
+  // Contrail: a thin fading ribbon trailing the aircraft.
+  const trailMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+  const trail = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 220), trailMat);
+  trail.position.z = 110;
+  trail.rotation.x = Math.PI / 2;
+  plane.add(trail);
 
-  return g;
+  return plane;
 }
 
-function maybeSpawnPassingPlane(dt){
+function maybeSpawnDistantPlane(dt){
   if (!started) return;
-  nextPassingPlaneCheckIn -= dt;
-  if (nextPassingPlaneCheckIn > 0) return;
-  nextPassingPlaneCheckIn = 40 + Math.random()*50; // roughly one every 40-90s
+  nextDistantPlaneCheckIn -= dt;
+  if (nextDistantPlaneCheckIn > 0) return;
+  nextDistantPlaneCheckIn = 40 + Math.random()*50; // roughly one every 40-90s
 
-  // Spawn well off to one side, at a cruise-ish altitude well above or below the player so it
-  // never reads as a near-miss, crossing the sky in a straight line and despawning on the far side.
-  const startSide = Math.random() < 0.5 ? -1 : 1;
-  const crossAngle = (Math.random()*0.6 - 0.3); // mostly crossing left-right, slight variation
-  const altOffset = (Math.random() < 0.5 ? -1 : 1) * (250 + Math.random()*400); // well clear vertically
-  const dist = 1800;
-  const dir = new THREE.Vector3(Math.cos(crossAngle), 0, Math.sin(crossAngle)).multiplyScalar(-startSide);
+  const plane = buildDistantPlane();
+  const altitude = 1400 + Math.random() * 900; // well above normal cruise, cinematic backdrop
+  const heading = Math.random() * Math.PI * 2;
+  const dir = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
+  const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+  const lateralOffset = (Math.random() < 0.5 ? -1 : 1) * (1800 + Math.random() * 1600);
+  const along = -3000 - Math.random() * 1500;
+
   const origin = airplane.position.clone()
-    .addScaledVector(dir, -dist)
-    .add(new THREE.Vector3((Math.random()-0.5)*600, altOffset, (Math.random()-0.5)*600));
+    .addScaledVector(dir, along)
+    .addScaledVector(perp, lateralOffset);
+  origin.y = altitude;
 
-  const plane = buildPassingPlane();
   plane.position.copy(origin);
-  plane.lookAt(origin.clone().add(dir));
+  plane.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
   scene.add(plane);
-  passingPlanes.push({
+
+  distantPlanes.push({
     mesh: plane,
-    velocity: dir.multiplyScalar(55 + Math.random()*25), // faster than the player - reads as a jet well above/below
-    life: 90,
+    velocity: dir.multiplyScalar(45 + Math.random()*15), // fast, high-altitude cruise speed
+    life: 140,
   });
 }
 
-function updatePassingPlanes(dt){
-  maybeSpawnPassingPlane(dt);
-  const t = performance.now() * 0.001;
-  for (let i = passingPlanes.length - 1; i >= 0; i--) {
-    const p = passingPlanes[i];
+function updateDistantPlanes(dt){
+  maybeSpawnDistantPlane(dt);
+  for (let i = distantPlanes.length - 1; i >= 0; i--) {
+    const p = distantPlanes[i];
     p.life -= dt;
     p.mesh.position.addScaledVector(p.velocity, dt);
-    // Slow, sparse strobe blink (on briefly, mostly off) rather than a smooth pulse - reads more
-    // like a real aircraft strobe than a pulsing UFO light.
-    const blink = ((t + p.mesh.userData.strobePhase) % 2.2) < 0.12;
-    p.mesh.userData.strobeMat.color.setScalar(blink ? 1 : 0.08);
-    const farFromPlane = p.mesh.position.distanceTo(airplane.position) > 2400;
+    const farFromPlane = p.mesh.position.distanceTo(airplane.position) > 6000;
     if (p.life <= 0 || farFromPlane) {
       p.mesh.traverse(o=>{ if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
       scene.remove(p.mesh);
-      passingPlanes.splice(i, 1);
+      distantPlanes.splice(i, 1);
     }
   }
 }
@@ -3876,9 +3814,9 @@ function animate(){
     updateHUD(dt);
     updateEngineSound();
     updateBirdFlocks(dt);
+    updateDistantPlanes(dt);
     updateDayNightCycle(dt);
-    updatePassingPlanes(dt);
-    updateAirportLighting();
+    updateAirplaneLights(airplane, dt, DAYNIGHT.elapsed, DAYNIGHT.nightFactor);
   }
   updateCamera(dt || 0.016);
   renderer.render(scene, camera);
