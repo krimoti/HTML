@@ -338,6 +338,25 @@
     font-size:11px; opacity:0.65; display:none; letter-spacing:1px;
   }
 
+  /* ---------- ATC radio chatter (subtitle-style) ---------- */
+  #atc-radio {
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
+    z-index:12; width:min(560px, 86vw); text-align:center;
+    display:flex; flex-direction:column; gap:4px; pointer-events:none;
+  }
+  .atc-line {
+    font-family:'Courier New', monospace; font-size:13px; letter-spacing:0.5px;
+    color:#c8ffb0; background:rgba(6,14,10,0.72); border:1px solid rgba(150,255,150,0.25);
+    border-radius:4px; padding:6px 12px; opacity:0; transform:translateY(6px);
+    transition:opacity 0.35s ease, transform 0.35s ease;
+  }
+  .atc-line.pilot { color:#9fe3ff; border-color:rgba(140,220,255,0.3); }
+  .atc-line.show { opacity:1; transform:translateY(0); }
+  @media (max-width: 760px) {
+    #atc-radio { bottom:150px; }
+    .atc-line { font-size:11.5px; padding:5px 10px; }
+  }
+
   /* ---------- Touch Controls ---------- */
   #touch-controls {
     display:none; position:fixed; inset:0; z-index:30; pointer-events:none;
@@ -589,6 +608,12 @@
   <div id="camera-indicator">CAM: <span id="cam-mode">CHASE</span> [C]</div>
   <button id="audio-toggle-btn" title="Toggle sound">🔊</button>
   <div id="autoland-indicator">AUTOLAND [L]</div>
+  <!-- ATC radio chatter: short, realistic tower/pilot exchanges that appear like radio
+       subtitles every so often during flight. Purely atmospheric - no gameplay effect. -->
+  <div id="atc-radio">
+    <div id="atc-line-tower" class="atc-line"></div>
+    <div id="atc-line-pilot" class="atc-line"></div>
+  </div>
   <!-- autoland-debug panel removed - it was a development-only debug overlay, not meant for
        normal gameplay. The updateHUD() JS still checks `if (debugEl)` before touching it, so
        removing the element here is enough; no other code needs to change. -->
@@ -803,6 +828,256 @@ const WEATHER_CONFIGS = {
 let selectedWeather = 'clear';
 
 /* =====================================================================
+   ATC RADIO CHATTER - short tower/pilot exchanges in real aviation
+   phraseology, shown as subtitles every so often during flight. Purely
+   atmospheric (no gameplay effect). The flight phase (ground / climb /
+   cruise / descent / just landed) is inferred from altitude, vertical
+   speed, and STATE.onGround so the exchange roughly matches what's
+   happening, and the actual runway/heading/altitude/wind values in each
+   line are randomized within realistic ranges so it doesn't feel scripted.
+===================================================================== */
+const ATC_CALLSIGN = "November Four Two Charlie";
+let nextAtcCheckIn = 10 + Math.random() * 12;
+let atcMessageActive = false;
+let lastAtcAirborneTime = -999;
+
+function atcContext(){
+  const nr = nearestRunway(airplane.position.x, airplane.position.z);
+  const curAltFt = Math.round(Math.max(0, STATE.position.y * 3.28084) / 50) * 50;
+  return {
+    rwy: nr.rwyId,
+    rwyObj: nr,
+    wd: String(Math.floor(Math.random()*36)*10).padStart(3,'0'),
+    ws: 3 + Math.floor(Math.random()*15),
+    hdg: String(Math.floor(Math.random()*36)*10).padStart(3,'0'),
+    // Every altitude below is derived from the plane's REAL current altitude, so an
+    // instruction always makes sense against what the plane is actually doing - a
+    // "climb" target is always above where you are now, a "descend" target is always
+    // below, and "say altitude" reports the truth instead of a random number.
+    curAlt: curAltFt,
+    climbAlt: curAltFt + (5 + Math.floor(Math.random()*10)) * 100,      // 500-1400 ft above now
+    descendAlt: Math.max(500, curAltFt - (5 + Math.floor(Math.random()*10)) * 100), // 500-1400 ft below now, floored at 500
+  };
+}
+
+// Each exchange can flag a real-world location to highlight on the ground while it plays:
+// 'runway' marks the actual runway the message refers to, 'parking' marks the ramp/hangar
+// area near it - so a reference to a place is also something you can see, not just hear.
+// requiresAirborne / requiresGround gate which flight state the exchange is even allowed to
+// play in, on top of which phase pool it's drawn from.
+const ATC_EXCHANGES = {
+  ground: [
+    { tower: c => `${ATC_CALLSIGN}, Ground, taxi to runway ${c.rwy} via Alpha, hold short.`,
+      pilot: c => `Taxi to runway ${c.rwy} via Alpha, hold short, ${ATC_CALLSIGN}.`,
+      visual: 'parking', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, wind ${c.wd} at ${c.ws}, runway ${c.rwy}, cleared for takeoff.`,
+      pilot: c => `Cleared for takeoff runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ff66, requiresGround: true },
+  ],
+  climb: [
+    { tower: c => `${ATC_CALLSIGN}, radar contact, climb and maintain ${c.climbAlt}.`,
+      pilot: c => `Climb and maintain ${c.climbAlt}, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, contact Departure one two four point three five, good day.`,
+      pilot: c => `One two four point three five, ${ATC_CALLSIGN}, so long.`,
+      requiresAirborne: true },
+  ],
+  cruise: [
+    { tower: c => `${ATC_CALLSIGN}, traffic ten o'clock, two miles, opposite direction, altitude indicates five hundred below.`,
+      pilot: c => `Looking for the traffic, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, turn left heading ${c.hdg}, vectors for spacing.`,
+      pilot: c => `Left heading ${c.hdg}, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, say altitude.`,
+      pilot: c => `${ATC_CALLSIGN}, level at ${c.curAlt}.`,
+      requiresAirborne: true },
+  ],
+  descent: [
+    { tower: c => `${ATC_CALLSIGN}, descend and maintain ${c.descendAlt}, expect visual approach runway ${c.rwy}.`,
+      pilot: c => `Down to ${c.descendAlt}, expect visual runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ccff, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, wind ${c.wd} at ${c.ws}, runway ${c.rwy}, cleared to land.`,
+      pilot: c => `Cleared to land runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ff66, requiresAirborne: true },
+  ],
+  landed: [
+    { tower: c => `${ATC_CALLSIGN}, turn right next taxiway, contact Ground point niner when clear.`,
+      pilot: c => `Next taxiway, Ground point niner, ${ATC_CALLSIGN}.`,
+      visual: 'parking', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, nice landing, welcome home.`,
+      pilot: c => `Thank you, tower, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+  ],
+};
+
+function atcCurrentPhase(){
+  if (!STATE.onGround) lastAtcAirborneTime = DAYNIGHT.elapsed;
+  if (STATE.onGround) return (DAYNIGHT.elapsed - lastAtcAirborneTime < 20) ? 'landed' : 'ground';
+  const groundY = terrainHeight(airplane.position.x, airplane.position.z);
+  const agl = airplane.position.y - groundY;
+  if (agl < 300) return STATE.verticalSpeed < -1 ? 'descent' : 'climb';
+  if (STATE.verticalSpeed < -2) return 'descent';
+  if (STATE.verticalSpeed > 2) return 'climb';
+  return 'cruise';
+}
+
+// Two short beeps (radio squelch/"kerchunk") bracket each transmission, like a real push-to-talk radio.
+function atcRadioBeep(delaySec){
+  if (!audioCtx || !audioStarted) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.value = 1050;
+  g.gain.value = 0;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime + delaySec;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.05, t + 0.02);
+  g.gain.linearRampToValueAtTime(0, t + 0.09);
+  o.start(t);
+  o.stop(t + 0.12);
+}
+
+/* ---- Spoken voice for the radio chatter (Web Speech API) ----
+   Tower and pilot get distinct pitch/rate so they're easy to tell apart by
+   ear, matching the on-screen subtitles. Falls back silently (subtitles
+   still work on their own) if the browser has no speech synthesis, and
+   respects the same mute toggle as the rest of the game's audio. */
+let atcVoices = [];
+if ('speechSynthesis' in window) {
+  const loadAtcVoices = () => { atcVoices = window.speechSynthesis.getVoices() || []; };
+  loadAtcVoices();
+  window.speechSynthesis.onvoiceschanged = loadAtcVoices;
+}
+function atcSpeak(text, isTower, onEnd){
+  if (!('speechSynthesis' in window) || !(musicEnabled || engineEnabled)) {
+    if (onEnd) setTimeout(onEnd, 1800); // keep subtitle timing sane even without voice
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = isTower ? 1.04 : 1.0;
+  u.pitch = isTower ? 0.8 : 1.2;
+  u.volume = 0.85;
+  const enVoices = atcVoices.filter(v => v.lang && v.lang.startsWith('en'));
+  if (enVoices.length) u.voice = isTower ? enVoices[0] : enVoices[Math.min(1, enVoices.length - 1)];
+  if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
+  window.speechSynthesis.speak(u);
+}
+
+/* ---- Ground highlight marker ----
+   When a radio call references a real place - the runway or the parking
+   ramp - a soft glowing ring appears right there in the world for the
+   duration of the call, so the reference is something you can see, not
+   just hear. */
+let atcHighlightMarker = null;
+function ensureAtcHighlightMarker(){
+  if (atcHighlightMarker) return atcHighlightMarker;
+  const geo = new THREE.RingGeometry(16, 24, 40);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const ring = new THREE.Mesh(geo, mat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.visible = false;
+  scene.add(ring);
+  atcHighlightMarker = { mesh: ring, mat, holdUntil: 0 };
+  return atcHighlightMarker;
+}
+function showAtcHighlight(kind, colorHex, holdSeconds){
+  if (!kind) return;
+  const marker = ensureAtcHighlightMarker();
+  const nr = nearestRunway(airplane.position.x, airplane.position.z);
+  const pos = (kind === 'runway')
+    ? { x: nr.cx, z: nr.cz }
+    : { x: nr.cx + 150, z: nr.cz - 215 }; // ramp/hangar area = "parking"
+  const groundY = terrainHeight(pos.x, pos.z);
+  marker.mesh.position.set(pos.x, groundY + 1.5, pos.z);
+  marker.mat.color.setHex(colorHex || 0xffaa33);
+  marker.mesh.visible = true;
+  marker.holdUntil = DAYNIGHT.elapsed + holdSeconds;
+}
+function updateAtcHighlight(dt){
+  if (!atcHighlightMarker || !atcHighlightMarker.mesh.visible) return;
+  const m = atcHighlightMarker;
+  const remaining = m.holdUntil - DAYNIGHT.elapsed;
+  m.mesh.rotation.z += dt * 0.4;
+  if (remaining <= 0) {
+    m.mat.opacity = Math.max(0, m.mat.opacity - dt * 0.6);
+    if (m.mat.opacity <= 0.01) m.mesh.visible = false;
+  } else {
+    const pulse = 0.35 + 0.25 * Math.sin(DAYNIGHT.elapsed * 4);
+    m.mat.opacity = pulse;
+  }
+}
+
+// True once the plane's actual state no longer matches what this exchange assumed - e.g. it
+// landed partway through a "descend and maintain" call, or took off during a ground call.
+// Checked before every step so a stale instruction never lingers past the moment it stopped
+// making sense.
+function atcExchangeStillValid(exchange){
+  if (exchange.requiresAirborne && STATE.onGround) return false;
+  if (exchange.requiresGround && !STATE.onGround) return false;
+  return true;
+}
+
+function atcAbortExchange(){
+  const towerEl = document.getElementById('atc-line-tower');
+  const pilotEl = document.getElementById('atc-line-pilot');
+  if (towerEl) towerEl.classList.remove('show');
+  if (pilotEl) pilotEl.classList.remove('show');
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  atcMessageActive = false;
+}
+
+function showAtcExchange(exchange, ctx){
+  const towerEl = document.getElementById('atc-line-tower');
+  const pilotEl = document.getElementById('atc-line-pilot');
+  if (!towerEl || !pilotEl) return;
+  atcMessageActive = true;
+  const towerText = exchange.tower(ctx);
+  const pilotText = exchange.pilot(ctx);
+  if (exchange.visual) showAtcHighlight(exchange.visual, exchange.color, 9);
+
+  pilotEl.textContent = '';
+  pilotEl.classList.remove('show');
+  towerEl.textContent = towerText;
+  atcRadioBeep(0);
+  requestAnimationFrame(() => towerEl.classList.add('show'));
+
+  atcSpeak(towerText, true, () => {
+    if (!atcExchangeStillValid(exchange)) { atcAbortExchange(); return; }
+    setTimeout(() => {
+      towerEl.classList.remove('show');
+      if (!atcExchangeStillValid(exchange)) { atcAbortExchange(); return; }
+      setTimeout(() => {
+        if (!atcExchangeStillValid(exchange)) { atcAbortExchange(); return; }
+        pilotEl.textContent = pilotText;
+        atcRadioBeep(0);
+        requestAnimationFrame(() => pilotEl.classList.add('show'));
+        atcSpeak(pilotText, false, () => {
+          setTimeout(() => {
+            pilotEl.classList.remove('show');
+            setTimeout(() => { atcMessageActive = false; }, 400);
+          }, 1400);
+        });
+      }, 400);
+    }, 400);
+  });
+}
+
+function maybeTriggerAtc(dt){
+  if (!started) return;
+  updateAtcHighlight(dt);
+  const phase = atcCurrentPhase(); // also tracks airborne timing every frame
+  nextAtcCheckIn -= dt;
+  if (nextAtcCheckIn > 0 || atcMessageActive) return;
+  nextAtcCheckIn = 35 + Math.random() * 40; // next exchange roughly every 35-75s
+  const pool = ATC_EXCHANGES[phase] || ATC_EXCHANGES.cruise;
+  const exchange = pool[Math.floor(Math.random() * pool.length)];
+  const ctx = atcContext();
+  showAtcExchange(exchange, ctx);
+}
+
+/* =====================================================================
    DAY/NIGHT CYCLE - once flying, sky/fog/sun/ambient slowly drift from
    day toward dusk/night and back on a long, gentle loop, so a longer
    flight sees the light change instead of staying static all session.
@@ -827,8 +1102,11 @@ const _dnSkyColor = new THREE.Color();
 const _dnFogColor = new THREE.Color();
 
 function updateDayNightCycle(dt){
-  if (!DAYNIGHT.enabled) { DAYNIGHT.nightFactor = 1; return; } // explicit Night weather: always dark
+  // The elapsed clock also drives the beacon/strobe blink timing in updateAirplaneLights,
+  // so it must keep advancing even when the sky-color cycle itself is skipped (explicit
+  // Night weather) - otherwise the plane's lights freeze instead of blinking.
   DAYNIGHT.elapsed += dt;
+  if (!DAYNIGHT.enabled) { DAYNIGHT.nightFactor = 1; return; } // explicit Night weather: always dark
   const phase = (DAYNIGHT.elapsed % DAYNIGHT.cycleSeconds) / DAYNIGHT.cycleSeconds; // 0..1
   // Smooth wave: 0 = full day, 1 = full night, eases back to day - no hard cuts.
   const nightFactor = (1 - Math.cos(phase * Math.PI * 2)) / 2;
@@ -1079,9 +1357,9 @@ function pseudoNoise(x, z, seed) {
 // All runways run north-south (same orientation as the original), just placed at different
 // X offsets so each one gets its own flat valley strip cut into the terrain.
 const RUNWAYS = [
-  { cx: 0,     cz: 0 }, // original home airport, right where you start
-  { cx: 3400,  cz: 0 }, // second airport, east
-  { cx: -3400, cz: 0 }, // third airport, west
+  { cx: 0,     cz: 0,    rwyId: '09' }, // original home airport, right where you start
+  { cx: 3400,  cz: 0,    rwyId: '27' }, // second airport, east
+  { cx: -3400, cz: 0,    rwyId: '18' }, // third airport, west
 ];
 function nearestRunway(x, z) {
   let best = RUNWAYS[0], bestDist = Infinity;
@@ -2488,6 +2766,25 @@ function setupEngineSound(){
   noiseSource.start();
 
   engineNodes = { master, osc1, osc2, filter, lfo, noiseFilter, noiseGain };
+
+  /* ---- Dive whistle ----
+     Real aircraft don't get louder engines during a dive - what actually changes is the
+     rushing air noise, and steep/fast descents add a rising "whistle" from air flowing past
+     the airframe, antennas, and gear. This is a distinct sine tone whose pitch and volume
+     track vertical speed (positive during fast descent), layered on top of the airspeed-based
+     wind noise above so a steep dive sounds distinctly different from level flight at the
+     same airspeed.
+  */
+  const whistle = audioCtx.createOscillator();
+  whistle.type = 'sine';
+  whistle.frequency.value = 250;
+  const whistleGain = audioCtx.createGain();
+  whistleGain.gain.value = 0;
+  whistle.connect(whistleGain);
+  whistleGain.connect(audioCtx.destination);
+  whistle.start();
+  engineNodes.whistle = whistle;
+  engineNodes.whistleGain = whistleGain;
 }
 
 function updateEngineSound(){
@@ -2506,6 +2803,16 @@ function updateEngineSound(){
   engineNodes.noiseFilter.frequency.setTargetAtTime(500 + speedFactor * 2200, now, 0.25);
   const noiseVol = engineEnabled ? speedFactor * speedFactor * 0.03 : 0;
   engineNodes.noiseGain.gain.setTargetAtTime(noiseVol, now, 0.25);
+
+  // Dive whistle: kicks in once descending faster than a gentle glide (~8 m/s down) and
+  // builds toward the aircraft's max descent rate, so diving steeply sounds distinctly
+  // different from level flight at the same airspeed.
+  const descentRate = Math.max(0, -STATE.verticalSpeed); // m/s, 0 when climbing or level
+  const diveFactor = THREE.MathUtils.clamp((descentRate - 8) / 35, 0, 1);
+  const whistleFreq = 260 + diveFactor * 900;
+  const whistleVol = engineEnabled ? diveFactor * diveFactor * 0.05 : 0;
+  engineNodes.whistle.frequency.setTargetAtTime(whistleFreq, now, 0.2);
+  engineNodes.whistleGain.gain.setTargetAtTime(whistleVol, now, 0.2);
 }
 
 // ---- Generative ambient background music ----
@@ -3817,6 +4124,7 @@ function animate(){
     updateDistantPlanes(dt);
     updateDayNightCycle(dt);
     updateAirplaneLights(airplane, dt, DAYNIGHT.elapsed, DAYNIGHT.nightFactor);
+    maybeTriggerAtc(dt);
   }
   updateCamera(dt || 0.016);
   renderer.render(scene, camera);
