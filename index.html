@@ -1089,7 +1089,7 @@ function showAtcHighlight(kind, colorHex, holdSeconds){
   const nr = nearestRunway(airplane.position.x, airplane.position.z);
   const pos = (kind === 'runway')
     ? { x: nr.cx, z: nr.cz }
-    : runwayLocalToWorld(nr, -215, 150); // ramp/hangar area = "parking"
+    : runwayLocalToWorld(nr, -215, 100); // ramp/hangar area = "parking"
   const groundY = terrainHeight(pos.x, pos.z);
   marker.mesh.position.set(pos.x, groundY + 1.5, pos.z);
   marker.mat.color.setHex(colorHex || 0xffaa33);
@@ -1721,15 +1721,24 @@ function buildRunwayAt(cx, cz, heading){
   runwayMesh.receiveShadow = true;
   runwayGroup.add(runwayMesh);
 
-  // Paved parking ramp/apron between the two hangars - without this, "tow to parking" put the
-  // aircraft on the flattened-but-still-grass ground next to the runway instead of on pavement.
-  const rampGeo = new THREE.PlaneGeometry(150, 150);
-  rampGeo.rotateX(-Math.PI/2);
+  // Parking ramp/apron between the two hangars, plus a taxiway strip running alongside the
+  // runway's full length connecting to it - together these give a continuous paved route from
+  // anywhere on the runway to the parking ramp (used by the tow system below), instead of two
+  // paved "islands" with open grass in between.
   const rampMat = new THREE.MeshStandardMaterial({ color:0x3a3a3d, roughness:0.95 });
+  const rampGeo = new THREE.PlaneGeometry(155, 210);
+  rampGeo.rotateX(-Math.PI/2);
   const ramp = new THREE.Mesh(rampGeo, rampMat);
-  ramp.position.set(150, 0.04, -215); // (across, y, along) - centered between the hangars, matches computeParkingSpot()
+  ramp.position.set(100, 0.04, -215); // (across, y, along) - the hangar ramp itself
   ramp.receiveShadow = true;
   runwayGroup.add(ramp);
+
+  const taxiwayGeo = new THREE.PlaneGeometry(35, runwayLength - 40);
+  taxiwayGeo.rotateX(-Math.PI/2);
+  const taxiway = new THREE.Mesh(taxiwayGeo, rampMat);
+  taxiway.position.set(runwayWidth/2 + 12, 0.04, 0); // a strip running the length of the runway, just outside its edge
+  taxiway.receiveShadow = true;
+  runwayGroup.add(taxiway);
 
   // Centerline markings (dashed)
   const dashCount = 24;
@@ -4759,12 +4768,25 @@ let towState = null; // non-null while a tow animation is in progress
 let isParked = false;
 
 function computeParkingSpot(nr){
-  const parkWorld = runwayLocalToWorld(nr, -215, 150); // the ramp between the two hangars
+  const parkWorld = runwayLocalToWorld(nr, -215, 100); // center of the ramp
   const parkY = terrainHeight(parkWorld.x, parkWorld.z) + GEAR_OFFSET; // matches what updatePhysics considers "on the ground"
-  const towardRunway = runwayLocalToWorld(nr, 0, 0);
-  const dx = towardRunway.x - parkWorld.x, dz = towardRunway.z - parkWorld.z;
+  // Face straight down the connecting taxiway (toward the runway-side junction), not diagonally
+  // toward the runway's center point. The ramp<->taxiway hop is only ~100m - forcing it to also
+  // point toward some distant, unrelated direction was cramming two very different directions
+  // into a very short segment, which is exactly what made the curve loop/overshoot instead of
+  // turning cleanly.
+  const junctionWorld = runwayLocalToWorld(nr, -215, 0);
+  const dx = junctionWorld.x - parkWorld.x, dz = junctionWorld.z - parkWorld.z;
   const heading = ((THREE.MathUtils.radToDeg(Math.atan2(dx, -dz)) % 360) + 360) % 360;
   return { x: parkWorld.x, y: parkY, z: parkWorld.z, heading };
+}
+// Where the taxiway/ramp meets the runway's own centerline (same "along" position as the ramp) -
+// the corner point the tow route bends through, so the whole trip stays on pavement: down the
+// runway centerline to this point, then sideways along the taxiway into the ramp (or the exact
+// reverse coming out).
+function computeTaxiJunction(nr){
+  const w = runwayLocalToWorld(nr, -215, 0);
+  return { x: w.x, y: terrainHeight(w.x, w.z) + GEAR_OFFSET, z: w.z };
 }
 function computeReadySpot(nr){
   // Squarely on the runway's own pavement, well clear of the threshold markings (not just
@@ -4833,52 +4855,137 @@ function towAvailable(){
   return !towState && STATE.onGround && STATE.speed < 2;
 }
 
+// Builds one curved segment between two points, with the control point placed so the curve's
+// own tangent AT THE END exactly matches the desired arrival heading (see the note in
+// startTow() below for why this matters).
+// Builds one curved segment with the direction of travel constrained at BOTH ends (not just the
+// arrival) - this is what a plain quadratic curve can't do (it only has one control point, so it
+// can match a direction at one end or the other, never both), which is exactly why the previous
+// version had a visible snap right at the taxiway junction: segment one arrived facing the right
+// way, but segment two started off facing some other way its own single control point happened
+// to produce. A cubic curve has two control points, one pulled out from each end along that
+// end's own intended direction, so the heading flows continuously through the whole route -
+// pickup, the turn at the junction, all the way to the final parking/ready heading.
 function startTow(){
   if (!towAvailable()) return;
   const nr = nearestRunway(STATE.position.x, STATE.position.z);
-  const target = isParked ? computeReadySpot(nr) : computeParkingSpot(nr);
   // Snap the starting Y to the same reliable ground formula everything else uses, rather than
   // trusting whatever STATE.position.y already was - guards against carrying forward any small
   // pre-existing drift into the tow's interpolation.
   const startY = terrainHeight(STATE.position.x, STATE.position.z) + GEAR_OFFSET;
   const start = { x: STATE.position.x, y: startY, z: STATE.position.z, heading: STATE.heading };
 
-  // A gently bowed path instead of a straight line - lets the tug (and the plane behind it)
-  // visibly swing through a turn rather than sliding sideways or snapping heading at the end.
-  const midX = (start.x + target.x) / 2, midZ = (start.z + target.z) / 2;
-  const dx = target.x - start.x, dz = target.z - start.z;
-  const dist = Math.hypot(dx, dz) || 1;
-  const perpX = -dz / dist, perpZ = dx / dist;
-  const bow = Math.min(60, dist * 0.35) * (isParked ? -1 : 1); // curves the other way heading out vs. in
-  const ctrl = { x: midX + perpX * bow, z: midZ + perpZ * bow };
+  // The route always goes through the taxiway junction (see computeTaxiJunction) - down the
+  // runway's own centerline to line up with the ramp, then sideways along the taxiway into it,
+  // or the exact reverse coming out. Both of those pieces of ground are actually paved (see the
+  // taxiway strip + ramp built in buildRunwayAt), unlike a direct line from wherever the aircraft
+  // happened to stop straight to the ramp, which would mostly cross open grass.
+  const junctionW = computeTaxiJunction(nr);
+  const rampHeading = computeParkingSpot(nr).heading; // the ramp's own fixed "facing down the taxiway" direction
+  const junction = { x: junctionW.x, y: junctionW.y, z: junctionW.z, heading: rampHeading };
+  const finalTarget = isParked ? computeReadySpot(nr) : computeParkingSpot(nr);
+
+  // Position moves in a straight line between waypoints (guaranteed to stay on the paved
+  // corridor, since every waypoint - and the runway/taxiway/ramp between them - is pavement).
+  // Heading normally just matches whichever leg's own straight-line direction of travel the
+  // aircraft is currently on - so it's always being led nose-first, the way a real tow looks,
+  // not dragged sideways - and only blends between the two legs' directions in a short window
+  // right at the corner, where a real turn actually has to happen.
+  const waypoints = [start, junction, finalTarget];
+  const dist1 = Math.hypot(junction.x - start.x, junction.z - start.z) || 1;
+  const dist2 = Math.hypot(finalTarget.x - junction.x, finalTarget.z - junction.z) || 1;
+  const travelDuration = 12; // a bit longer than before, so the turn window (below) has more real seconds to work with
+  const t1 = travelDuration * (dist1 / (dist1 + dist2)); // time boundary between the two legs, proportional to distance
+  const leg1Heading = ((THREE.MathUtils.radToDeg(Math.atan2(junction.x - start.x, -(junction.z - start.z))) % 360) + 360) % 360;
+  const leg2Heading = ((THREE.MathUtils.radToDeg(Math.atan2(finalTarget.x - junction.x, -(finalTarget.z - junction.z))) % 360) + 360) % 360;
+
+  // The parking ramp and the runway-ready spot are BOTH reached by taxiing toward them, but their
+  // "correct" facing (nose into the ramp; nose lined up down the runway for takeoff) points back
+  // the way the aircraft just came from - that's normal and matches how this is done for real
+  // (you tow tail-first up to the spot, then swing the nose around). The travel legs above only
+  // ever blend between LEG headings, so on their own the aircraft would still be facing however
+  // it was moving right up until the very last instant, at which point it'd have to pop straight
+  // to its final resting heading. To make that turn actually visible, it gets its own pivot-in-
+  // place phase, bookended around the travel: one before setting off (in case the aircraft was
+  // left facing somewhere the first leg doesn't match) and one after arriving (to swing from the
+  // final leg's travel direction to the true final facing). A pivot is skipped (duration 0)
+  // whenever the two headings already agree, so this never adds a pause where none is needed.
+  function pivotDuration(fromHeading, toHeading){
+    const diff = Math.abs(((toHeading - fromHeading + 540) % 360) - 180);
+    if (diff < 3) return 0; // effectively already facing the right way
+    return THREE.MathUtils.lerp(1.2, 3.5, diff / 180); // bigger turns get a bit more time to read clearly
+  }
+  const startPivotDuration = pivotDuration(start.heading, leg1Heading);
+  const endPivotDuration = pivotDuration(leg2Heading, finalTarget.heading);
+  const totalDuration = startPivotDuration + travelDuration + endPivotDuration;
 
   const tug = buildTowTug();
   scene.add(tug);
   const van = buildShuttleVan();
-  const vanStart = runwayLocalToWorld(nr, -260, 150); // rolls out from near the hangars
+  const vanStart = runwayLocalToWorld(nr, -260, 100); // rolls out from near the hangars
   van.position.set(vanStart.x, terrainHeight(vanStart.x, vanStart.z), vanStart.z);
   scene.add(van);
 
-  towState = { start, target, ctrl, tug, van, vanStart, elapsed: 0, duration: 9, parkingAfter: !isParked };
+  towState = {
+    waypoints, t1, travelDuration, leg1Heading, leg2Heading, tug, van, vanStart,
+    startPivotDuration, endPivotDuration, totalDuration,
+    elapsed: 0, parkingAfter: !isParked,
+  };
   STATE.velocity.set(0,0,0);
   STATE.speed = 0;
   touchInput.wheelBrakes = false;
   updateTowButtonUI();
 }
 
-function quadBezier(p0, p1, p2, t){
-  const mt = 1 - t;
-  return { x: mt*mt*p0.x + 2*mt*t*p1.x + t*t*p2.x, z: mt*mt*p0.z + 2*mt*t*p1.z + t*t*p2.z };
+// Shortest angular path from `a` to `b` (both in degrees), so a turn from e.g. 350 to 10 goes
+// forward through 360/0 (a 20-degree turn) instead of the long way around backward through 180
+// (a 340-degree turn) - this is what actually guarantees no wild spinning between waypoints.
+function shortestAngleLerp(a, b, t){
+  const diff = ((b - a + 540) % 360) - 180;
+  return a + diff * t;
 }
-// Exact derivative of the curve, rather than sampling two nearby points and subtracting - the
-// finite-difference approach used originally vanished right near the end of the path (both the
-// current point and its "lookahead" point clamp to t=1 and become nearly identical), which made
-// atan2 numerically unstable and showed up as the aircraft visibly shaking during the last
-// moment of the tow. The analytic tangent stays well-defined all the way to t=1.
-function quadBezierTangent(p0, p1, p2, t){
+function smoothstep(t){ return t*t*(3 - 2*t); }
+
+// Evaluates the tow's position/heading at a given elapsed time - used for both the aircraft
+// itself and (with a small time offset) the tug leading it.
+function evalTowPose(s, elapsed){
+  const wps = s.waypoints;
+  let segStart, segEnd, localT;
+  if (elapsed <= s.t1) {
+    segStart = wps[0]; segEnd = wps[1];
+    localT = s.t1 > 0 ? THREE.MathUtils.clamp(elapsed / s.t1, 0, 1) : 1;
+  } else {
+    segStart = wps[1]; segEnd = wps[2];
+    const dur2 = s.travelDuration - s.t1;
+    localT = dur2 > 0 ? THREE.MathUtils.clamp((elapsed - s.t1) / dur2, 0, 1) : 1;
+  }
+  const e = smoothstep(localT);
+
+  // Heading: matches whichever leg's own straight-line direction of travel the aircraft is
+  // currently on (so it's always led nose-first, the way a real tow looks, not dragged sideways)
+  // and blends between the two legs' directions over a window centered on the corner, where an
+  // actual turn has to happen. The window is deliberately generous (about 4 out of the full
+  // 10-second tow) so the turn reads as a real, visible rotation - especially when the two legs
+  // point close to opposite directions, which is the case that most needs a slow, clear turn
+  // rather than a quick one that looks like a snap - while still leaving it clamped so it can
+  // never spill past whichever leg is shorter.
+  const uc = s.t1 / s.travelDuration; // where the corner falls, as a fraction of the whole trip
+  const u = THREE.MathUtils.clamp(elapsed / s.travelDuration, 0, 1);
+  const halfWindow = Math.min(0.2, uc, 1 - uc);
+  let heading;
+  if (u < uc - halfWindow) heading = s.leg1Heading;
+  else if (u > uc + halfWindow) heading = s.leg2Heading;
+  else {
+    const blend = smoothstep(THREE.MathUtils.clamp((u - (uc - halfWindow)) / (2 * halfWindow), 0, 1));
+    heading = shortestAngleLerp(s.leg1Heading, s.leg2Heading, blend);
+  }
+  heading = ((heading % 360) + 360) % 360;
+
   return {
-    x: 2*(1-t)*(p1.x-p0.x) + 2*t*(p2.x-p1.x),
-    z: 2*(1-t)*(p1.z-p0.z) + 2*t*(p2.z-p1.z),
+    x: THREE.MathUtils.lerp(segStart.x, segEnd.x, e),
+    y: THREE.MathUtils.lerp(segStart.y, segEnd.y, e),
+    z: THREE.MathUtils.lerp(segStart.z, segEnd.z, e),
+    heading,
   };
 }
 
@@ -4886,58 +4993,79 @@ function updateTow(dt){
   if (!towState) return;
   const s = towState;
   s.elapsed += dt;
-  const t = THREE.MathUtils.clamp(s.elapsed / s.duration, 0, 1);
-  const tLead = THREE.MathUtils.clamp(t + 0.06, 0, 1); // tug stays a little ahead of the plane it's towing
 
-  const pos = quadBezier(s.start, s.ctrl, s.target, t);
-  const tangent = quadBezierTangent(s.start, s.ctrl, s.target, t);
-  const heading = ((THREE.MathUtils.radToDeg(Math.atan2(tangent.x, -tangent.z)) % 360) + 360) % 360;
-  const y = THREE.MathUtils.lerp(s.start.y, s.target.y, t);
-  STATE.position.set(pos.x, y, pos.z);
-  STATE.heading = heading;
+  const travelStart = s.startPivotDuration; // travel doesn't begin until any start-of-trip pivot finishes
+  const travelEnd = travelStart + s.travelDuration; // ...and ends before any end-of-trip pivot begins
+
+  let pose;
+  if (s.elapsed <= travelStart) {
+    // Pivoting in place before setting off - only happens if the aircraft was left facing
+    // somewhere that doesn't already match the first leg's direction of travel.
+    const start = s.waypoints[0];
+    const turnT = s.startPivotDuration > 0 ? THREE.MathUtils.clamp(s.elapsed / s.startPivotDuration, 0, 1) : 1;
+    const heading = shortestAngleLerp(start.heading, s.leg1Heading, smoothstep(turnT));
+    pose = { x: start.x, y: start.y, z: start.z, heading: ((heading % 360) + 360) % 360 };
+  } else if (s.elapsed <= travelEnd) {
+    pose = evalTowPose(s, s.elapsed - travelStart);
+  } else {
+    // Travel is done, but the true final facing (nose lined up down the runway, or nose into the
+    // ramp) is usually the reverse of the direction just traveled in - swing the nose around in
+    // place instead of snapping to it.
+    const finalPoint = s.waypoints[2];
+    const turnT = s.endPivotDuration > 0 ? THREE.MathUtils.clamp((s.elapsed - travelEnd) / s.endPivotDuration, 0, 1) : 1;
+    const heading = shortestAngleLerp(s.leg2Heading, finalPoint.heading, smoothstep(turnT));
+    pose = { x: finalPoint.x, y: finalPoint.y, z: finalPoint.z, heading: ((heading % 360) + 360) % 360 };
+  }
+
+  STATE.position.set(pose.x, pose.y, pose.z);
+  STATE.heading = pose.heading;
   // STATE.heading is only a DISPLAY value (compass readout) - what actually drives the plane's
   // rendered orientation is STATE.yaw/pitch/roll (built into a quaternion in updatePhysics).
-  // Setting only STATE.heading, like the first version of this did, left the aircraft's real
-  // orientation completely unchanged for the whole tow - it just translated along the curve
-  // without ever visually turning - and every leftover bit of pitch/roll it happened to have
-  // from just before the tow (e.g. a nose-up flare attitude right after landing) stuck around
-  // for the whole tow too, which is what was throwing the chase camera (which orbits based on
-  // STATE.pitch/roll) into strange positions. Forcing the plane dead level and driving yaw
-  // directly fixes both at once.
+  // Also force pitch/roll level throughout - any leftover attitude from just before the tow
+  // (e.g. a nose-up flare right after landing) would otherwise stick around for the whole tow
+  // and throw the chase camera (which orbits based on pitch/roll) into strange positions.
   STATE.pitch = 0;
   STATE.roll = 0;
   STATE.pitchRate = 0;
   STATE.rollRate = 0;
   STATE.yawRate = 0;
-  STATE.yaw = -THREE.MathUtils.degToRad(heading); // yaw and heading are related by a sign flip - see updatePhysics's own heading derivation
+  STATE.yaw = -THREE.MathUtils.degToRad(pose.heading); // yaw and heading are related by a sign flip - see updatePhysics's own heading derivation
   STATE.velocity.set(0,0,0);
   STATE.speed = 0;
   STATE.onGround = true; // never ambiguous during a tow - removes any chance of physics fighting this frame's position
 
-  const tugPos = quadBezier(s.start, s.ctrl, s.target, tLead);
-  const tugTangent = quadBezierTangent(s.start, s.ctrl, s.target, tLead);
-  s.tug.position.set(tugPos.x, terrainHeight(tugPos.x, tugPos.z) + 0.05, tugPos.z);
-  s.tug.rotation.y = Math.atan2(tugTangent.x, -tugTangent.z);
+  // Tug and van only animate across the travel window - during a start/end pivot the aircraft is
+  // turning on the spot, so they just hold at wherever the travel phase left them.
+  const travelElapsed = THREE.MathUtils.clamp(s.elapsed - travelStart, 0, s.travelDuration);
+  const tGlobal = s.travelDuration > 0 ? travelElapsed / s.travelDuration : 1;
 
-  // Shuttle van: drives in toward the aircraft, sits for a moment, then heads back and vanishes.
-  const vanTarget = { x: (s.start.x + s.vanStart.x)/2, z: (s.start.z + s.vanStart.z)/2 };
+  const leadElapsed = Math.min(travelElapsed + 0.6, s.travelDuration); // tug stays a little ahead of the plane it's towing
+  const tugPose = evalTowPose(s, leadElapsed);
+  s.tug.position.set(tugPose.x, terrainHeight(tugPose.x, tugPose.z) + 0.05, tugPose.z);
+  s.tug.rotation.y = THREE.MathUtils.degToRad(tugPose.heading); // direct object rotation - no sign flip needed here (that's only for the STATE.yaw quaternion pipeline)
+
+  // Shuttle van: drives in toward the aircraft's starting point, sits for a moment, then heads
+  // back and vanishes.
+  const startPoint = s.waypoints[0];
+  const vanTarget = { x: (startPoint.x + s.vanStart.x)/2, z: (startPoint.z + s.vanStart.z)/2 };
   let vt;
-  if (t < 0.35) vt = t / 0.35;
-  else if (t < 0.65) vt = 1;
-  else vt = THREE.MathUtils.clamp(1 - (t - 0.65) / 0.35, 0, 1);
+  if (tGlobal < 0.35) vt = tGlobal / 0.35;
+  else if (tGlobal < 0.65) vt = 1;
+  else vt = THREE.MathUtils.clamp(1 - (tGlobal - 0.65) / 0.35, 0, 1);
   const vanPos = {
     x: THREE.MathUtils.lerp(s.vanStart.x, vanTarget.x, vt),
     z: THREE.MathUtils.lerp(s.vanStart.z, vanTarget.z, vt),
   };
   s.van.position.set(vanPos.x, terrainHeight(vanPos.x, vanPos.z), vanPos.z);
-  const facingOut = t > 0.65;
+  const facingOut = tGlobal > 0.65;
   const vdx = vanTarget.x - s.vanStart.x, vdz = vanTarget.z - s.vanStart.z;
   s.van.rotation.y = Math.atan2(vdx, -vdz) + (facingOut ? Math.PI : 0);
 
-  if (t >= 1) {
-    STATE.position.set(s.target.x, s.target.y, s.target.z);
-    STATE.heading = s.target.heading;
-    STATE.yaw = -THREE.MathUtils.degToRad(s.target.heading); // keep yaw (the real orientation driver) in sync with the final heading
+  if (s.elapsed >= s.totalDuration) {
+    const finalPoint = s.waypoints[2];
+    STATE.position.set(finalPoint.x, finalPoint.y, finalPoint.z);
+    STATE.heading = finalPoint.heading;
+    STATE.yaw = -THREE.MathUtils.degToRad(finalPoint.heading); // keep yaw (the real orientation driver) in sync with the final heading
     scene.remove(s.tug);
     scene.remove(s.van);
     isParked = s.parkingAfter;
