@@ -738,6 +738,78 @@
     <div class="subtitle">BROWSER-BASED 3D FLIGHT SIMULATOR</div>
     <div id="airports-note" style="font-size:11.5px; color:#9fe9ff; opacity:0.8; margin:-6px 0 14px 0; text-align:center; line-height:1.4;">3 airports on the map &mdash; the needle follows the nearest one by default, or tap an airport on the minimap to lock it as your target (tap again to go back to automatic). Can't land? Press L to let autoland do it for you.</div>
 
+    <!-- Beginner walkthrough - the controls list below only says WHAT each key does; this
+         explains HOW to actually fly a full circuit in plain language, since a first-time
+         player who doesn't already know the game has no way to piece that together from a
+         key list alone. Defaults open (not collapsed like the raw key list) since this is
+         exactly the thing a newcomer needs to see first. -->
+    <div id="howto-box" style="margin-bottom:16px;text-align:left;background:rgba(0,40,60,0.5);border:1px solid rgba(127,216,255,0.35);border-radius:6px;padding:10px 14px;font-size:12px;line-height:1.55;color:#cdeeff;">
+      <div id="howto-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#ffd479;letter-spacing:1px;font-size:12px;">
+        <span id="howto-title">📖 חדש כאן? / New here? — how to fly</span>
+        <span id="howto-arrow">▲</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <span id="howto-lang-he" style="cursor:pointer;padding:2px 10px;border-radius:4px;background:rgba(127,216,255,0.25);font-size:11px;letter-spacing:1px;">עברית</span>
+        <span id="howto-lang-en" style="cursor:pointer;padding:2px 10px;border-radius:4px;background:transparent;font-size:11px;letter-spacing:1px;">ENGLISH</span>
+      </div>
+      <div id="howto-body-he" dir="rtl" style="margin-top:10px;text-align:right;">
+        <b style="color:#ffd479;">1. הפעלת מנוע ונסיעה להמראה (טקסי).</b> תן גז בעדינות
+        (Shift/Ctrl או כפתור ה-THR ▲/▼) כדי להתחיל לנוע. הגה עם דוושת ההגה (Q/E או כפתור ה-YAW
+        ◄/►) בזמן שאתה על הקרקע — המאזנות (A/D) כמעט ולא עוזרות עד שיש מספיק מהירות. עקוב אחר
+        ההנחיות של המגדל בכתוביות הרדיו למעלה.<br><br>
+
+        <b style="color:#ffd479;">2. המראה.</b> התיישר על המסלול, תן גז מלא, וברגע שיש
+        מספיק מהירות משוך בעדינות (S/&#8595; כברירת מחדל — ראה הערת פיץ' למטה) כדי להרים את
+        האף ולהתרומם.<br><br>
+
+        <b style="color:#ffd479;">3. טיפוס ושיוט.</b> יישר את המטוס בהדרגה, וטרים ( [ / ] )
+        כדי שהמטוס ישמור על הזווית הזו לבד. עקוב אחרי המדים — מהירות, גובה, כיוון, קצב עלייה
+        וירידה. מחט ה-ADF והמרחק המוצג מצביעים על המסלול היעד שלך.<br><br>
+
+        <b style="color:#ffd479;">4. ירידה ונחיתה.</b> הפחת גז כדי לרדת, הורד פלאפים (F) כדי
+        להאט ולאפשר גישה תלולה ואיטית יותר, ושאף לנחות בעדינות על קו האמצע. אחרי שהגלגלים על
+        הקרקע, השתמש בבלמים (Space) כדי לעצור, ובבלם החניה (P) כדי להישאר במקום.<br><br>
+
+        <b style="color:#ffd479;">תקוע או רוצה לדלג על החלק הקשה?</b> לחץ L בכל שלב כדי
+        להפעיל נחיתה אוטומטית (autoland) — היא תטוס את הגישה והנחיתה בשבילך. לחץ G ליד המסלול
+        או החניה כדי לקבל גרירה בין החניה למסלול, כולל רכב גרירה וצוות קרקע גלוי. לחץ R כדי
+        לאפס את המטוס אם משהו משתבש.<br><br>
+
+        <b style="color:#ffd479;">שיחות הרדיו</b> בין המגדל לטייס (הכתוביות למעלה) הן
+        אווירה בלבד — הן מגיבות למה שאתה בפועל עושה (המראה, טיפוס, נחיתה) אבל לעולם לא דורשות
+        ממך תגובה.
+      </div>
+      <div id="howto-body-en" style="margin-top:10px;display:none;">
+        <b style="color:#ffd479;">1. Start the engine and taxi out.</b> Throttle up gently
+        (Shift/Ctrl or the ▲/▼ THR button) to roll forward. Steer with rudder (Q/E or the
+        ◄/► YAW control) while on the ground — the ailerons (A/D) don't do much until you're
+        moving fast. Follow the tower's taxi instructions in the radio subtitles.<br><br>
+
+        <b style="color:#ffd479;">2. Take off.</b> Line up on the runway, throttle to full,
+        and once you're rolling fast enough gently pull back (S/&#8595; by default — see the
+        pitch note below) to lift the nose and climb away.<br><br>
+
+        <b style="color:#ffd479;">3. Climb and cruise.</b> Level off by easing the pitch back
+        to level, and trim ( [ / ] ) so the plane holds that attitude hands-off. Use the
+        gauges — airspeed, altitude, heading, vertical speed — to keep track of how you're
+        doing. The ADF needle and distance readout point at your target runway.<br><br>
+
+        <b style="color:#ffd479;">4. Descend and land.</b> Pull the throttle back to descend,
+        lower flaps (F) to slow down and let you fly a steeper, slower final approach, and
+        aim to touch down gently on the centerline. Once the wheels are down, use wheel
+        brakes (Space) to stop, and the parking brake (P) to hold position.<br><br>
+
+        <b style="color:#ffd479;">Stuck or want to skip the hard part?</b> Press L any time
+        to toggle autoland — it will fly the approach and landing for you, hands-off. Press
+        G near the runway/ramp to get towed between parking and the runway, complete with a
+        visible tow tug and ground crew. Press R to reset the aircraft if things go wrong.<br><br>
+
+        <b style="color:#ffd479;">The radio chatter</b> between tower and pilot (subtitles
+        near the top of the screen) is atmospheric — it reacts to what you're actually doing
+        (taking off, climbing, landing) but never requires a response from you.
+      </div>
+    </div>
+
     <!-- Aircraft selection -->
     <div style="margin-bottom:18px;">
       <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">SELECT AIRCRAFT</div>
@@ -747,6 +819,19 @@
         <div class="ac-card" data-ac="fighter">🛩 Fighter<br><small>Very Fast · Hardest</small></div>
         <div class="ac-card" data-ac="glider">🪂 Glider<br><small>No engine</small></div>
       </div>
+    </div>
+
+    <!-- Callsign - used by the tower/pilot radio chatter during the flight -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">YOUR CALLSIGN <span style="opacity:0.7;">(used on the radio)</span></div>
+      <input id="callsign-input" type="text" maxlength="40" placeholder="November Four Two Charlie"
+        style="width:100%;max-width:340px;background:rgba(10,30,50,0.7);border:1px solid rgba(127,216,255,0.3);
+        border-radius:6px;padding:8px 12px;color:#eafcff;font-family:inherit;font-size:16px;text-align:center;letter-spacing:1px;">
+      <!-- font-size is 16px on purpose - iOS Safari auto-zooms the whole page when a focused
+           text input has a smaller font size, and (contrary to what maximum-scale/user-scalable
+           in the viewport meta tag above would suggest) recent iOS versions ignore those for
+           accessibility reasons and zoom in anyway. 16px is the one that actually stops it at
+           the source, rather than trying to zoom back out after the fact. -->
     </div>
 
     <!-- Weather selection -->
@@ -889,7 +974,7 @@ let selectedWeather = 'clear';
    happening, and the actual runway/heading/altitude/wind values in each
    line are randomized within realistic ranges so it doesn't feel scripted.
 ===================================================================== */
-const ATC_CALLSIGN = "November Four Two Charlie";
+let ATC_CALLSIGN = "November Four Two Charlie"; // overwritten from the pre-flight callsign field on START, if the player set one
 let nextAtcCheckIn = 10 + Math.random() * 12;
 let atcMessageActive = false;
 let lastAtcAirborneTime = -999;
@@ -915,6 +1000,12 @@ function atcContext(){
     birdMiles: 1 + Math.floor(Math.random()*4),
     taxiway: ['Alpha','Bravo','Charlie','Delta','Echo'][Math.floor(Math.random()*5)],
     gate: 1 + Math.floor(Math.random()*24),
+    // General ambient flavor (weather/technical) - not tied to any specific instruction,
+    // just used to make some exchanges feel like ordinary background chatter on a normal day.
+    sky: ['clear skies', 'a few clouds at three thousand', 'scattered clouds at four thousand', 'unlimited ceiling'][Math.floor(Math.random()*4)],
+    vis: ['10 miles', 'unrestricted', 'greater than ten miles', '6 miles in haze'][Math.floor(Math.random()*4)],
+    temp: 10 + Math.floor(Math.random()*25),
+    squawk: String(1000 + Math.floor(Math.random()*6000)).padStart(4,'0'),
   };
 }
 
@@ -937,6 +1028,27 @@ const ATC_EXCHANGES = {
     { tower: c => `${ATC_CALLSIGN}, taxi to parking via ${c.taxiway}, gate ${c.gate}.`,
       pilot: c => `To parking via ${c.taxiway}, gate ${c.gate}, ${ATC_CALLSIGN}.`,
       visual: 'parking', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, line up and wait runway ${c.rwy}.`,
+      pilot: c => `Line up and wait runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.airport} Ground, monitor tower on this frequency, contact when ready.`,
+      pilot: c => `Monitoring, will call when ready, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, be advised, runway ${c.rwy} surface report standing water, use caution.`,
+      pilot: c => `Copy, caution wet runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.airport} Ground, ${c.sky}, visibility ${c.vis}, good day for flying.`,
+      pilot: c => `Copy, nice day out, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, squawk ${c.squawk} and ident.`,
+      pilot: c => `Squawking ${c.squawk}, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, ATIS information is current, altimeter three zero one two.`,
+      pilot: c => `Copy the ATIS, three zero one two, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, temperature ${c.temp}, dew point well below, no icing expected.`,
+      pilot: c => `Copy, no icing expected, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
   ],
   climb: [
     { tower: c => `${ATC_CALLSIGN}, radar contact, climb and maintain ${c.climbAlt}.`,
@@ -950,6 +1062,27 @@ const ATC_EXCHANGES = {
       requiresAirborne: true },
     { tower: c => `${ATC_CALLSIGN}, verify altitude.`,
       pilot: c => `${ATC_CALLSIGN}, passing ${c.curAlt}, climbing.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, continue climb, report reaching ${c.climbAlt}.`,
+      pilot: c => `Wilco, will report ${c.climbAlt}, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, traffic alert, aircraft departing ${c.airport} same direction, maintain visual separation.`,
+      pilot: c => `Visual on the departure, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, fly heading ${c.hdg} for noise abatement, resume own navigation when able.`,
+      pilot: c => `Heading ${c.hdg} for noise abatement, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.sky}, smooth ride reported by traffic ahead.`,
+      pilot: c => `Good to hear, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, visibility ${c.vis} at this time, no restrictions.`,
+      pilot: c => `Copy, ${c.vis} visibility, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, radar service terminated, squawk VFR, frequency change approved.`,
+      pilot: c => `Squawking VFR, so long, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, be advised, light winds aloft, minimal drift expected.`,
+      pilot: c => `Copy, light winds aloft, ${ATC_CALLSIGN}.`,
       requiresAirborne: true },
   ],
   cruise: [
@@ -971,6 +1104,30 @@ const ATC_EXCHANGES = {
     { tower: c => `${ATC_CALLSIGN}, ${c.airport} altimeter three zero one two, no reported delays.`,
       pilot: c => `Three zero one two, ${ATC_CALLSIGN}.`,
       requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, fly heading ${c.hdg}, expect further clearance in ten miles.`,
+      pilot: c => `Heading ${c.hdg}, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, report any ride quality change, light chop reported in the area.`,
+      pilot: c => `Will report, smooth so far, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, squawk ident.`,
+      pilot: c => `Squawking ident, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, maintain ${c.curAlt}, traffic will pass two thousand above.`,
+      pilot: c => `Maintaining ${c.curAlt}, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.sky}, enjoy the view up there.`,
+      pilot: c => `Beautiful day for it, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, visibility unrestricted, ${c.airport} reporting ${c.sky}.`,
+      pilot: c => `Copy, unrestricted visibility, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, temperature aloft a few below, standard lapse rate, nothing unusual.`,
+      pilot: c => `Copy, nothing unusual, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, no other traffic in your vicinity at this time.`,
+      pilot: c => `Copy, clear around us, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
   ],
   descent: [
     { tower: c => `${ATC_CALLSIGN}, descend and maintain ${c.descendAlt}, expect visual approach runway ${c.rwy}.`,
@@ -988,6 +1145,27 @@ const ATC_EXCHANGES = {
     { tower: c => `${ATC_CALLSIGN}, number one, cleared to land runway ${c.rwy}, wind ${c.wd} at ${c.ws}.`,
       pilot: c => `Cleared to land runway ${c.rwy}, number one, ${ATC_CALLSIGN}.`,
       visual: 'runway', color: 0x33ff66, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, continue approach, traffic will vacate ahead of you.`,
+      pilot: c => `Continuing approach, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ccff, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, check gear down, cleared to land runway ${c.rwy}.`,
+      pilot: c => `Gear checked, cleared to land runway ${c.rwy}, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ff66, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, go-around if not visual by ${c.descendAlt}, advise intentions.`,
+      pilot: c => `Understood, will advise, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.airport} weather, ${c.sky}, visibility ${c.vis}, wind ${c.wd} at ${c.ws}.`,
+      pilot: c => `Copy the weather, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ccff, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, report runway ${c.rwy} in sight.`,
+      pilot: c => `Runway in sight, ${ATC_CALLSIGN}.`,
+      visual: 'runway', color: 0x33ff66, requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, ILS runway ${c.rwy} operational if needed.`,
+      pilot: c => `Copy, will use if needed, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
+    { tower: c => `${ATC_CALLSIGN}, be advised light turbulence reported on short final, nothing significant.`,
+      pilot: c => `Copy, ready for it, ${ATC_CALLSIGN}.`,
+      requiresAirborne: true },
   ],
   landed: [
     { tower: c => `${ATC_CALLSIGN}, turn right next taxiway, contact Ground point niner when clear.`,
@@ -1002,6 +1180,24 @@ const ATC_EXCHANGES = {
     { tower: c => `${ATC_CALLSIGN}, ${c.airport} Ground, taxi to gate ${c.gate} via ${c.taxiway}, a vehicle will lead you in.`,
       pilot: c => `Behind the lead vehicle, gate ${c.gate} via ${c.taxiway}, ${ATC_CALLSIGN}.`,
       visual: 'parking', color: 0xffaa33, requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, welcome to ${c.airport}, shut down at your leisure, have a good one.`,
+      pilot: c => `Thanks for the help today, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, contact Ground point niner for taxi to parking when ready.`,
+      pilot: c => `Will call Ground point niner, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, ${c.sky} conditions expected to hold for the rest of the day.`,
+      pilot: c => `Good to know, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, ground temperature ${c.temp}, light winds, taxi at your convenience.`,
+      pilot: c => `Copy, taxiing now, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, squawk 1200 once clear of the runway.`,
+      pilot: c => `Squawking 1200, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
+    { tower: c => `${ATC_CALLSIGN}, nice landing, smooth as expected in this visibility.`,
+      pilot: c => `Thank you, tower, ${ATC_CALLSIGN}.`,
+      requiresGround: true },
   ],
 };
 
@@ -1355,6 +1551,62 @@ function showLandingScore(vs, speed, onRunway){
 /* =====================================================================
    MENU INTERACTIVITY (aircraft / weather / checklist)
 ===================================================================== */
+// How-to-fly guide: defaults open (Hebrew tab shown), collapsible for returning players,
+// with a language switcher between the Hebrew and English versions of the same text.
+const howtoToggle = document.getElementById('howto-toggle');
+const howtoBodyHe = document.getElementById('howto-body-he');
+const howtoBodyEn = document.getElementById('howto-body-en');
+const howtoArrow = document.getElementById('howto-arrow');
+const howtoLangHe = document.getElementById('howto-lang-he');
+const howtoLangEn = document.getElementById('howto-lang-en');
+let howtoActiveLang = 'he'; // tracks which language tab to reopen into after a collapse/expand
+if (howtoToggle && howtoBodyHe && howtoBodyEn && howtoArrow) {
+  howtoToggle.addEventListener('click', () => {
+    const isOpen = howtoBodyHe.style.display !== 'none' || howtoBodyEn.style.display !== 'none';
+    if (isOpen) {
+      howtoBodyHe.style.display = 'none';
+      howtoBodyEn.style.display = 'none';
+      howtoArrow.textContent = '▼';
+    } else {
+      (howtoActiveLang === 'he' ? howtoBodyHe : howtoBodyEn).style.display = 'block';
+      howtoArrow.textContent = '▲';
+    }
+  });
+}
+if (howtoLangHe && howtoLangEn && howtoBodyHe && howtoBodyEn) {
+  howtoLangHe.addEventListener('click', () => {
+    howtoActiveLang = 'he';
+    howtoBodyHe.style.display = 'block';
+    howtoBodyEn.style.display = 'none';
+    howtoLangHe.style.background = 'rgba(127,216,255,0.25)';
+    howtoLangEn.style.background = 'transparent';
+  });
+  howtoLangEn.addEventListener('click', () => {
+    howtoActiveLang = 'en';
+    howtoBodyEn.style.display = 'block';
+    howtoBodyHe.style.display = 'none';
+    howtoLangEn.style.background = 'rgba(127,216,255,0.25)';
+    howtoLangHe.style.background = 'transparent';
+  });
+}
+
+// iOS Safari zoom fix for the callsign field: a 16px input font size (see the input's own
+// comment) prevents the zoom from triggering in the first place, but as a safety net for
+// devices/situations where it creeps in anyway (e.g. a pinch mid-typing), force the viewport
+// back to 1:1 on blur. Just reading the meta tag's content back out does nothing - Safari only
+// recomputes the layout viewport when the value actually changes, so it's nudged and restored.
+const callsignInputEl = document.getElementById('callsign-input');
+if (callsignInputEl) {
+  callsignInputEl.addEventListener('blur', () => {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) return;
+    const original = viewport.getAttribute('content');
+    viewport.setAttribute('content', original + ', maximum-scale=1.0001');
+    setTimeout(() => viewport.setAttribute('content', original), 60);
+  });
+}
+
+
 // Aircraft picker
 document.querySelectorAll('.ac-card').forEach(card=>{
   card.addEventListener('click', ()=>{
@@ -1839,6 +2091,45 @@ function buildHangar(x,z, rotY){
   scene.add(g);
 }
 
+// A small, static decorative aircraft for the parking ramp - purely scenery (never moves, never
+// touched again after being added to the scene), so it's built with plain box/cone geometry in
+// the same low-poly style as the rest of the airport rather than sharing a mesh with anything
+// that IS animated (buildDistantPlane, for instance, comes with a giant cinematic contrail that
+// would look absurd trailing behind a parked aircraft sitting still on the ramp).
+function buildParkedPlane(bodyColor){
+  const plane = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness:0.55 });
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0xcfd6da, roughness:0.7, side: THREE.DoubleSide });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness:0.9 });
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 9), bodyMat);
+  body.position.y = 1.15;
+  plane.add(body);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 8), bodyMat);
+  nose.rotation.x = Math.PI/2;
+  nose.position.set(0, 1.15, -4.9);
+  plane.add(nose);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(11, 0.25, 1.6), wingMat);
+  wing.position.set(0, 1.15, -0.3);
+  plane.add(wing);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.2, 1.0), wingMat);
+  tail.position.set(0, 1.15, 4.2);
+  plane.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 1.1), bodyMat);
+  fin.position.set(0, 1.9, 4.2);
+  plane.add(fin);
+  const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.28, 10);
+  [[-1.3,-2.5],[1.3,-2.5],[0,3.3]].forEach(([sx,sz])=>{
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI/2;
+    wheel.position.set(sx, 0.35, sz);
+    plane.add(wheel);
+  });
+
+  plane.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return plane;
+}
+
 /* Scatter some low-poly trees near runway edges for scale reference */
 const treeLeafColors = { grass: 0x2e5c2e, autumn: 0xb5651d, desert: 0x8a8f4a };
 function buildTree(x,z,biome){
@@ -1915,6 +2206,26 @@ RUNWAYS.forEach((r, idx)=>{
   buildHangar(hangar1Pos.x, hangar1Pos.z, r.heading || 0);
   const hangar2Pos = runwayLocalToWorld(r, -180, 150);
   buildHangar(hangar2Pos.x, hangar2Pos.z, r.heading || 0);
+
+  // A handful of static parked aircraft scattered around the ramp, near the taxiway side so
+  // they stay well clear of the player's own parking spot (across=100) and the hangars
+  // (across=150) - just background life at the airport, never touched again after being placed.
+  const parkedPlaneColors = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff];
+  const parkedPlaneSpots = [
+    { along: -292, across: 45, yaw: 8 },
+    { along: -256, across: 42, yaw: -12 },
+    { along: -176, across: 46, yaw: 5 },
+    { along: -138, across: 40, yaw: -6 },
+  ];
+  parkedPlaneSpots.forEach((spot, i) => {
+    const pw = runwayLocalToWorld(r, spot.along, spot.across);
+    const deco = buildParkedPlane(parkedPlaneColors[i % parkedPlaneColors.length]);
+    deco.position.set(pw.x, terrainHeight(pw.x, pw.z), pw.z);
+    // Roughly facing the same way the player's own aircraft parks, with a little random splay
+    // per aircraft so the ramp doesn't look like a perfectly regimented row.
+    deco.rotation.y = (r.heading || 0) + THREE.MathUtils.degToRad(spot.yaw);
+    scene.add(deco);
+  });
 
   // Desert airports get noticeably sparser tree cover than grass/autumn ones - matches the
   // arid landscape and helps sell the biome difference even at a glance from the air.
@@ -2713,6 +3024,7 @@ const _scratchQuat    = new THREE.Quaternion();
 const _scratchForward = new THREE.Vector3();
 const _scratchUp      = new THREE.Vector3();
 const _scratchGravity = new THREE.Vector3(0,-BASE_GRAVITY,0);
+const _scratchDir     = new THREE.Vector3(); // reused for the velocity-direction alignment blend below
 scene.add(airplane);
 
 /* =====================================================================
@@ -3551,6 +3863,12 @@ document.getElementById('start-btn').addEventListener('click', () => {
   STATE.fuel = (acConfig && acConfig.fuelCapacity) ? acConfig.fuelCapacity : 100; // full tank at engine start
   const invertCheck = document.getElementById('invert-pitch-check');
   pitchInverted = !!(invertCheck && invertCheck.checked);
+  // Callsign for the radio chatter - fall back to the default if the player left it blank.
+  // Phonetic-alphabet style words only (letters/numbers/spaces) - anything else in a template
+  // literal would look wrong read out over the "radio" subtitles.
+  const callsignInput = document.getElementById('callsign-input');
+  const typedCallsign = callsignInput ? callsignInput.value.trim() : '';
+  if (typedCallsign) ATC_CALLSIGN = typedCallsign.replace(/[^a-zA-Z0-9 \-]/g, '').slice(0, 40) || ATC_CALLSIGN;
   document.getElementById('menu-overlay').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
   document.getElementById('flight-info').style.display = 'block';
@@ -3978,7 +4296,6 @@ function updatePhysics(dt){
   // -> the plane sinks; more throttle -> more speed -> more lift -> the plane climbs.
   const liftMag = LIFT_COEFF() * horizSpeedForLift * horizSpeedForLift * 0.02 * flapLiftBonus * speedbrakeLiftMult;
   let effectiveLift = liftMag;
-
   // Ensure lift is finite
   if (!isFinite(effectiveLift) || effectiveLift < 0) effectiveLift = 0;
 
@@ -4033,12 +4350,17 @@ function updatePhysics(dt){
     forwardAccel *= THREE.MathUtils.clamp(0.3 + altFactor*0.7, 0.3, 1);
   }
 
-  const liftVec = up.clone().multiplyScalar(effectiveLift);
+  const liftVec = up; // reuse 'up' directly as the lift direction - see addScaledVector below, no separate vector needed
 
-  // Combine: velocity update
-  STATE.velocity.add(forward.clone().multiplyScalar(forwardAccel * dt));
-  STATE.velocity.add(gravityVec.clone().multiplyScalar(dt));
-  STATE.velocity.add(liftVec.clone().multiplyScalar(dt));
+  // Combine: velocity update. addScaledVector(v, s) is THREE's built-in "this += v*s" - it writes
+  // directly into STATE.velocity with no intermediate vector, unlike the .clone().multiplyScalar()
+  // pattern this used to use (which allocated a brand-new Vector3 for each of these three lines,
+  // every single frame, at 60/sec - real GC pressure for values that are only ever used once and
+  // immediately thrown away). forward/gravityVec/up are the shared scratch vectors set earlier in
+  // this same function and are safe to read here without cloning: nothing multiplies them in place.
+  STATE.velocity.addScaledVector(forward, forwardAccel * dt);
+  STATE.velocity.addScaledVector(gravityVec, dt);
+  STATE.velocity.addScaledVector(liftVec, effectiveLift * dt);
 
   // Velocity-vector alignment toward forward direction (arcade stability).
   // IMPORTANT: we blend direction only - the speed change from thrust/drag already happened
@@ -4052,10 +4374,10 @@ function updatePhysics(dt){
   // integration below is always within bounds - no exceptions, no order-dependent violations.
   const alignFactor = STATE.onGround ? 0.0 : THREE.MathUtils.clamp(dt * 1.2, 0, 0.35);
   if (STATE.velocity.length() > 0.5) {
-    const curDir = STATE.velocity.clone().normalize();
-    const blendedDir = curDir.lerp(forward, alignFactor).normalize();
+    const curSpeedForAlign = STATE.velocity.length(); // capture before we start rewriting velocity's direction below
+    _scratchDir.copy(STATE.velocity).normalize().lerp(forward, alignFactor).normalize();
     // Keep the actual speed that physics produced (don't restore curSpeed)
-    STATE.velocity.copy(blendedDir.multiplyScalar(STATE.velocity.length()));
+    STATE.velocity.copy(_scratchDir).multiplyScalar(curSpeedForAlign);
   }
 
   // Vertical speed cap (climb/descent rate limiter) - prevents the lift/speed positive-feedback
@@ -4095,7 +4417,7 @@ function updatePhysics(dt){
   STATE.speed = STATE.velocity.length();
 
   // ---- Position integration ----
-  STATE.position.add(STATE.velocity.clone().multiplyScalar(dt));
+  STATE.position.addScaledVector(STATE.velocity, dt); // in-place - was STATE.velocity.clone().multiplyScalar(dt), one more per-frame allocation removed
 
   // ---- NaN / Infinity safety net ----
   // If any core value ever goes non-finite (from an edge case in the arcade physics), recover
@@ -4303,6 +4625,11 @@ const lookQuat = new THREE.Quaternion();
 const combinedQuat = new THREE.Quaternion();
 const chaseAttitudeQuat = new THREE.Quaternion();
 const chaseEuler = new THREE.Euler();
+const _camLookEuler = new THREE.Euler(0,0,0,'YXZ'); // reused each frame instead of `new THREE.Euler(...)` below
+const _camScratchA = new THREE.Vector3(); // reused for the chase/cockpit "desired position" math
+const _camScratchB = new THREE.Vector3(); // reused for the look-target / look-direction math
+const _camScratchC = new THREE.Vector3(); // reused for the cockpit look-target (needs to stay distinct from _camScratchB mid-calculation)
+const UP_VECTOR_OFFSET = new THREE.Vector3(0, 1.2, 0); // constant offset, read-only - never mutated, so safe to share across frames
 const CHASE_ROLL_INFLUENCE = 0.2;  // how much the chase cam orbits with bank - low on purpose
 const CHASE_PITCH_INFLUENCE = 0.35; // how much the chase cam orbits with pitch - same idea as roll:
 // fully following pitch (1.0, the old value) swings the camera position dramatically the instant
@@ -4327,7 +4654,7 @@ function updateCamera(dt){
     lookState.yaw = THREE.MathUtils.lerp(lookState.yaw, 0, recenter);
     lookState.pitch = THREE.MathUtils.lerp(lookState.pitch, 0, recenter);
   }
-  lookQuat.setFromEuler(new THREE.Euler(lookState.pitch, lookState.yaw, 0, 'YXZ'));
+  lookQuat.setFromEuler(_camLookEuler.set(lookState.pitch, lookState.yaw, 0, 'YXZ'));
 
   if (cameraMode === 'chase') {
     // Orbit the chase camera around the aircraft based on pitch/yaw + look direction, but only
@@ -4339,21 +4666,24 @@ function updateCamera(dt){
     chaseEuler.set(STATE.pitch * CHASE_PITCH_INFLUENCE, STATE.yaw, STATE.roll * CHASE_ROLL_INFLUENCE, 'YXZ');
     chaseAttitudeQuat.setFromEuler(chaseEuler);
     combinedQuat.copy(chaseAttitudeQuat).multiply(lookQuat);
-    const desired = chaseOffset.clone().applyQuaternion(combinedQuat).add(airplane.position);
+    // Reused scratch vectors below (_camScratchA/B) instead of .clone()/`new Vector3(...)` - this
+    // function runs every frame, so each avoided allocation here is one less per frame, same idea
+    // as the updatePhysics cleanup above.
+    const desired = _camScratchA.copy(chaseOffset).applyQuaternion(combinedQuat).add(airplane.position);
     currentCamPos.lerp(desired, Math.min(1, dt*6));
     camera.position.copy(currentCamPos);
-    const lookTarget = airplane.position.clone().add(new THREE.Vector3(0,1.2,0));
+    const lookTarget = _camScratchB.copy(airplane.position).add(UP_VECTOR_OFFSET);
     camera.up.set(0,1,0);
     camera.lookAt(lookTarget);
   } else {
     // Cockpit: head position stays fixed to the plane (full attitude, including roll - you're
     // sitting inside it), but the gaze direction turns freely on top of that.
     combinedQuat.copy(airplane.quaternion).multiply(lookQuat);
-    const desired = cockpitOffset.clone().applyQuaternion(airplane.quaternion).add(airplane.position);
+    const desired = _camScratchA.copy(cockpitOffset).applyQuaternion(airplane.quaternion).add(airplane.position);
     camera.position.copy(desired);
-    const lookDir = new THREE.Vector3(0,0,-1).applyQuaternion(combinedQuat);
-    const lookTarget = desired.clone().add(lookDir.multiplyScalar(10));
-    camera.up.copy(new THREE.Vector3(0,1,0).applyQuaternion(combinedQuat));
+    const lookDir = _camScratchB.set(0,0,-1).applyQuaternion(combinedQuat);
+    const lookTarget = _camScratchC.copy(desired).add(lookDir.multiplyScalar(10));
+    camera.up.copy(_camScratchB.set(0,1,0).applyQuaternion(combinedQuat));
     camera.lookAt(lookTarget);
   }
 }
@@ -4389,6 +4719,7 @@ const glideIndicator = document.getElementById('glide-indicator');
 const glideText = document.getElementById('glide-text');
 const alignIndicator = document.getElementById('align-indicator');
 const alignText = document.getElementById('align-text');
+const autolandDebugEl = document.getElementById('autoland-debug'); // was looked up via getElementById inside updateHUD every single frame; cached here like every other HUD element above
 
 // Build the analog gauge faces once
 buildSpeedFace(document.querySelector('#speed-gauge .gauge-face'));
@@ -4402,7 +4733,7 @@ function updateHUD(dt){
 
   // Live autopilot diagnostics panel - visible whenever autoland is engaged (or was just
   // disconnected by manual input, briefly showing why).
-  const debugEl = document.getElementById('autoland-debug');
+  const debugEl = autolandDebugEl;
   if (debugEl) {
     if (STATE.autoland && STATE.autolandDebug) {
       const d = STATE.autolandDebug;
@@ -4757,6 +5088,226 @@ function updateDistantPlanes(dt){
 }
 
 /* =====================================================================
+   RUNWAY HOLD TRAFFIC - when the player is parked and about to taxi out
+   toward the runway, there's a chance another aircraft is using the
+   runway first: tower tells the pilot to hold position, a visible plane
+   takes off down the runway ahead, and once it's clear tower clears the
+   player to taxi. Purely a ground-realism beat around the tow feature -
+   it never blocks anything once you're already moving.
+===================================================================== */
+let runwayHoldActive = false; // true from the "hold position" call until the runway traffic clears
+let runwayTraffic = null; // { mesh, dir, speed, climbed, life } - at most one at a time
+
+function spawnRunwayTraffic(nr){
+  if (runwayTraffic) return; // one at a time keeps this readable and avoids runway congestion
+  const plane = buildDistantPlane(); // reuse the same cinematic aircraft mesh used for background traffic
+  // Takes off in the same direction the player eventually will (see computeReadySpot) - this is
+  // simply "someone got there first", not oncoming/crossing traffic, which keeps the moment easy
+  // to read and non-threatening.
+  const heading = computeReadySpot(nr).heading;
+  const headingRad = THREE.MathUtils.degToRad(heading);
+  const dir = new THREE.Vector3(Math.sin(headingRad), 0, -Math.cos(headingRad));
+  const startWorld = runwayLocalToWorld(nr, -runwayLength/2 + 80, 0); // starts its roll just past the near threshold
+  plane.position.set(startWorld.x, terrainHeight(startWorld.x, startWorld.z) + 2, startWorld.z);
+  plane.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+  scene.add(plane);
+  runwayTraffic = { mesh: plane, dir, speed: 26, climbed: 0, life: 15 };
+}
+
+function updateRunwayTraffic(dt){
+  if (!runwayTraffic) return;
+  const rt = runwayTraffic;
+  rt.life -= dt;
+  rt.speed += dt * 6; // accelerates down the runway like a real takeoff roll
+  rt.mesh.position.addScaledVector(rt.dir, rt.speed * dt);
+  if (rt.life < 9) rt.climbed += dt * 18; // rotates and climbs away in the back half of its roll
+  rt.mesh.position.y = terrainHeight(rt.mesh.position.x, rt.mesh.position.z) + 2 + rt.climbed;
+  if (rt.life <= 0) {
+    rt.mesh.traverse(o=>{ if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    scene.remove(rt.mesh);
+    runwayTraffic = null;
+    if (runwayHoldActive) {
+      runwayHoldActive = false;
+      safeShowAtcExchange({
+        tower: c => `${ATC_CALLSIGN}, runway ${c.rwy} clear, taxi at your discretion.`,
+        pilot: c => `Taxiing now, ${ATC_CALLSIGN}.`,
+      }, atcContext());
+    }
+  }
+}
+
+// Shows an ATC exchange immediately, or waits for any exchange already on screen to finish first -
+// showAtcExchange isn't reentrant (it writes straight to the subtitle DOM elements and its own
+// atcMessageActive flag), so firing two at once would garble the text and timers.
+function safeShowAtcExchange(exchange, ctx){
+  if (atcMessageActive) { setTimeout(() => safeShowAtcExchange(exchange, ctx), 500); return; }
+  showAtcExchange(exchange, ctx);
+}
+
+function beginRunwayHold(nr){
+  runwayHoldActive = true;
+  spawnRunwayTraffic(nr);
+  safeShowAtcExchange({
+    tower: c => `${ATC_CALLSIGN}, hold position, traffic departing runway ${c.rwy}.`,
+    pilot: c => `Holding position, ${ATC_CALLSIGN}.`,
+    visual: 'runway', color: 0xff4444,
+  }, atcContext());
+}
+
+/* =====================================================================
+   FULL TRAFFIC PATTERN - unlike spawnRunwayTraffic above (a plane that just
+   departs and disappears), this flies a complete rectangular circuit: take
+   off, climb out, crosswind turn, downwind leg, base turn, final approach,
+   and touch down - the same "traffic pattern" a real airfield's local
+   traffic would fly, visible the whole way around rather than a one-off
+   departure. Spawns periodically on its own while the player is flying, at
+   whichever runway is nearest at the time, independent of the tow/hold
+   system above.
+===================================================================== */
+let patternTraffic = null; // { mesh, points, durations, headings, cumulative, totalDuration, elapsed, announcedDownwind, announcedFinal }
+let nextPatternCheckIn = 45 + Math.random() * 40; // first one shows up reasonably soon so the feature actually gets seen
+
+// Same low-poly silhouette as buildDistantPlane, minus its cinematic contrail - that trail is sized
+// for a plane cruising far overhead, and would look wrong on something doing tight turns close to
+// the runway.
+function buildPatternPlane(){
+  const plane = new THREE.Group();
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xe8ecef });
+  const wingMat = new THREE.MeshBasicMaterial({ color: 0xd0d6da, side: THREE.DoubleSide });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 14), bodyMat);
+  plane.add(body);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.4, 2.2), wingMat);
+  wing.position.z = -0.5;
+  plane.add(wing);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 1.6), wingMat);
+  tail.position.z = -6.3;
+  plane.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), bodyMat);
+  fin.position.set(0, 1.1, -6.3);
+  plane.add(fin);
+  return plane;
+}
+
+// Lays out the whole circuit as a sequence of (along, across, altitude-above-ground) points in the
+// runway's own local frame, converted to world space and paired with a per-leg heading and
+// duration. Point 0-1 is the takeoff roll; 1-2 the climb-out; 2-3 the crosswind turn; 3-4 the
+// downwind leg (flown opposite direction, offset to one side); 4-5 the base turn; 5-6 final
+// approach; 6-7 touchdown; 7-8 the landing rollout.
+function buildPatternWaypoints(nr){
+  const halfL = runwayLength / 2;
+  const patternAlt = 110;
+  const acrossOffset = -380; // opposite side from the parking ramp (which sits at positive across), so the circuit clears the buildings
+  const local = [
+    { along: -halfL + 50,  across: 0,                alt: 0 },
+    { along: -halfL + 300, across: 0,                alt: 0 },
+    { along:  halfL + 150, across: 0,                alt: patternAlt },
+    { along:  halfL + 250, across: acrossOffset,     alt: patternAlt },
+    { along: -halfL - 250, across: acrossOffset,     alt: patternAlt },
+    { along: -halfL - 150, across: acrossOffset*0.1, alt: patternAlt*0.5 },
+    { along: -halfL - 20,  across: 0,                alt: 15 },
+    { along: -halfL + 50,  across: 0,                alt: 0 },
+    { along: -halfL + 300, across: 0,                alt: 0 },
+  ];
+  const durations = [6, 16, 7, 20, 8, 6, 6, 6]; // seconds per leg - roughly a 75-second circuit end to end
+
+  const points = local.map(p => {
+    const w = runwayLocalToWorld(nr, p.along, p.across);
+    return { x: w.x, y: terrainHeight(w.x, w.z) + p.alt, z: w.z };
+  });
+  const headings = [];
+  for (let i = 0; i < points.length - 1; i++){
+    const dx = points[i+1].x - points[i].x, dz = points[i+1].z - points[i].z;
+    headings.push(((THREE.MathUtils.radToDeg(Math.atan2(dx, -dz)) % 360) + 360) % 360);
+  }
+  return { points, durations, headings };
+}
+
+function spawnPatternTraffic(){
+  if (patternTraffic) return;
+  const nr = nearestRunway(STATE.position.x, STATE.position.z);
+  const { points, durations, headings } = buildPatternWaypoints(nr);
+  const cumulative = [0];
+  durations.forEach(d => cumulative.push(cumulative[cumulative.length - 1] + d));
+  const totalDuration = cumulative[cumulative.length - 1];
+
+  const mesh = buildPatternPlane();
+  mesh.position.set(points[0].x, points[0].y, points[0].z);
+  mesh.rotation.y = THREE.MathUtils.degToRad(headings[0]);
+  scene.add(mesh);
+
+  patternTraffic = {
+    mesh, points, durations, headings, cumulative, totalDuration,
+    elapsed: 0, announcedDownwind: false, announcedFinal: false,
+  };
+
+  safeShowAtcExchange({
+    tower: c => `${ATC_CALLSIGN}, be advised, traffic departing runway ${c.rwy}, remaining in the pattern.`,
+    pilot: c => `Looking out for the pattern traffic, ${ATC_CALLSIGN}.`,
+  }, atcContext());
+}
+
+function maybeSpawnPatternTraffic(dt){
+  if (!started || patternTraffic) return;
+  nextPatternCheckIn -= dt;
+  if (nextPatternCheckIn > 0) return;
+  nextPatternCheckIn = 90 + Math.random() * 90; // roughly one full circuit every 1.5-3 minutes after the previous one finishes
+  spawnPatternTraffic();
+}
+
+function updatePatternTraffic(dt){
+  maybeSpawnPatternTraffic(dt);
+  if (!patternTraffic) return;
+  const s = patternTraffic;
+  s.elapsed += dt;
+
+  if (s.elapsed >= s.totalDuration) {
+    s.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    scene.remove(s.mesh);
+    patternTraffic = null;
+    return;
+  }
+
+  let segIdx = 0;
+  while (segIdx < s.durations.length - 1 && s.elapsed >= s.cumulative[segIdx + 1]) segIdx++;
+  const segStart = s.points[segIdx], segEnd = s.points[segIdx + 1];
+  const segDur = s.durations[segIdx];
+  const timeIntoSeg = s.elapsed - s.cumulative[segIdx];
+  const segT = segDur > 0 ? THREE.MathUtils.clamp(timeIntoSeg / segDur, 0, 1) : 1;
+
+  s.mesh.position.set(
+    THREE.MathUtils.lerp(segStart.x, segEnd.x, segT),
+    THREE.MathUtils.lerp(segStart.y, segEnd.y, segT),
+    THREE.MathUtils.lerp(segStart.z, segEnd.z, segT)
+  );
+
+  // Blend heading across corners instead of snapping to each new leg's heading the instant it
+  // starts - same shortestAngleLerp/smoothstep helpers the tow system uses, for the same reason.
+  const thisHeading = s.headings[segIdx];
+  const prevHeading = segIdx > 0 ? s.headings[segIdx - 1] : thisHeading;
+  const turnWindow = 1.5; // seconds into the new leg still spent finishing the turn from the previous one
+  const turnT = THREE.MathUtils.clamp(timeIntoSeg / turnWindow, 0, 1);
+  const heading = shortestAngleLerp(prevHeading, thisHeading, smoothstep(turnT));
+  s.mesh.rotation.y = THREE.MathUtils.degToRad(heading);
+
+  // Radio calls tied to where the traffic actually is in the circuit, so they land at a moment
+  // that matches what's visible rather than firing on a timer disconnected from the plane.
+  if (!s.announcedDownwind && s.elapsed >= s.cumulative[3]) {
+    s.announcedDownwind = true;
+    safeShowAtcExchange({
+      tower: c => `${ATC_CALLSIGN}, traffic is midfield downwind runway ${c.rwy}, no factor.`,
+      pilot: c => `Have them in sight, ${ATC_CALLSIGN}.`,
+    }, atcContext());
+  }
+  if (!s.announcedFinal && s.elapsed >= s.cumulative[5]) {
+    s.announcedFinal = true;
+    safeShowAtcExchange({
+      tower: c => `${ATC_CALLSIGN}, traffic is turning final runway ${c.rwy} ahead of you.`,
+      pilot: c => `Traffic in sight, ${ATC_CALLSIGN}.`,
+    }, atcContext());
+  }
+}
+
+/* =====================================================================
    GROUND TOW - a button that tows the aircraft between the runway/taxiway
    and a parking spot near the hangars, with a small tug leading the way
    on a gently curved path (so the plane visibly turns instead of
@@ -4852,7 +5403,7 @@ function buildShuttleVan(){
 }
 
 function towAvailable(){
-  return !towState && STATE.onGround && STATE.speed < 2;
+  return !towState && !runwayHoldActive && STATE.onGround && STATE.speed < 2;
 }
 
 // Builds one curved segment between two points, with the control point placed so the curve's
@@ -4869,6 +5420,15 @@ function towAvailable(){
 function startTow(){
   if (!towAvailable()) return;
   const nr = nearestRunway(STATE.position.x, STATE.position.z);
+
+  // Only relevant when heading FROM parking TOWARD the runway (isParked here, about to un-park) -
+  // reads as "someone else got there first" rather than a random inconvenience on the way back in.
+  // A flat chance keeps this a background-realism beat rather than something the player has to
+  // plan around every time.
+  if (isParked && Math.random() < 0.35) {
+    beginRunwayHold(nr);
+    return;
+  }
   // Snap the starting Y to the same reliable ground formula everything else uses, rather than
   // trusting whatever STATE.position.y already was - guards against carrying forward any small
   // pre-existing drift into the tow's interpolation.
@@ -5099,6 +5659,8 @@ function animate(){
     updateEngineSound();
     updateBirdFlocks(dt);
     updateDistantPlanes(dt);
+    updateRunwayTraffic(dt);
+    updatePatternTraffic(dt);
     updateDayNightCycle(dt);
     updateAirplaneLights(airplane, dt, DAYNIGHT.elapsed, DAYNIGHT.nightFactor);
     maybeTriggerAtc(dt);
