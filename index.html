@@ -49,18 +49,18 @@
   #start-btn:hover { background:linear-gradient(180deg,#3fa8ea,#1c6f9c); box-shadow:0 0 30px rgba(80,200,255,0.8); transform:scale(1.03); }
   #start-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
 
-  .ac-card, .wx-card {
+  .ac-card, .wx-card, .diff-card {
     background:rgba(10,30,50,0.7); border:1px solid rgba(127,216,255,0.3);
     border-radius:8px; padding:6px 10px; cursor:pointer; font-size:11px;
     color:#9fe9ff; text-align:center; transition:all 0.15s;
     line-height:1.4;
   }
-  .ac-card:hover, .wx-card:hover { border-color:#7fd8ff; background:rgba(20,60,90,0.8); }
-  .ac-card.selected, .wx-card.selected {
+  .ac-card:hover, .wx-card:hover, .diff-card:hover { border-color:#7fd8ff; background:rgba(20,60,90,0.8); }
+  .ac-card.selected, .wx-card.selected, .diff-card.selected {
     border-color:#ffd479; color:#ffd479; background:rgba(40,30,10,0.7);
     box-shadow:0 0 12px rgba(255,212,121,0.4);
   }
-  .ac-card small { color:#5fa8c9; font-size:10px; }
+  .ac-card small, .wx-card small, .diff-card small { color:#5fa8c9; font-size:10px; }
   .cl-item {
     display:flex; align-items:center; gap:8px; margin-bottom:6px;
     cursor:pointer; color:#bfe9ff; font-size:12px;
@@ -234,6 +234,25 @@
   #glide-indicator.high, #align-indicator.off { color:#ffd479; border-color:rgba(255,212,121,0.6); }
   #glide-indicator.low { color:#ff6b5b; border-color:rgba(255,107,91,0.6); }
   #glide-indicator.good, #align-indicator.good { color:#5fffb0; border-color:rgba(95,255,176,0.6); }
+
+  /* --- Visual ILS cross-pointer gauge: a real graphical needle instrument (like a genuine
+     glideslope/localizer indicator) rather than just the text callouts above. The two needles
+     move independently - a full-width horizontal bar for glideslope (up/down = high/low) and a
+     full-height vertical bar for localizer (left/right = off centerline) - crossing near the
+     center dot when the aircraft is exactly on the ideal approach path. Positions are set from
+     JS each frame (see updateHUD); the CSS below only sizes/colors things. */
+  #ils-gauge {
+    position:relative; width:64px; height:64px; border-radius:6px; margin-bottom:2px;
+    background:rgba(5,20,25,0.65); border:1px solid rgba(95,252,255,0.4); overflow:hidden;
+  }
+  #ils-gauge .ils-center-dot {
+    position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
+    border-radius:50%; background:#eafcff; box-shadow:0 0 3px rgba(234,252,255,0.8); z-index:2;
+  }
+  .ils-hneedle, .ils-vneedle { position:absolute; background:#5fffb0; }
+  .ils-hneedle { left:4px; right:4px; height:2px; }
+  .ils-vneedle { top:4px; bottom:4px; width:2px; }
+  .ils-hneedle.off, .ils-vneedle.off { background:#ffd479; }
 
   /* --- Throttle lever gauge --- */
   #throttle-gauge {
@@ -457,6 +476,7 @@
   }
   .touch-btn.small { padding:7px 9px; font-size:9.5px; min-width:38px; }
   #tow-touch-btn.disabled { opacity:0.35; pointer-events:none; }
+  #refuel-touch-btn.disabled { opacity:0.35; pointer-events:none; }
   #speedbrake-touch-btn.pressed, #brakes-touch-btn.pressed { background:rgba(255,159,59,0.4); box-shadow:0 0 14px rgba(255,159,59,0.7); }
 
   @media (hover:hover) and (pointer:fine) {
@@ -616,6 +636,11 @@
 
   <!-- Landing guidance callouts (glide path / alignment, shown on final approach) -->
   <div id="approach-guidance">
+    <div id="ils-gauge">
+      <div class="ils-center-dot"></div>
+      <div id="ils-hneedle" class="ils-hneedle"></div>
+      <div id="ils-vneedle" class="ils-vneedle"></div>
+    </div>
     <div id="glide-indicator"><span id="glide-text">ON GLIDEPATH</span></div>
     <div id="align-indicator"><span id="align-text">ALIGNED</span></div>
   </div>
@@ -711,6 +736,7 @@
     <div class="touch-btn small" id="speedbrake-touch-btn">SPD<br>BRK</div>
     <div class="touch-btn small" id="brakes-touch-btn">WHEEL<br>BRK</div>
     <div class="touch-btn small" id="tow-touch-btn">TOW TO<br>PARKING</div>
+    <div class="touch-btn small" id="refuel-touch-btn" style="display:none;">REFUEL</div>
   </div>
 </div>
 
@@ -729,6 +755,7 @@
   <div class="grp"><b>R</b><span>Reset</span></div>
   <div class="grp"><b>L</b><span>Autoland</span></div>
   <div class="grp"><b>G</b><span>Tow/Park</span></div>
+  <div class="grp"><b>U</b><span>Refuel</span></div>
 </div>
 
 <!-- Start menu -->
@@ -775,9 +802,17 @@
         או החניה כדי לקבל גרירה בין החניה למסלול, כולל רכב גרירה וצוות קרקע גלוי. לחץ R כדי
         לאפס את המטוס אם משהו משתבש.<br><br>
 
+        <b style="color:#ffd479;">דלק.</b> המיכל מתמלא רק פעם אחת, בתחילת המשחק — הוא לא
+        מתמלא לבד באמצע הטיסה. כשחוזרים לחנות, מופיע כפתור "REFUEL" (או מקש U) שקורא למשאית
+        דלק אמיתית שתדלק אתכם תוך כמה שניות.<br><br>
+
         <b style="color:#ffd479;">שיחות הרדיו</b> בין המגדל לטייס (הכתוביות למעלה) הן
         אווירה בלבד — הן מגיבות למה שאתה בפועל עושה (המראה, טיפוס, נחיתה) אבל לעולם לא דורשות
-        ממך תגובה.
+        ממך תגובה.<br><br>
+
+        <b style="color:#ffd479;">מזג אוויר.</b> במצב "קליל" (ברירת המחדל) מזג האוויר הוא
+        עיצוב בלבד ולא משפיע על הטיסה — מושלם למי שרק מתחיל. במצב "ריאליסטי" הרוח בפועל
+        מזיזה את המטוס בצד (בעיקר בגשם/ערפל), בדיוק כמו במציאות — אתגר נחמד לשלב מתקדם יותר.
       </div>
       <div id="howto-body-en" style="margin-top:10px;display:none;">
         <b style="color:#ffd479;">1. Start the engine and taxi out.</b> Throttle up gently
@@ -804,9 +839,19 @@
         G near the runway/ramp to get towed between parking and the runway, complete with a
         visible tow tug and ground crew. Press R to reset the aircraft if things go wrong.<br><br>
 
+        <b style="color:#ffd479;">Fuel.</b> The tank only fills once, at the very start of the
+        session - it doesn't top itself back up mid-flight. Once you're parked, a "REFUEL"
+        button (or the U key) appears and calls in a real fuel truck to fill it back up over a
+        few seconds.<br><br>
+
         <b style="color:#ffd479;">The radio chatter</b> between tower and pilot (subtitles
         near the top of the screen) is atmospheric — it reacts to what you're actually doing
-        (taking off, climbing, landing) but never requires a response from you.
+        (taking off, climbing, landing) but never requires a response from you.<br><br>
+
+        <b style="color:#ffd479;">Weather.</b> In "Easy" mode (the default) weather is purely
+        visual and never affects handling - great for a first flight. In "Realistic" mode, wind
+        actually pushes the aircraft sideways (more so in rain/fog), just like it would for real
+        - a nice next step once takeoffs and landings feel comfortable.
       </div>
     </div>
 
@@ -843,6 +888,18 @@
         <div class="wx-card" data-wx="rain">🌧 Rain</div>
         <div class="wx-card" data-wx="fog">🌫 Fog</div>
         <div class="wx-card" data-wx="night">🌙 Night</div>
+      </div>
+    </div>
+
+    <!-- Weather difficulty - decides whether the weather picked above is just visuals (easy, the
+         historical default - good for kids/first-timers) or actually pushes the aircraft around
+         (realistic - wind drift, gusty bumps in rain/fog). Defaults to easy so nobody is surprised
+         by a mechanic they didn't ask for; switching to realistic is an explicit choice. -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">WEATHER EFFECT ON FLYING</div>
+      <div id="difficulty-picker" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <div class="diff-card selected" data-diff="easy">🙂 קליל / Easy<br><small>weather is just for looks</small></div>
+        <div class="diff-card" data-diff="realistic">💨 ריאליסטי / Realistic<br><small>wind actually pushes you</small></div>
       </div>
     </div>
 
@@ -889,8 +946,25 @@
       <input type="checkbox" id="invert-pitch-check">
       <span>Use game-style pitch instead (W/&#8593; = climb, S/&#8595; = dive)</span>
     </label>
+    <label id="mission-mode-row" style="display:flex;align-items:center;gap:8px;justify-content:center;font-size:12px;color:#9fe9ff;margin:6px 0 12px 0;cursor:pointer;">
+      <input type="checkbox" id="mission-mode-check" style="width:16px;height:16px;accent-color:#3fa8ea;cursor:pointer;">
+      <span>🎯 מצב משימה / Mission Mode — fly cargo/passengers to a random airport, scored on arrival</span>
+    </label>
     <button id="start-btn">START FLIGHT</button>
   </div>
+</div>
+
+<!-- Persistent mission banner - shown only while a mission is active -->
+<div id="mission-banner" style="display:none;position:fixed;top:6px;left:50%;transform:translateX(-50%);
+  font-size:11px;letter-spacing:0.5px;color:#ffd479;background:rgba(20,15,5,0.65);
+  border:1px solid rgba(255,212,121,0.45);border-radius:14px;padding:4px 16px;
+  z-index:15;pointer-events:none;max-width:92vw;text-align:center;white-space:normal;font-family:'Courier New',monospace;"></div>
+
+<!-- Mission complete popup - same visual family as the landing-score popup, shown right after it -->
+<div id="mission-complete" style="display:none;position:fixed;top:42%;left:50%;transform:translateX(-50%);
+  z-index:121;text-align:center;pointer-events:none;font-family:'Courier New',monospace;">
+  <div id="mc-title" style="font-size:22px;letter-spacing:2px;color:#ffd479;">🎉 MISSION COMPLETE</div>
+  <div id="mc-detail" style="font-size:13px;color:#9fe9ff;margin-top:6px;opacity:0.9;"></div>
 </div>
 
 <script>/**
@@ -957,13 +1031,18 @@ let acConfig = AIRCRAFT_CONFIGS[selectedAircraft];
    WEATHER SYSTEM
 ===================================================================== */
 const WEATHER_CONFIGS = {
-  clear:  { fog:0.0018, fogColor:0xbfe3ff, sky:0x8fd0ff, ambient:0.7, sunIntensity:1.2, rain:false, night:false },
-  cloudy: { fog:0.0028, fogColor:0xb8c8d8, sky:0x7a9ab0, ambient:0.55, sunIntensity:0.7, rain:false, night:false },
-  rain:   { fog:0.0045, fogColor:0x8899aa, sky:0x607080, ambient:0.45, sunIntensity:0.4, rain:true,  night:false },
-  fog:    { fog:0.012,  fogColor:0xd8dde0, sky:0xc0c8cc, ambient:0.5,  sunIntensity:0.3, rain:false, night:false },
-  night:  { fog:0.0022, fogColor:0x050a14, sky:0x020610, ambient:0.12, sunIntensity:0.0, rain:false, night:true  },
+  // windSpeed (m/s) and windDir (compass degrees, the direction the wind is blowing FROM - standard
+  // aviation convention) only ever apply in "realistic" difficulty mode (see difficultyMode below) -
+  // in "easy" mode weather stays exactly what it always was here: pure visuals, zero effect on
+  // handling, so a first-time or younger player is never fighting a mechanic they didn't ask for.
+  clear:  { fog:0.0018, fogColor:0xbfe3ff, sky:0x8fd0ff, ambient:0.7, sunIntensity:1.2, rain:false, night:false, windSpeed:1,  windDir:270 },
+  cloudy: { fog:0.0028, fogColor:0xb8c8d8, sky:0x7a9ab0, ambient:0.55, sunIntensity:0.7, rain:false, night:false, windSpeed:4,  windDir:250 },
+  rain:   { fog:0.0045, fogColor:0x8899aa, sky:0x607080, ambient:0.45, sunIntensity:0.4, rain:true,  night:false, windSpeed:8,  windDir:230 },
+  fog:    { fog:0.012,  fogColor:0xd8dde0, sky:0xc0c8cc, ambient:0.5,  sunIntensity:0.3, rain:false, night:false, windSpeed:3,  windDir:260 },
+  night:  { fog:0.0022, fogColor:0x050a14, sky:0x020610, ambient:0.12, sunIntensity:0.0, rain:false, night:true,  windSpeed:2,  windDir:280 },
 };
 let selectedWeather = 'clear';
+let difficultyMode = 'easy'; // 'easy' (weather is purely visual - the historical/default behavior) | 'realistic' (weather actually pushes the aircraft around)
 
 /* =====================================================================
    ATC RADIO CHATTER - short tower/pilot exchanges in real aviation
@@ -1628,6 +1707,16 @@ document.querySelectorAll('.wx-card').forEach(card=>{
   card.addEventListener('touchstart', e=>{ e.preventDefault(); card.click(); },{passive:false});
 });
 
+// Weather-difficulty picker (easy = visuals only, realistic = wind actually affects handling)
+document.querySelectorAll('.diff-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('.diff-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    difficultyMode = card.dataset.diff;
+  });
+  card.addEventListener('touchstart', e=>{ e.preventDefault(); card.click(); },{passive:false});
+});
+
 // Checklist - unlock START only when all items ticked
 const clChecks = document.querySelectorAll('.cl-check');
 const startBtn = document.getElementById('start-btn');
@@ -2086,7 +2175,12 @@ function buildHangar(x,z, rotY){
   hangar.position.y = 0;
   hangar.castShadow = true; hangar.receiveShadow = true;
   g.add(hangar);
-  g.position.set(x, 18 + terrainHeight(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
+  // The half-cylinder geometry above (after the rotateZ) already sits with its bottom edge at
+  // local y=0, not centered on y=0 as you might expect from a plain CylinderGeometry - measuring
+  // its actual bounding box confirms it spans y=[0,18] locally, not y=[-18,+18]. Adding an extra
+  // +18 here (as this used to) shifts an already-grounded shape another 18 units UP, floating the
+  // whole hangar in midair. Just the ground height, like buildTower and every other decoration.
+  g.position.set(x, terrainHeight(x,z), z);
   g.rotation.y = rotY;
   scene.add(g);
 }
@@ -2292,6 +2386,78 @@ function cycleTargetRunway(){
     btn.addEventListener('click', cycleTargetRunway);
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); cycleTargetRunway(); }, { passive:false });
   }
+}
+
+/* =====================================================================
+   MISSION MODE - fly a cargo/passenger delivery to a random other
+   airport. Reuses the target-runway lock above rather than building any
+   new navigation - the existing ADF needle, distance/bearing readout,
+   approach guidance (including the ILS gauge) and autoland all already
+   follow whichever runway is "targeted", so locking it to the mission
+   destination is all the navigation this needs. Landing there (however
+   long it takes, however many other stops in between) completes it.
+===================================================================== */
+let missionActive = false;
+let missionDestination = null;
+let missionCargo = '';
+let missionElapsed = 0;
+let lastImpactVS = 0; // most recent touchdown vertical speed (m/s), used only to flavor the mission-complete message
+const MISSION_CARGO_TYPES = ['a passenger', 'medical supplies', 'the mail', 'spare parts', 'fresh produce'];
+
+function startMission(){
+  const origin = nearestRunway(STATE.position.x, STATE.position.z);
+  const choices = RUNWAYS.filter(r => r !== origin);
+  missionDestination = choices[Math.floor(Math.random() * choices.length)] || RUNWAYS[0];
+  missionCargo = MISSION_CARGO_TYPES[Math.floor(Math.random() * MISSION_CARGO_TYPES.length)];
+  missionElapsed = 0;
+  missionActive = true;
+  selectedTargetRunway = missionDestination;
+  refreshTargetRunwayUI();
+
+  const banner = document.getElementById('mission-banner');
+  if (banner) {
+    banner.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId})`;
+    banner.style.display = 'block';
+  }
+
+  safeShowAtcExchange({
+    tower: c => `${ATC_CALLSIGN}, your mission today: deliver ${missionCargo} to ${missionDestination.name}. Fly safe.`,
+    pilot: c => `Copy, heading for ${missionDestination.name}, ${ATC_CALLSIGN}.`,
+  }, atcContext());
+}
+
+function formatMissionTime(seconds){
+  const m = Math.floor(seconds / 60), s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// Called from the landing-detection code in updatePhysics once touchdown at the mission
+// destination is confirmed. Reuses the same star grading as showLandingScore so the two
+// popups (landing quality, then mission result right below it) read as one consistent scale.
+function showMissionComplete(vsAbs, onRunway){
+  let grade;
+  if (!onRunway) grade = 'delivered, but a rough arrival';
+  else if (vsAbs < 80) grade = 'delivered smoothly - perfect landing!';
+  else if (vsAbs < 200) grade = 'delivered safely - smooth landing';
+  else if (vsAbs < 400) grade = 'delivered - acceptable landing';
+  else grade = 'delivered, but a hard landing';
+
+  const el = document.getElementById('mission-complete');
+  const detailEl = document.getElementById('mc-detail');
+  if (detailEl) detailEl.textContent = `${missionCargo} ${grade} at ${missionDestination.name} \u2022 time ${formatMissionTime(missionElapsed)}`;
+  if (el) { el.style.display = 'block'; el.style.opacity = '1'; setTimeout(() => { el.style.transition = 'opacity 1s ease'; el.style.opacity = '0'; }, 3500); setTimeout(() => { el.style.display = 'none'; el.style.transition = 'none'; }, 4500); }
+
+  safeShowAtcExchange({
+    tower: c => `${ATC_CALLSIGN}, welcome to ${missionDestination.name}, mission complete, nice work.`,
+    pilot: c => `Thanks for the help, ${ATC_CALLSIGN}.`,
+  }, atcContext());
+
+  const banner = document.getElementById('mission-banner');
+  if (banner) banner.style.display = 'none';
+  missionActive = false;
+  missionDestination = null;
+  selectedTargetRunway = null; // back to automatic/nearest navigation
+  refreshTargetRunwayUI();
 }
 
 (function initMinimap(){
@@ -3129,6 +3295,7 @@ window.addEventListener('keydown', (e)=>{
   // Parking brake toggle
   if (e.code === 'KeyP') setParkingBrake(!STATE.parkingBrake);
   if (e.code === 'KeyG') startTow(); // tow to/from parking, same as the touch TOW button
+  if (e.code === 'KeyU') startRefuel(); // refuel while parked, same as the touch REFUEL button
 });
 
 const MAX_FLAPS = 3;
@@ -3373,6 +3540,7 @@ bindTapButton('speedbrake-touch-btn', ()=>{
 });
 bindHoldButton('brakes-touch-btn', ()=>touchInput.wheelBrakes=true, ()=>touchInput.wheelBrakes=false);
 bindTapButton('tow-touch-btn', ()=> startTow());
+bindTapButton('refuel-touch-btn', ()=> startRefuel());
 
 const throttleFill = document.getElementById('throttle-bar-fill');
 
@@ -3880,6 +4048,9 @@ document.getElementById('start-btn').addEventListener('click', () => {
   initAudio(); // must happen on a user gesture (this click) for autoplay policies
   started = true;
   clock.start();
+
+  const missionCheck = document.getElementById('mission-mode-check');
+  if (missionCheck && missionCheck.checked) startMission();
 });
 
 document.getElementById('audio-toggle-btn').addEventListener('click', () => {
@@ -4416,6 +4587,34 @@ function updatePhysics(dt){
   // what you see the aircraft do.
   STATE.speed = STATE.velocity.length();
 
+  // ---- Weather effect on the flight path (realistic mode only) ----
+  // In "easy" mode (the default), weather stays exactly as it always was: purely visual, this
+  // block does nothing. In "realistic" mode, the selected weather's wind actually drifts the
+  // aircraft's ground track, the same way a real crosswind does - applied to POSITION only, never
+  // to STATE.velocity/STATE.speed, since the airspeed gauge should read speed through the air,
+  // not ground speed. Noticeable but gentle: a drift to notice and correct for, not something
+  // that fights the controls or shakes the plane around.
+  if (difficultyMode === 'realistic') {
+    const wxCfg = WEATHER_CONFIGS[selectedWeather] || WEATHER_CONFIGS.clear;
+    const windTowardRad = THREE.MathUtils.degToRad(wxCfg.windDir + 180); // wind blows FROM windDir, i.e. TOWARD windDir+180
+    const windX = Math.sin(windTowardRad) * wxCfg.windSpeed;
+    const windZ = -Math.cos(windTowardRad) * wxCfg.windSpeed;
+    // A little wandering gust on top of the steady wind in rain/fog, built from smooth
+    // irrational-ratio sine waves rather than per-frame randomness, so it reads as "gusty air"
+    // instead of visual jitter.
+    const gustAmp = (wxCfg.rain || wxCfg.fog) ? wxCfg.windSpeed * 0.35 : 0;
+    const gustX = Math.sin(DAYNIGHT.elapsed * 0.37) * gustAmp;
+    const gustZ = Math.cos(DAYNIGHT.elapsed * 0.53) * gustAmp;
+    // On the ground, tires/friction resist the drift a lot more than in the air does - scale it
+    // down rather than turning it off entirely, so a crosswind landing still drifts you off the
+    // centerline a little (the classic real-world case this feature is for) without the plane
+    // sliding around while parked or under tow (tow overwrites position after this anyway, so
+    // this never fights that system regardless).
+    const groundDamping = STATE.onGround ? 0.25 : 1.0;
+    STATE.position.x += (windX + gustX) * groundDamping * dt;
+    STATE.position.z += (windZ + gustZ) * groundDamping * dt;
+  }
+
   // ---- Position integration ----
   STATE.position.addScaledVector(STATE.velocity, dt); // in-place - was STATE.velocity.clone().multiplyScalar(dt), one more per-frame allocation removed
 
@@ -4510,6 +4709,7 @@ function updatePhysics(dt){
     // this point they still hold last frame's numbers, not the actual impact that just happened.
     showLandingScore(impactVerticalSpeed, impactSpeed, onRunway);
     if(onRunway) spawnSmoke(isMobileDevice ? 12 : 28);
+    lastImpactVS = impactVerticalSpeed; // remembered for the mission-arrival check below, which (on purpose) isn't tied to this exact instant
   }
   prevOnGround = STATE.onGround;
 
@@ -4719,6 +4919,8 @@ const glideIndicator = document.getElementById('glide-indicator');
 const glideText = document.getElementById('glide-text');
 const alignIndicator = document.getElementById('align-indicator');
 const alignText = document.getElementById('align-text');
+const ilsHNeedle = document.getElementById('ils-hneedle');
+const ilsVNeedle = document.getElementById('ils-vneedle');
 const autolandDebugEl = document.getElementById('autoland-debug'); // was looked up via getElementById inside updateHUD every single frame; cached here like every other HUD element above
 
 // Build the analog gauge faces once
@@ -4839,6 +5041,22 @@ function updateHUD(dt){
     alignIndicator.className = '';
     if (headingDiff < 8) { alignText.textContent = 'ALIGNED'; alignIndicator.classList.add('good'); }
     else { alignText.textContent = 'TURN TO RUNWAY HDG'; alignIndicator.classList.add('off'); }
+
+    // ---- Visual ILS cross-pointer gauge: a real graphical needle instrument on top of the text
+    // callouts above, same underlying numbers (altDiff for glideslope, navLoc.across - the actual
+    // lateral distance from the extended runway centerline - for localizer). Classic "fly toward
+    // the needle" convention: too high -> the glidepath is below you, so the horizontal needle
+    // sits below center; right of centerline -> the course is to your left, so the vertical
+    // needle sits left of center.
+    const maxGlideDeflectM = 60; // altDiff beyond this pins the needle at full deflection
+    const maxLocDeflectM = 50;   // lateral 'across' beyond this pins the needle at full deflection
+    const gaugeHalf = 26;        // px - how far a needle can travel from dead-center inside the 64px box
+    const glideOffsetPx = THREE.MathUtils.clamp(altDiff / maxGlideDeflectM, -1, 1) * gaugeHalf;
+    const locOffsetPx = THREE.MathUtils.clamp(navLoc.across / maxLocDeflectM, -1, 1) * gaugeHalf;
+    ilsHNeedle.style.top = (32 + glideOffsetPx - 1) + 'px';
+    ilsVNeedle.style.left = (32 - locOffsetPx - 1) + 'px';
+    ilsHNeedle.classList.toggle('off', Math.abs(altDiff) > 25);
+    ilsVNeedle.classList.toggle('off', Math.abs(navLoc.across) > 15);
   }
 
   // ---- Throttle lever ----
@@ -5222,9 +5440,22 @@ function buildPatternWaypoints(nr){
   return { points, durations, headings };
 }
 
-function spawnPatternTraffic(){
+// True if the player's own aircraft is currently sitting on (or lined up on) the given runway -
+// used to make sure the ambient pattern traffic below never spawns a departure into/through it.
+function isPlayerOnRunway(nr){
+  const h = nr.heading || 0;
+  const sinH = Math.sin(h), cosH = Math.cos(h);
+  const dx = STATE.position.x - nr.cx, dz = STATE.position.z - nr.cz;
+  const along = dx*sinH + dz*cosH;   // inverse of runwayLocalToWorld's forward transform
+  const across = dx*cosH - dz*sinH;
+  const halfL = runwayLength / 2;
+  const margin = 60; // generous - also catches "lined up just short of the threshold" and rollout past the far end
+  return Math.abs(across) < (runwayWidth/2 + margin) && along > -halfL - margin && along < halfL + margin;
+}
+
+function spawnPatternTraffic(nr){
   if (patternTraffic) return;
-  const nr = nearestRunway(STATE.position.x, STATE.position.z);
+  nr = nr || nearestRunway(STATE.position.x, STATE.position.z);
   const { points, durations, headings } = buildPatternWaypoints(nr);
   const cumulative = [0];
   durations.forEach(d => cumulative.push(cumulative[cumulative.length - 1] + d));
@@ -5250,8 +5481,16 @@ function maybeSpawnPatternTraffic(dt){
   if (!started || patternTraffic) return;
   nextPatternCheckIn -= dt;
   if (nextPatternCheckIn > 0) return;
+  const nr = nearestRunway(STATE.position.x, STATE.position.z);
+  if (isPlayerOnRunway(nr)) {
+    // The player's own aircraft is sitting on (or lined up on) this exact runway right now - never
+    // spawn a departure into/through it. Check again soon instead of waiting out the full
+    // interval, so the feature still shows up promptly once the runway is actually clear.
+    nextPatternCheckIn = 8 + Math.random() * 8;
+    return;
+  }
   nextPatternCheckIn = 90 + Math.random() * 90; // roughly one full circuit every 1.5-3 minutes after the previous one finishes
-  spawnPatternTraffic();
+  spawnPatternTraffic(nr);
 }
 
 function updatePatternTraffic(dt){
@@ -5259,6 +5498,20 @@ function updatePatternTraffic(dt){
   if (!patternTraffic) return;
   const s = patternTraffic;
   s.elapsed += dt;
+
+  // Extra safety net on top of the pre-spawn check above: if the player's own aircraft ends up
+  // on the runway while this traffic is still on its takeoff roll / low climb-out (e.g. they taxi
+  // onto it mid-departure, or land and don't clear it in time), pull the traffic plane out of the
+  // scene immediately rather than let two aircraft occupy the same runway at once.
+  if (s.elapsed < s.cumulative[2]) { // still within the takeoff-roll/climb-out legs
+    const dx = STATE.position.x - s.mesh.position.x, dz = STATE.position.z - s.mesh.position.z;
+    if (Math.hypot(dx, dz) < 60 && STATE.onGround) {
+      s.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      scene.remove(s.mesh);
+      patternTraffic = null;
+      return;
+    }
+  }
 
   if (s.elapsed >= s.totalDuration) {
     s.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
@@ -5400,6 +5653,94 @@ function buildShuttleVan(){
     g.add(wheel);
   });
   return g;
+}
+
+function buildFuelTruck(){
+  const g = new THREE.Group();
+  const cabMat = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness:0.5 });
+  const tankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness:0.4 });
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness:0.5 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.5, 1.6), cabMat);
+  cab.position.set(0, 0.85, 2.6);
+  g.add(cab);
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.6, 14), tankMat);
+  tank.rotation.z = Math.PI / 2;
+  tank.position.set(0, 1.0, -0.2);
+  g.add(tank);
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.4, 14), stripeMat);
+  stripe.rotation.z = Math.PI / 2;
+  stripe.position.set(0, 1.0, -0.2);
+  g.add(stripe);
+  const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.32, 10);
+  wheelGeo.rotateZ(Math.PI / 2);
+  [[-0.95, 1.9], [0.95, 1.9], [-0.95, -1.6], [0.95, -1.6]].forEach(([x, z]) => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(x, 0.38, z);
+    g.add(wheel);
+  });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/* =====================================================================
+   REFUELING - fuel no longer refills itself mid-session (see STATE.fuel
+   above; it only starts full once, at the very first START press). This
+   is the intended way to top back up: park, then tap REFUEL. A visible
+   fuel truck rolls up next to the aircraft for the duration, same visual
+   language as the tow tug/shuttle van.
+===================================================================== */
+let refueling = false;
+let fuelTruck = null;
+
+function refuelAvailable(){
+  return isParked && !towState && !refueling && STATE.onGround && STATE.speed < 2 &&
+    STATE.fuel < 99.5 && (!acConfig || acConfig.hasFuel);
+}
+
+function startRefuel(){
+  if (!refuelAvailable()) return;
+  refueling = true;
+  fuelTruck = buildFuelTruck();
+  // Parks off the wingtip (perpendicular to the aircraft's own heading), close enough to clearly
+  // read as "servicing this aircraft" rather than just another background vehicle.
+  const sideRad = THREE.MathUtils.degToRad(STATE.heading + 90);
+  const tx = STATE.position.x + Math.sin(sideRad) * 6;
+  const tz = STATE.position.z - Math.cos(sideRad) * 6;
+  fuelTruck.position.set(tx, terrainHeight(tx, tz), tz);
+  fuelTruck.rotation.y = THREE.MathUtils.degToRad(STATE.heading + 180); // facing back toward the aircraft
+  scene.add(fuelTruck);
+}
+
+function updateRefuel(dt){
+  if (!refueling) return;
+  const fillRate = 100 / 14; // full tank in about 14 seconds - enough to feel real without being tedious
+  STATE.fuel = Math.min(100, STATE.fuel + fillRate * dt);
+  // Stops cleanly if the tank fills, or if the player starts taxiing/gets towed away mid-fill -
+  // never leaves a phantom truck stuck to a moving aircraft.
+  if (STATE.fuel >= 100 || STATE.speed >= 2 || towState || !isParked) {
+    refueling = false;
+    if (fuelTruck) {
+      fuelTruck.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      scene.remove(fuelTruck);
+      fuelTruck = null;
+    }
+  }
+}
+
+let lastRefuelButtonState = '';
+function updateRefuelButtonUI(){
+  const btn = document.getElementById('refuel-touch-btn');
+  if (!btn) return;
+  const relevant = isParked && !towState && STATE.onGround && STATE.speed < 2 && (!acConfig || acConfig.hasFuel);
+  const show = relevant && (STATE.fuel < 99.5 || refueling);
+  const label = refueling ? `\u26FD ${Math.round(STATE.fuel)}%` : 'REFUEL';
+  const key = show + '|' + label;
+  if (key === lastRefuelButtonState) return; // avoid needless DOM writes every frame
+  lastRefuelButtonState = key;
+  btn.style.display = show ? '' : 'none';
+  btn.innerHTML = label;
+  btn.classList.toggle('disabled', !refuelAvailable() && !refueling);
 }
 
 function towAvailable(){
@@ -5655,6 +5996,8 @@ function animate(){
     updatePhysics(dt);
     updateTow(dt); // overrides position/heading while a tow animation is running - after physics so it always wins
     updateTowButtonUI();
+    updateRefuel(dt);
+    updateRefuelButtonUI();
     updateHUD(dt);
     updateEngineSound();
     updateBirdFlocks(dt);
@@ -5664,6 +6007,22 @@ function animate(){
     updateDayNightCycle(dt);
     updateAirplaneLights(airplane, dt, DAYNIGHT.elapsed, DAYNIGHT.nightFactor);
     maybeTriggerAtc(dt);
+    if (missionActive) {
+      missionElapsed += dt;
+      const banner = document.getElementById('mission-banner');
+      if (banner) banner.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId}) \u2022 ${formatMissionTime(missionElapsed)}`;
+      // Arrival check - deliberately forgiving: fires whenever the aircraft has come to a stop or
+      // is rolling slowly anywhere within the destination airport's grounds (a generous radius
+      // around the airport center, not a strict on-pavement rectangle checked only on the exact
+      // touchdown frame). That stricter version was the bug - a landing that ran a little long,
+      // drifted a bit off centerline, or was still rolling fast at the instant of touchdown could
+      // all miss it entirely. Checking every frame for "stopped near the destination" instead
+      // means however the arrival actually happens, the mission still completes.
+      if (STATE.onGround && STATE.speed < 3) {
+        const distToDest = Math.hypot(STATE.position.x - missionDestination.cx, STATE.position.z - missionDestination.cz);
+        if (distToDest < 400) showMissionComplete(Math.abs(lastImpactVS * 196.85), true);
+      }
+    }
   }
   updateCamera(dt || 0.016);
   skyDome.position.copy(camera.position); // keep the sky dome centered on the camera - reads as infinitely far away
