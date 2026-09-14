@@ -1821,11 +1821,32 @@ function pseudoNoise(x, z, seed) {
 // (see the per-airport biome tinting further down) so the three are genuinely easy to tell
 // apart, both from the air and by the terrain around each approach - not just three copies
 // of the same strip pointing the same way.
+// Base/fallback runway dimensions - individual airports below can override either one to create
+// real variety (a short narrow strip vs. a long wide one), via the rwLen()/rwWid() helpers just
+// below. Declared here (before RUNWAYS and before the ground mesh is built) rather than down by
+// buildRunwayAt where they used to live, because terrainHeight() - called synchronously while
+// building the ground mesh, further down this same script - already needs rwLen() for its per-
+// runway flattening math; declaring these after that point would be a temporal-dead-zone error.
+const runwayLength = 1800;
+const runwayWidth = 80;
+
 const RUNWAYS = [
-  { cx: 0,     cz: 0,    rwyId: '09', heading: 0,                 biome: 'grass',  name: 'Meadowbrook' }, // home airport - unchanged orientation
-  { cx: 3400,  cz: 0,    rwyId: '27', heading: Math.PI * 0.33,    biome: 'desert', name: 'Sandridge'   }, // second airport, east - angled, arid landscape
-  { cx: -3400, cz: 0,    rwyId: '18', heading: -Math.PI * 0.42,   biome: 'autumn', name: 'Amberfall'   }, // third airport, west - differently angled, warm/autumn landscape
+  { cx: 0,     cz: 0,    rwyId: '09', heading: 0,                 biome: 'grass',  name: 'Meadowbrook', length: 1800, width: 80,
+    buildings: { hangars: 2, tower: true,  sheds: 0, parked: 4 } }, // home airport - unchanged size and building set
+  { cx: 3400,  cz: 0,    rwyId: '27', heading: Math.PI * 0.33,    biome: 'desert', name: 'Sandridge',   length: 1300, width: 55,
+    buildings: { hangars: 1, tower: false, sheds: 2, parked: 2 } }, // second airport, east - small regional strip: one hangar, no tower, a couple of sheds instead, fewer aircraft parked
+  { cx: -3400, cz: 0,    rwyId: '18', heading: -Math.PI * 0.42,   biome: 'autumn', name: 'Amberfall',   length: 2200, width: 100,
+    buildings: { hangars: 3, tower: true,  sheds: 1, parked: 6 } }, // third airport, west - bigger/busier field: extra hangar, a shed, and more aircraft parked
 ];
+
+// Every runway consumer below reads length/width through these two helpers instead of the bare
+// runwayLength/runwayWidth constants, so each airport's own size (set above) actually takes
+// effect everywhere - the flatten corridor, the pavement mesh, parking/ready spots, the traffic
+// pattern circuit, and the on-runway checks. Falls back to the base constants for any runway
+// object that doesn't specify its own (there shouldn't be any, but this keeps old callers safe).
+function rwLen(r){ return (r && r.length) || runwayLength; }
+function rwWid(r){ return (r && r.width) || runwayWidth; }
+
 
 // A runway's local frame: +along runs down the runway's length in the direction `heading`
 // points (heading is measured the same way THREE.js Object3D.rotation.y works, so the two
@@ -1861,7 +1882,6 @@ function nearestRunway(x, z) {
 function terrainHeight(x, z) {
   const runwayHalfWidth = 300;   // lateral half-width of flat zone (wider = more forgiving)
   const approachLength = 1200;   // flat corridor beyond each runway end (m)
-  const runwayHalfLen  = 900;    // half of runwayLength (1800m)
   const fadeWidth  = 200;        // lateral taper width
   const fadeLength = 500;        // longitudinal taper at corridor end
 
@@ -1870,6 +1890,7 @@ function terrainHeight(x, z) {
     const loc = worldToRunwayLocal(r, x, z);
     const dx = Math.abs(loc.across);
     const dz = Math.abs(loc.along);
+    const runwayHalfLen = rwLen(r) / 2; // this runway's own length, not a fixed shared one
 
     // Inside the full corridor (runway + approach on both ends)?
     const inCorridor = dx < runwayHalfWidth + fadeWidth &&
@@ -2046,13 +2067,13 @@ scene.add(water);
    make touchdown more forgiving for younger/newer players.
 ===================================================================== */
 const runwayGroups = [];
-const runwayLength = 1800;
-const runwayWidth = 80;
 const dashMat = new THREE.MeshBasicMaterial({ color:0xffffff });
 const lightMat = new THREE.MeshBasicMaterial({ color:0xffcc55 });
 const edgeLightMat = new THREE.MeshBasicMaterial({ color:0xffffff });
 
-function buildRunwayAt(cx, cz, heading){
+function buildRunwayAt(r){
+  const cx = r.cx, cz = r.cz, heading = r.heading;
+  const runwayLength = rwLen(r), runwayWidth = rwWid(r); // shadow the module-level fallbacks with THIS runway's own size
   const runwayGroup = new THREE.Group();
   const runwayGeo = new THREE.PlaneGeometry(runwayWidth, runwayLength);
   runwayGeo.rotateX(-Math.PI/2);
@@ -2185,6 +2206,27 @@ function buildHangar(x,z, rotY){
   scene.add(g);
 }
 
+// A small utility building - visually distinct from the hangar (boxy/flat-roofed instead of a
+// curved quonset arch) and from buildHouse (plainer, single dull color, no neighborhood styling),
+// so airports that get sheds instead of hangars actually read as a different kind of place rather
+// than "the same airport with fewer buildings".
+function buildShed(x, z, rotY){
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8a8f78, roughness: 0.85 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x5a5f4f, roughness: 0.9 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 5), bodyMat);
+  body.position.y = 2;
+  body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.3, 5.6), roofMat);
+  roof.position.y = 4.15;
+  roof.castShadow = true;
+  g.add(roof);
+  g.position.set(x, terrainHeight(x,z), z);
+  g.rotation.y = rotY || 0;
+  scene.add(g);
+}
+
 // A small, static decorative aircraft for the parking ramp - purely scenery (never moves, never
 // touched again after being added to the scene), so it's built with plain box/cone geometry in
 // the same low-poly style as the rest of the airport rather than sharing a mesh with anything
@@ -2292,25 +2334,42 @@ function buildHouse(x,z){
 const treeCountPerAirport = Math.round((isMobileDevice ? 60 : 140) / RUNWAYS.length);
 const houseCountPerAirport = Math.round((isMobileDevice ? 16 : 32) / RUNWAYS.length);
 RUNWAYS.forEach((r, idx)=>{
-  buildRunwayAt(r.cx, r.cz, r.heading);
+  buildRunwayAt(r);
 
-  const towerPos = runwayLocalToWorld(r, -400, 140);
-  buildTower(towerPos.x, towerPos.z);
-  const hangar1Pos = runwayLocalToWorld(r, -250, 150);
-  buildHangar(hangar1Pos.x, hangar1Pos.z, r.heading || 0);
-  const hangar2Pos = runwayLocalToWorld(r, -180, 150);
-  buildHangar(hangar2Pos.x, hangar2Pos.z, r.heading || 0);
+  // Building positions below were authored for a 1800m reference runway - scaling them by this
+  // airport's own length/1800 keeps the layout (tower behind and to the side, hangars along the
+  // ramp) proportionally in the same place on a shorter or longer field instead of bunching up or
+  // spreading out oddly.
+  const scale = rwLen(r) / 1800;
+  const bld = r.buildings || { hangars: 2, tower: true, sheds: 0, parked: 4 };
+
+  if (bld.tower) {
+    const towerPos = runwayLocalToWorld(r, -400*scale, 140);
+    buildTower(towerPos.x, towerPos.z);
+  }
+  for (let i=0; i<bld.hangars; i++){
+    const hangarPos = runwayLocalToWorld(r, (-250 + i*70)*scale, 150);
+    buildHangar(hangarPos.x, hangarPos.z, r.heading || 0);
+  }
+  for (let i=0; i<bld.sheds; i++){
+    const shedPos = runwayLocalToWorld(r, (-220 + i*60)*scale, 115);
+    buildShed(shedPos.x, shedPos.z, r.heading || 0);
+  }
 
   // A handful of static parked aircraft scattered around the ramp, near the taxiway side so
   // they stay well clear of the player's own parking spot (across=100) and the hangars
   // (across=150) - just background life at the airport, never touched again after being placed.
-  const parkedPlaneColors = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff];
-  const parkedPlaneSpots = [
-    { along: -292, across: 45, yaw: 8 },
-    { along: -256, across: 42, yaw: -12 },
-    { along: -176, across: 46, yaw: 5 },
-    { along: -138, across: 40, yaw: -6 },
-  ];
+  // Count varies per airport (see bld.parked above); positions are generated rather than a fixed
+  // list so any count works, spread along the ramp and scaled the same way the buildings are.
+  const parkedPlaneColors = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff, 0x8a5fd9, 0x5fd98a];
+  const parkedPlaneSpots = [];
+  for (let i = 0; i < (bld.parked || 0); i++){
+    parkedPlaneSpots.push({
+      along: (-292 + i*36) * scale,
+      across: 40 + (i % 2) * 5,
+      yaw: (i % 2 === 0 ? 1 : -1) * (6 + (i % 3) * 3),
+    });
+  }
   parkedPlaneSpots.forEach((spot, i) => {
     const pw = runwayLocalToWorld(r, spot.along, spot.across);
     const deco = buildParkedPlane(parkedPlaneColors[i % parkedPlaneColors.length]);
@@ -2327,15 +2386,15 @@ RUNWAYS.forEach((r, idx)=>{
   const treesHere = Math.round(treeCountPerAirport * treeDensity);
   for (let i=0;i<treesHere;i++){
     const side = Math.random()<0.5?-1:1;
-    const across = side*(runwayWidth/2 + 40 + Math.random()*260);
-    const along = (Math.random()-0.5)*runwayLength*1.4;
+    const across = side*(rwWid(r)/2 + 40 + Math.random()*260);
+    const along = (Math.random()-0.5)*rwLen(r)*1.4;
     const p = runwayLocalToWorld(r, along, across);
     buildTree(p.x, p.z, r.biome);
   }
   for (let i=0;i<houseCountPerAirport;i++){
     const side = Math.random()<0.5?-1:1;
-    const across = side*(runwayWidth/2 + 320 + Math.random()*500);
-    const along = (Math.random()-0.5)*runwayLength*1.6;
+    const across = side*(rwWid(r)/2 + 320 + Math.random()*500);
+    const along = (Math.random()-0.5)*rwLen(r)*1.6;
     const p = runwayLocalToWorld(r, along, across);
     buildHouse(p.x, p.z);
   }
@@ -3339,7 +3398,7 @@ function setAutoland(on){
     const nr = getTargetRunway();
     STATE.autolandRunway = nr; // heading-aware: all further math works in this runway's own local frame
     const loc = worldToRunwayLocal(nr, STATE.position.x, STATE.position.z);
-    const thresholdA = -runwayLength/2, thresholdB = runwayLength/2; // local "along" coordinates
+    const thresholdA = -rwLen(nr)/2, thresholdB = rwLen(nr)/2; // local "along" coordinates
     const distA = Math.abs(loc.along - thresholdA);
     const distB = Math.abs(loc.along - thresholdB);
     STATE.autolandThresholdAlong = distA < distB ? thresholdA : thresholdB;
@@ -4411,7 +4470,7 @@ function updatePhysics(dt){
   // every single frame, which is what was causing the "Script error" on mobile.
   const onRunway = RUNWAYS.some(r => {
     const loc = worldToRunwayLocal(r, STATE.position.x, STATE.position.z);
-    return Math.abs(loc.across) < runwayWidth/2 && Math.abs(loc.along) < runwayLength/2;
+    return Math.abs(loc.across) < rwWid(r)/2 && Math.abs(loc.along) < rwLen(r)/2;
   });
   // Fades smoothly to 0 between 8m and 2m above the ground, instead of a hard on/off switch at
   // 8m - a binary cutoff meant the plane's lift could visibly snap the instant it crossed that
@@ -5003,8 +5062,8 @@ function updateHUD(dt){
   // always points to where you should fly, not sideways to the midpoint.
   const navRwy = getTargetRunway();
   const navLoc = worldToRunwayLocal(navRwy, STATE.position.x, STATE.position.z);
-  const nearThreshAlong = Math.abs(navLoc.along - (-runwayLength/2)) < Math.abs(navLoc.along - (runwayLength/2))
-    ? -runwayLength/2 : runwayLength/2;
+  const nearThreshAlong = Math.abs(navLoc.along - (-rwLen(navRwy)/2)) < Math.abs(navLoc.along - (rwLen(navRwy)/2))
+    ? -rwLen(navRwy)/2 : rwLen(navRwy)/2;
   const nearThreshWorld = runwayLocalToWorld(navRwy, nearThreshAlong, 0);
 
   const dxRwy = nearThreshWorld.x - STATE.position.x;
@@ -5325,7 +5384,7 @@ function spawnRunwayTraffic(nr){
   const heading = computeReadySpot(nr).heading;
   const headingRad = THREE.MathUtils.degToRad(heading);
   const dir = new THREE.Vector3(Math.sin(headingRad), 0, -Math.cos(headingRad));
-  const startWorld = runwayLocalToWorld(nr, -runwayLength/2 + 80, 0); // starts its roll just past the near threshold
+  const startWorld = runwayLocalToWorld(nr, -rwLen(nr)/2 + 80, 0); // starts its roll just past the near threshold
   plane.position.set(startWorld.x, terrainHeight(startWorld.x, startWorld.z) + 2, startWorld.z);
   plane.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
   scene.add(plane);
@@ -5412,7 +5471,7 @@ function buildPatternPlane(){
 // downwind leg (flown opposite direction, offset to one side); 4-5 the base turn; 5-6 final
 // approach; 6-7 touchdown; 7-8 the landing rollout.
 function buildPatternWaypoints(nr){
-  const halfL = runwayLength / 2;
+  const halfL = rwLen(nr) / 2;
   const patternAlt = 110;
   const acrossOffset = -380; // opposite side from the parking ramp (which sits at positive across), so the circuit clears the buildings
   const local = [
@@ -5448,9 +5507,9 @@ function isPlayerOnRunway(nr){
   const dx = STATE.position.x - nr.cx, dz = STATE.position.z - nr.cz;
   const along = dx*sinH + dz*cosH;   // inverse of runwayLocalToWorld's forward transform
   const across = dx*cosH - dz*sinH;
-  const halfL = runwayLength / 2;
+  const halfL = rwLen(nr) / 2;
   const margin = 60; // generous - also catches "lined up just short of the threshold" and rollout past the far end
-  return Math.abs(across) < (runwayWidth/2 + margin) && along > -halfL - margin && along < halfL + margin;
+  return Math.abs(across) < (rwWid(nr)/2 + margin) && along > -halfL - margin && along < halfL + margin;
 }
 
 function spawnPatternTraffic(nr){
@@ -5598,9 +5657,9 @@ function computeReadySpot(nr){
   // paint and made it hard to tell there was actually a long stretch of runway ahead), and
   // dead center (across=0) rather than off to the side on the grass. Facing further down the
   // runway (increasing "along"), ready to roll for takeoff.
-  const spotWorld = runwayLocalToWorld(nr, -runwayLength/2 + 150, 0);
+  const spotWorld = runwayLocalToWorld(nr, -rwLen(nr)/2 + 150, 0);
   const y = terrainHeight(spotWorld.x, spotWorld.z) + GEAR_OFFSET; // matches what updatePhysics considers "on the ground"
-  const aheadWorld = runwayLocalToWorld(nr, -runwayLength/2 + 450, 0);
+  const aheadWorld = runwayLocalToWorld(nr, -rwLen(nr)/2 + 450, 0);
   const dx = aheadWorld.x - spotWorld.x, dz = aheadWorld.z - spotWorld.z;
   const heading = ((THREE.MathUtils.radToDeg(Math.atan2(dx, -dz)) % 360) + 360) % 360;
   return { x: spotWorld.x, y, z: spotWorld.z, heading };
