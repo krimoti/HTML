@@ -1745,12 +1745,33 @@ scene.background = new THREE.Color(0x8fd0ff);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.5, 20000);
 
-// Detect low-power / mobile devices so we can dial down GPU-heavy settings.
-// Phone GPUs (especially in an embedded webview) can silently lose the WebGL
-// context if asked for large shadow maps + high segment counts + high pixel
-// ratio all at once - the scene then renders as nothing but the clear color.
-const isMobileDevice = (('ontouchstart' in window) || navigator.maxTouchPoints > 0) &&
+// Detect low-power setups so we can dial down GPU-heavy settings (shadows, antialiasing, mesh
+// density). This used to only check for "phone-like" (touch + small screen), which silently
+// assumed every non-touch/desktop browser has a capable GPU - in practice, plenty of desktops and
+// laptops run modest integrated graphics (or software rendering in a VM/remote session) that choke
+// far harder on this scene's shadow maps and full-resolution antialiasing than a modern phone's
+// GPU does. This is exactly backwards from what actually helps: it disabled the expensive stuff on
+// phones (which usually run this scene fine) while leaving it all on for desktop, where a weak
+// GPU makes it stutter badly. So this now also weighs core count and total pixel count (fill-rate
+// cost scales with pixel count independent of GPU tier), plus the actual GPU renderer string where
+// the browser exposes it.
+const isTouchSmallScreen = (('ontouchstart' in window) || navigator.maxTouchPoints > 0) &&
   Math.min(window.innerWidth, window.innerHeight) < 900;
+const isLowCoreCount = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+const totalDevicePixels = window.innerWidth * window.innerHeight * (window.devicePixelRatio || 1);
+const isLargeViewport = totalDevicePixels > 3000000; // a big desktop window / high-DPI display - expensive to shade regardless of GPU
+let isKnownWeakRenderer = false;
+try {
+  const probeCanvas = document.createElement('canvas');
+  const probeGl = probeCanvas.getContext('webgl') || probeCanvas.getContext('experimental-webgl');
+  const dbgInfo = probeGl && probeGl.getExtension('WEBGL_debug_renderer_info');
+  if (dbgInfo) {
+    const rendererStr = (probeGl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+    isKnownWeakRenderer = /swiftshader|llvmpipe|software|microsoft basic render|d3d11 warp/.test(rendererStr);
+  }
+} catch (e) { /* renderer info not exposed by this browser - fall back to the other signals below */ }
+const useLowGraphicsSettings = isTouchSmallScreen || isKnownWeakRenderer || (isLowCoreCount && isLargeViewport);
+const isMobileDevice = useLowGraphicsSettings; // kept as an alias - every existing use below is actually a graphics-quality check, not a touch/input check
 
 const renderer = new THREE.WebGLRenderer({
   antialias: !isMobileDevice,
@@ -2628,18 +2649,21 @@ function buildAirplane(type){
     }
     plane.add(buildJetWingHalf(-1), buildJetWingHalf(1));
 
-    // Twin tail-mounted engine pods
+    // Twin tail-mounted engine pods - pushed further out and slightly higher/aft than the first
+    // pass, which had them sitting so close to the fuselage centerline that from directly behind
+    // (the default chase view) they visually fused into the body instead of reading as two
+    // distinct pods flanking the tail.
     function buildEnginePod(sign){
       const g = new THREE.Group();
-      const podGeo = new THREE.CylinderGeometry(0.32,0.32,1.5,12);
+      const podGeo = new THREE.CylinderGeometry(0.28,0.28,1.5,12);
       podGeo.rotateX(Math.PI/2);
       const pod = new THREE.Mesh(podGeo, metalMat);
       g.add(pod);
-      const intakeGeo = new THREE.TorusGeometry(0.32,0.05,8,14);
+      const intakeGeo = new THREE.TorusGeometry(0.28,0.05,8,14);
       const intake = new THREE.Mesh(intakeGeo, darkMat);
       intake.position.z = -0.75;
       g.add(intake);
-      g.position.set(sign*0.95, 0.55, 3.6);
+      g.position.set(sign*1.35, 0.65, 3.75);
       return g;
     }
     plane.add(buildEnginePod(-1), buildEnginePod(1));
@@ -2652,9 +2676,16 @@ function buildAirplane(type){
     hstab.castShadow = true;
     plane.add(hstab);
 
-    const vstabGeo = new THREE.BoxGeometry(0.1, 1.7, 1.5);
+    // Thinned significantly (0.1→0.025 width, plus 1.5→1.0 depth) - tested empirically: from
+    // directly behind (the default chase view, looking almost exactly edge-on down this fin),
+    // even "thin" values like 0.06-0.1 still rendered as a surprisingly solid, bright accent-
+    // colored stripe straight down the fuselage spine, because the accent color contrasts so
+    // strongly with the white body that even a modest edge-on width reads as a bold line. Going
+    // most of the way to a true hairline (confirmed against a near-zero-width test render) is
+    // what actually fixes it, rather than a small tweak.
+    const vstabGeo = new THREE.BoxGeometry(0.025, 1.7, 1.0);
     const vstab = new THREE.Mesh(vstabGeo, accentMat);
-    vstab.position.set(0, 0.85, 4.85);
+    vstab.position.set(0, 0.85, 4.6);
     vstab.rotation.x = -0.42; // swept back
     vstab.castShadow = true;
     plane.add(vstab);
@@ -3838,11 +3869,13 @@ function setupEngineSound(){
   osc2.start();
 
   // Slow LFO on the filter cutoff for a subtle propeller "flutter" instead of a dead-flat tone.
+  // Kept gentle on purpose - too much depth/speed here starts to sound like a warbling siren
+  // rather than an engine's natural unevenness.
   const lfo = audioCtx.createOscillator();
   lfo.type = 'sine';
-  lfo.frequency.value = 6.5;
+  lfo.frequency.value = 5;
   const lfoGain = audioCtx.createGain();
-  lfoGain.gain.value = 40;
+  lfoGain.gain.value = 18;
   lfo.connect(lfoGain);
   lfoGain.connect(filter.frequency);
   lfo.start();
@@ -3871,21 +3904,26 @@ function setupEngineSound(){
   /* ---- Dive whistle ----
      Real aircraft don't get louder engines during a dive - what actually changes is the
      rushing air noise, and steep/fast descents add a rising "whistle" from air flowing past
-     the airframe, antennas, and gear. This is a distinct sine tone whose pitch and volume
-     track vertical speed (positive during fast descent), layered on top of the airspeed-based
-     wind noise above so a steep dive sounds distinctly different from level flight at the
-     same airspeed.
+     the airframe, antennas, and gear. This is built from the SAME filtered-noise approach as
+     the airspeed wind noise above (a bandpass sweeping upward with descent rate), not a pure
+     oscillator tone - a clean sine wave that smoothly rises and falls in pitch is, acoustically,
+     exactly what a siren is. Filtered noise reads as "rushing air" instead.
   */
-  const whistle = audioCtx.createOscillator();
-  whistle.type = 'sine';
-  whistle.frequency.value = 250;
-  const whistleGain = audioCtx.createGain();
-  whistleGain.gain.value = 0;
-  whistle.connect(whistleGain);
-  whistleGain.connect(audioCtx.destination);
-  whistle.start();
-  engineNodes.whistle = whistle;
-  engineNodes.whistleGain = whistleGain;
+  const diveNoiseSource = audioCtx.createBufferSource();
+  diveNoiseSource.buffer = noiseBuffer; // reuse the same buffer data - a second independent source node over it
+  diveNoiseSource.loop = true;
+  const diveFilter = audioCtx.createBiquadFilter();
+  diveFilter.type = 'bandpass';
+  diveFilter.frequency.value = 400;
+  diveFilter.Q.value = 0.9;
+  const diveGain = audioCtx.createGain();
+  diveGain.gain.value = 0;
+  diveNoiseSource.connect(diveFilter);
+  diveFilter.connect(diveGain);
+  diveGain.connect(audioCtx.destination);
+  diveNoiseSource.start();
+  engineNodes.diveFilter = diveFilter;
+  engineNodes.diveGain = diveGain;
 }
 
 function updateEngineSound(){
@@ -3942,13 +3980,14 @@ function updateEngineSound(){
 
   // Dive whistle: kicks in once descending faster than a gentle glide (~8 m/s down) and
   // builds toward the aircraft's max descent rate, so diving steeply sounds distinctly
-  // different from level flight at the same airspeed.
+  // different from level flight at the same airspeed. Filtered-noise based (see setupEngineSound) -
+  // rising bandpass center frequency reads as accelerating rushing air, not a siren tone.
   const descentRate = Math.max(0, -STATE.verticalSpeed); // m/s, 0 when climbing or level
   const diveFactor = THREE.MathUtils.clamp((descentRate - 8) / 35, 0, 1);
-  const whistleFreq = 260 + diveFactor * 900;
-  const whistleVol = engineEnabled ? diveFactor * diveFactor * 0.05 : 0;
-  engineNodes.whistle.frequency.setTargetAtTime(whistleFreq, now, 0.2);
-  engineNodes.whistleGain.gain.setTargetAtTime(whistleVol, now, 0.2);
+  const diveFreq = 400 + diveFactor * 1800;
+  const diveVol = engineEnabled ? diveFactor * diveFactor * 0.07 : 0;
+  engineNodes.diveFilter.frequency.setTargetAtTime(diveFreq, now, 0.3);
+  engineNodes.diveGain.gain.setTargetAtTime(diveVol, now, 0.3);
 }
 
 // ---- Generative ambient background music ----
