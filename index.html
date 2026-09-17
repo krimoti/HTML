@@ -61,6 +61,14 @@
     box-shadow:0 0 12px rgba(255,212,121,0.4);
   }
   .ac-card small, .wx-card small, .diff-card small { color:#5fa8c9; font-size:10px; }
+  .ac-card.locked {
+    opacity:0.4; cursor:not-allowed; position:relative;
+    filter:grayscale(0.6);
+  }
+  .ac-card.locked:hover { border-color:rgba(127,216,255,0.3); background:rgba(10,30,50,0.7); }
+  .ac-card.locked::after {
+    content:"\1F512"; position:absolute; top:2px; right:4px; font-size:11px; opacity:0.9;
+  }
   .cl-item {
     display:flex; align-items:center; gap:8px; margin-bottom:6px;
     cursor:pointer; color:#bfe9ff; font-size:12px;
@@ -855,6 +863,15 @@
       </div>
     </div>
 
+    <!-- Pilot career / logbook - persists across sessions, gates which aircraft are unlocked -->
+    <div id="logbook-panel" style="margin-bottom:16px;background:rgba(0,40,60,0.5);border:1px solid rgba(127,216,255,0.35);border-radius:6px;padding:10px 14px;font-size:12px;color:#cdeeff;text-align:left;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#ffd479;letter-spacing:1px;">📘 <span id="logbook-license-name">Student Pilot</span></span>
+        <span id="logbook-stats" style="font-size:11px;color:#9fe9ff;opacity:0.85;"></span>
+      </div>
+      <div id="logbook-progress" style="font-size:11px;color:#9fe9ff;opacity:0.85;margin-top:4px;"></div>
+    </div>
+
     <!-- Aircraft selection -->
     <div style="margin-bottom:18px;">
       <div style="font-size:10px;letter-spacing:2px;color:#5fa8c9;margin-bottom:8px;">SELECT AIRCRAFT</div>
@@ -864,6 +881,14 @@
         <div class="ac-card" data-ac="fighter">🛩 Fighter<br><small>Very Fast · Hardest</small></div>
         <div class="ac-card" data-ac="glider">🪂 Glider<br><small>No engine</small></div>
       </div>
+      <div id="ac-lock-message" style="font-size:11px;color:#ffb45f;margin-top:6px;min-height:14px;"></div>
+    </div>
+
+    <!-- License-upgrade popup - same visual family as the landing-score/mission-complete popups -->
+    <div id="license-upgrade" style="display:none;position:fixed;top:38%;left:50%;transform:translateX(-50%);
+      z-index:122;text-align:center;pointer-events:none;font-family:'Courier New',monospace;">
+      <div style="font-size:22px;letter-spacing:2px;color:#ffd479;">🎖️ LICENSE UPGRADED</div>
+      <div id="license-upgrade-detail" style="font-size:14px;color:#9fe9ff;margin-top:6px;"></div>
     </div>
 
     <!-- Callsign - used by the tower/pilot radio chatter during the flight -->
@@ -1026,6 +1051,93 @@ const AIRCRAFT_CONFIGS = {
 };
 let selectedAircraft = 'cessna';
 let acConfig = AIRCRAFT_CONFIGS[selectedAircraft];
+
+/* =====================================================================
+   PILOT CAREER / LOGBOOK - persists across sessions (localStorage), so
+   flying isn't just isolated one-off sessions: landings and missions
+   build toward unlocking the next license tier (and the aircraft that
+   come with it). Every stat here is genuinely earned through existing
+   systems (showLandingScore's grade, showMissionComplete) - this file
+   just remembers them and gates aircraft selection on them.
+===================================================================== */
+const CAREER_STORAGE_KEY = 'flightSimCareerV1';
+const LICENSE_TIERS = [
+  { id: 'student',    name: 'Student Pilot',    unlocks: ['cessna'],
+    require: null,
+    describe: () => '' },
+  { id: 'private',    name: 'Private Pilot',    unlocks: ['cessna','glider'],
+    require: c => c.goodLandings >= 3,
+    describe: c => `${Math.min(c.goodLandings,3)}/3 smooth-or-better landings` },
+  { id: 'commercial', name: 'Commercial Pilot', unlocks: ['cessna','glider','jet'],
+    require: c => c.missionsCompleted >= 2,
+    describe: c => `${Math.min(c.missionsCompleted,2)}/2 missions completed` },
+  { id: 'test',       name: 'Test Pilot',       unlocks: ['cessna','glider','jet','fighter'],
+    require: c => c.totalLandings >= 10 && c.missionsCompleted >= 1,
+    describe: c => `${Math.min(c.totalLandings,10)}/10 landings, ${Math.min(c.missionsCompleted,1)}/1 mission` },
+];
+
+function defaultCareer(){
+  return {
+    totalLandings: 0, goodLandings: 0, missionsCompleted: 0,
+    totalFlightSeconds: 0, licenseId: 'student',
+  };
+}
+function loadCareer(){
+  try {
+    const raw = localStorage.getItem(CAREER_STORAGE_KEY);
+    if (raw) return Object.assign(defaultCareer(), JSON.parse(raw));
+  } catch (e) { /* localStorage unavailable (private browsing, etc.) - just play unsaved */ }
+  return defaultCareer();
+}
+function saveCareer(){
+  try { localStorage.setItem(CAREER_STORAGE_KEY, JSON.stringify(career)); } catch (e) { /* ignore - nothing else to do if storage is blocked */ }
+}
+let career = loadCareer();
+
+function currentTierIndex(){
+  const idx = LICENSE_TIERS.findIndex(t => t.id === career.licenseId);
+  return idx >= 0 ? idx : 0;
+}
+function isAircraftUnlocked(type){
+  return LICENSE_TIERS[currentTierIndex()].unlocks.includes(type);
+}
+// Checks whether the career now qualifies for the next tier, and if so, upgrades + saves +
+// shows the same style of popup as a landing score / mission complete. Called right after any
+// stat that could trigger a tier change (a landing, a completed mission).
+function checkLicenseProgress(){
+  const idx = currentTierIndex();
+  const next = LICENSE_TIERS[idx + 1];
+  if (next && next.require && next.require(career)) {
+    career.licenseId = next.id;
+    saveCareer();
+    const el = document.getElementById('license-upgrade');
+    const detailEl = document.getElementById('license-upgrade-detail');
+    if (detailEl) detailEl.textContent = `${next.name} - ${next.unlocks[next.unlocks.length-1]} unlocked!`;
+    if (el) {
+      el.style.display = 'block'; el.style.opacity = '1'; el.style.transition = 'none';
+      setTimeout(() => { el.style.transition = 'opacity 1s ease'; el.style.opacity = '0'; }, 3500);
+      setTimeout(() => { el.style.display = 'none'; el.style.transition = 'none'; }, 4500);
+    }
+  }
+  renderLogbookUI();
+}
+// Refreshes the start-menu logbook panel and the aircraft picker's lock states. Safe to call
+// even when the menu isn't visible (elements just sit there updated for next time it opens).
+function renderLogbookUI(){
+  const tier = LICENSE_TIERS[currentTierIndex()];
+  const nameEl = document.getElementById('logbook-license-name');
+  const statsEl = document.getElementById('logbook-stats');
+  const progEl = document.getElementById('logbook-progress');
+  if (nameEl) nameEl.textContent = tier.name;
+  if (statsEl) statsEl.textContent = `${career.totalLandings} landings \u2022 ${career.missionsCompleted} missions \u2022 ${(career.totalFlightSeconds/60).toFixed(0)} min flown`;
+  const next = LICENSE_TIERS[currentTierIndex() + 1];
+  if (progEl) progEl.textContent = next ? `Next: ${next.name} \u2014 ${next.describe(career)}` : 'Highest license reached - every aircraft unlocked';
+
+  document.querySelectorAll('.ac-card').forEach(card => {
+    const type = card.dataset.ac;
+    card.classList.toggle('locked', !isAircraftUnlocked(type));
+  });
+}
 
 /* =====================================================================
    WEATHER SYSTEM
@@ -1625,6 +1737,14 @@ function showLandingScore(vs, speed, onRunway){
   el.style.opacity='1';
   el.style.transition='none';
   landingScoreTimer = 3.5;
+
+  // Career tracking - every landing counts toward the logbook, "smooth or better" (2-3 stars)
+  // counts toward the Private Pilot tier specifically. Saved immediately so progress survives
+  // a page reload/crash, not just a clean menu return.
+  career.totalLandings++;
+  if (onRunway && vsAbs < 200) career.goodLandings++;
+  saveCareer();
+  checkLicenseProgress();
 }
 
 /* =====================================================================
@@ -1689,13 +1809,23 @@ if (callsignInputEl) {
 // Aircraft picker
 document.querySelectorAll('.ac-card').forEach(card=>{
   card.addEventListener('click', ()=>{
+    const type = card.dataset.ac;
+    if (!isAircraftUnlocked(type)) {
+      const msgEl = document.getElementById('ac-lock-message');
+      const tier = LICENSE_TIERS.find(t => t.unlocks.includes(type) && !LICENSE_TIERS[currentTierIndex()].unlocks.includes(type));
+      if (msgEl) msgEl.textContent = tier ? `\uD83D\uDD12 Requires ${tier.name}: ${tier.describe(career)}` : '\uD83D\uDD12 Locked';
+      return;
+    }
+    document.getElementById('ac-lock-message').textContent = '';
     document.querySelectorAll('.ac-card').forEach(c=>c.classList.remove('selected'));
     card.classList.add('selected');
-    selectedAircraft = card.dataset.ac;
+    selectedAircraft = type;
     rebuildAirplaneModel(selectedAircraft);
   });
   card.addEventListener('touchstart', e=>{ e.preventDefault(); card.click(); },{passive:false});
 });
+renderLogbookUI(); // reflect saved career progress (locks, stats) as soon as the menu exists
+window.addEventListener('beforeunload', saveCareer); // catches accumulated flight time even if the tab closes without a landing/mission in between
 
 // Weather picker
 document.querySelectorAll('.wx-card').forEach(card=>{
@@ -2253,38 +2383,112 @@ function buildShed(x, z, rotY){
 // the same low-poly style as the rest of the airport rather than sharing a mesh with anything
 // that IS animated (buildDistantPlane, for instance, comes with a giant cinematic contrail that
 // would look absurd trailing behind a parked aircraft sitting still on the ramp).
-function buildParkedPlane(bodyColor){
+// Shared "small GA plane" builder for decorative aircraft (parked on the ramp, flying the
+// traffic pattern, or cruising the cinematic background) - deliberately reuses the SAME
+// fuselage/wing proportions as the player's own default Cessna (see buildAirplane's cessna
+// branch: NOSE_Z=-4.3, TAIL_Z=4.3, ~13-unit wingspan) so these read as real aircraft of the same
+// size, not an undersized stand-in. Lighter on geometry detail than the player's own plane
+// (fewer lathe segments, no strut animation, no spinning prop) since several of these can exist
+// in the scene at once - but a proper tapered fuselage and shaped wings instead of boxes is what
+// actually reads as "a plane" rather than "a crate with wings bolted on".
+function buildDecorativePlane(bodyColor, options){
+  options = options || {};
   const plane = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness:0.55 });
-  const wingMat = new THREE.MeshStandardMaterial({ color: 0xcfd6da, roughness:0.7, side: THREE.DoubleSide });
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness:0.9 });
+  // Everything below is built in the fuselage's own natural coordinate frame (like the player's
+  // aircraft), where Y=0 is the fuselage's centerline - NOT where the wheels touch the ground.
+  // inner absorbs all the actual geometry and gets shifted up by the wheel-to-centerline
+  // distance, so from the outside this group's origin (Y=0) is "where the wheels touch the
+  // ground", matching the simple `position.set(x, terrainHeight(x,z), z)` every caller uses -
+  // exactly the convention the old box-based version had (its bottom was already at Y=0), so no
+  // caller needs to change.
+  const inner = new THREE.Group();
+  plane.add(inner);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.5 });
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0xd8dde0, roughness: 0.65, side: THREE.DoubleSide });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.8 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x2a3f52, roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.7 });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 9), bodyMat);
-  body.position.y = 1.15;
-  plane.add(body);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 8), bodyMat);
-  nose.rotation.x = Math.PI/2;
-  nose.position.set(0, 1.15, -4.9);
-  plane.add(nose);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(11, 0.25, 1.6), wingMat);
-  wing.position.set(0, 1.15, -0.3);
-  plane.add(wing);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.2, 1.0), wingMat);
-  tail.position.set(0, 1.15, 4.2);
-  plane.add(tail);
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 1.1), bodyMat);
-  fin.position.set(0, 1.9, 4.2);
-  plane.add(fin);
-  const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.28, 10);
-  [[-1.3,-2.5],[1.3,-2.5],[0,3.3]].forEach(([sx,sz])=>{
-    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-    wheel.rotation.z = Math.PI/2;
-    wheel.position.set(sx, 0.35, sz);
-    plane.add(wheel);
+  // Fuselage - same nose/tail extent as the player's Cessna so these are genuinely the same
+  // size, not a smaller placeholder.
+  const NOSE_Z = -4.3, TAIL_Z = 4.3;
+  const profile = [
+    [0.04, NOSE_Z], [0.40, NOSE_Z+0.42], [0.80, NOSE_Z+1.0], [1.00, NOSE_Z+2.05],
+    [1.05, -0.4], [1.05, 1.1], [0.90, 2.15], [0.60, 3.05], [0.28, 3.75], [0.04, TAIL_Z],
+  ].map(p => new THREE.Vector2(p[0], p[1]));
+  const fuseGeo = new THREE.LatheGeometry(profile, 10); // fewer segments than the player's (18) - plenty smooth at ramp/flyby distance, cheaper with several on screen at once
+  fuseGeo.rotateX(Math.PI / 2);
+  const fuselage = new THREE.Mesh(fuseGeo, bodyMat);
+  fuselage.castShadow = true; fuselage.receiveShadow = true;
+  inner.add(fuselage);
+
+  const canopyGeo = new THREE.SphereGeometry(0.68, 10, 8, 0, Math.PI * 2, 0, Math.PI / 1.9);
+  const canopy = new THREE.Mesh(canopyGeo, glassMat);
+  canopy.scale.set(1, 0.7, 1.6);
+  canopy.position.set(0, 0.72, -0.9);
+  inner.add(canopy);
+
+  // Nose prop - static (these never actually spin), but a spinner + blade silhouette fixed at
+  // an angle reads far better up close than a bare cone, and looks like a "parked, engine off"
+  // propeller rather than a mid-spin blur.
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.3, 8), darkMat);
+  hub.rotation.x = Math.PI / 2;
+  hub.position.z = NOSE_Z - 0.05;
+  inner.add(hub);
+  for (let i = 0; i < 2; i++) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.5, 0.04), darkMat);
+    blade.position.z = NOSE_Z - 0.05;
+    blade.rotation.z = i * Math.PI / 2 + 0.4; // fixed at an angle rather than a perfect cross, reads as "stopped", not mid-spin
+    inner.add(blade);
+  }
+
+  // High wing (Cessna-style silhouette) - same overall span as the player's Cessna wing
+  const WING_Y = 1.0, WING_Z = -0.15;
+  [-1, 1].forEach(sign => {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.14, 1.8), wingMat);
+    wing.position.set(sign * 3.85, WING_Y, WING_Z);
+    wing.castShadow = true;
+    inner.add(wing);
+    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.5, 0.2), bodyMat);
+    strut.position.set(sign * 2.6, 0.15, 0.6);
+    strut.rotation.z = -sign * 0.5;
+    inner.add(strut);
   });
+
+  // Tail
+  const hstab = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.12, 1.0), wingMat);
+  hstab.position.set(0, 0.25, 4.0);
+  inner.add(hstab);
+  const vstab = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.4, 1.1), bodyMat);
+  vstab.position.set(0, 0.8, 4.0);
+  vstab.rotation.x = -0.18;
+  inner.add(vstab);
+
+  if (options.gear !== false) {
+    // Fixed tricycle gear - only meaningful for the parked/ramp variant; flying traffic skips
+    // this (options.gear: false) since it'd be retracted or just not worth the extra geometry
+    // on something moving past at a distance.
+    const wheelGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.2, 10);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.6 });
+    [[-1.3, -0.3], [1.3, -0.3], [0, 3.2]].forEach(([x, z]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6), legMat);
+      leg.position.set(x, -0.28, z);
+      inner.add(leg);
+      const wheel = new THREE.Mesh(wheelGeo, darkMat);
+      wheel.position.set(x, -0.55, z);
+      inner.add(wheel);
+    });
+    inner.position.y = 0.81; // shifts the whole assembly up so the wheel bottoms (at local y=-0.81) land on y=0
+  } else {
+    inner.position.y = 1.05; // no gear - rest the fuselage belly itself on the ground instead
+  }
 
   plane.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return plane;
+}
+
+function buildParkedPlane(bodyColor){
+  return buildDecorativePlane(bodyColor, { gear: true });
 }
 
 /* Scatter some low-poly trees near runway edges for scale reference */
@@ -2382,11 +2586,21 @@ RUNWAYS.forEach((r, idx)=>{
   // (across=150) - just background life at the airport, never touched again after being placed.
   // Count varies per airport (see bld.parked above); positions are generated rather than a fixed
   // list so any count works, spread along the ramp and scaled the same way the buildings are.
+  //
+  // The tow between parking and the runway always travels the SAME fixed line while it's on the
+  // ramp - straight across from the taxiway junction (along=-215, across=0) to the parking spot
+  // (along=-215, across=100), regardless of which airport or how many aircraft are parked here.
+  // A decorative plane placed too close to along=-215 would sit right on that line and the
+  // player's own aircraft would visibly clip through it mid-tow. Skipping any spot within 8
+  // units of that line (rather than shifting it) keeps every remaining spot's spacing untouched
+  // and guarantees this regardless of airport size/scale.
   const parkedPlaneColors = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff, 0x8a5fd9, 0x5fd98a];
   const parkedPlaneSpots = [];
   for (let i = 0; i < (bld.parked || 0); i++){
+    const along = (-292 + i*36) * scale;
+    if (Math.abs(along - (-215)) < 8) continue; // would straddle the fixed tow path - leave this slot empty
     parkedPlaneSpots.push({
-      along: (-292 + i*36) * scale,
+      along,
       across: 40 + (i % 2) * 5,
       yaw: (i % 2 === 0 ? 1 : -1) * (6 + (i % 3) * 3),
     });
@@ -2538,6 +2752,11 @@ function showMissionComplete(vsAbs, onRunway){
   missionDestination = null;
   selectedTargetRunway = null; // back to automatic/nearest navigation
   refreshTargetRunwayUI();
+
+  // Career tracking - missions are the main driver toward the Commercial/Test Pilot tiers.
+  career.missionsCompleted++;
+  saveCareer();
+  checkLicenseProgress();
 }
 
 (function initMinimap(){
@@ -3585,6 +3804,8 @@ bindTapButton('menu-touch-btn', ()=> returnToMenu());
 function returnToMenu(){
   // Stop the game, reset state, uncheck checklist, show menu
   started = false;
+  saveCareer(); // persist accumulated flight time from this session before the menu reopens
+  renderLogbookUI();
   resetAircraft();
   // Uncheck all checklist items so player re-confirms settings
   document.querySelectorAll('.cl-check').forEach(c=>{ c.checked = false; });
@@ -5333,25 +5554,14 @@ const distantPlanes = [];
 let nextDistantPlaneCheckIn = 15 + Math.random()*20;
 
 function buildDistantPlane(){
-  const plane = new THREE.Group();
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xe8ecef });
-  const wingMat = new THREE.MeshBasicMaterial({ color: 0xd0d6da, side: THREE.DoubleSide });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 14), bodyMat);
-  plane.add(body);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.4, 2.2), wingMat);
-  wing.position.z = -0.5;
-  plane.add(wing);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 1.6), wingMat);
-  tail.position.z = -6.3;
-  plane.add(tail);
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), bodyMat);
-  fin.position.set(0, 1.1, -6.3);
-  plane.add(fin);
+  const plane = buildDecorativePlane(0xe8ecef, { gear: false });
 
-  // Contrail: a thin fading ribbon trailing the aircraft.
+  // Contrail: a thin fading ribbon trailing the aircraft. Local -Z is "forward" (see the
+  // setFromUnitVectors call wherever this is spawned), so the tail end is +Z - the trail sits
+  // further along +Z, behind the tail, exactly where a contrail should be.
   const trailMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
   const trail = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 220), trailMat);
-  trail.position.z = 110;
+  trail.position.z = 110 + 4.3; // clear of the tail (TAIL_Z=4.3 in buildDecorativePlane)
   trail.rotation.x = Math.PI / 2;
   plane.add(trail);
 
@@ -5487,21 +5697,7 @@ let nextPatternCheckIn = 45 + Math.random() * 40; // first one shows up reasonab
 // for a plane cruising far overhead, and would look wrong on something doing tight turns close to
 // the runway.
 function buildPatternPlane(){
-  const plane = new THREE.Group();
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xe8ecef });
-  const wingMat = new THREE.MeshBasicMaterial({ color: 0xd0d6da, side: THREE.DoubleSide });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 14), bodyMat);
-  plane.add(body);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.4, 2.2), wingMat);
-  wing.position.z = -0.5;
-  plane.add(wing);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 1.6), wingMat);
-  tail.position.z = -6.3;
-  plane.add(tail);
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), bodyMat);
-  fin.position.set(0, 1.1, -6.3);
-  plane.add(fin);
-  return plane;
+  return buildDecorativePlane(0xe8ecef, { gear: false });
 }
 
 // Lays out the whole circuit as a sequence of (along, across, altitude-above-ground) points in the
@@ -6105,6 +6301,7 @@ function animate(){
     updateDayNightCycle(dt);
     updateAirplaneLights(airplane, dt, DAYNIGHT.elapsed, DAYNIGHT.nightFactor);
     maybeTriggerAtc(dt);
+    career.totalFlightSeconds += dt; // in-memory only here - saveCareer() is called at natural checkpoints (landings, missions, page close), not every frame
     if (missionActive) {
       missionElapsed += dt;
       const banner = document.getElementById('mission-banner');
