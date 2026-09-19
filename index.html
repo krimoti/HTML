@@ -3996,9 +3996,17 @@ function triggerCrash(reason){
       speed: "Way too fast for a safe touchdown - press reset to try again",
       impact: "Came down too hard - press reset to try again",
     };
-    subtitle.textContent = messages[reason] || messages.terrain;
+    subtitle.textContent = (messages[reason] || messages.terrain) + ' (still counted in your logbook)';
   }
   if (overlay) overlay.classList.add('visible');
+
+  // A crash is still a landing attempt - it was excluded from the logbook entirely before, which
+  // directly contradicted "every landing counts" (a run of hard, off-runway touchdowns made zero
+  // progress and looked like the counter was broken). It's the worst possible grade, but it still
+  // counts toward the total - just never toward the "smooth" count.
+  career.totalLandings++;
+  saveCareer();
+  checkLicenseProgress();
 }
 document.getElementById('crash-reset-btn').addEventListener('click', resetAircraft);
 document.getElementById('crash-reset-btn').addEventListener('touchstart', (e)=>{ e.preventDefault(); resetAircraft(); }, {passive:false});
