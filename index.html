@@ -653,6 +653,14 @@
     <div id="align-indicator"><span id="align-text">ALIGNED</span></div>
   </div>
 
+  <!-- Live landing-rate call-out - only in the last moment before touchdown (see updateHUD),
+       when the CURRENT sink rate is actually predictive of how hard you're about to land. Big,
+       plain-language, and color-coded on purpose: the point is to be readable at a glance in the
+       middle of a flare, not something you have to interpret like the FT/MIN number nearby. -->
+  <div id="landing-rate-call" style="display:none;position:fixed;left:50%;bottom:22%;transform:translateX(-50%);
+    z-index:16;text-align:center;font-family:'Courier New',monospace;font-size:20px;font-weight:bold;
+    letter-spacing:1px;padding:6px 18px;border-radius:8px;white-space:nowrap;pointer-events:none;"></div>
+
   <!-- Throttle lever gauge -->
   <div id="throttle-gauge" class="round-gauge">
     <div id="throttle-track">
@@ -802,8 +810,10 @@
         וירידה. מחט ה-ADF והמרחק המוצג מצביעים על המסלול היעד שלך.<br><br>
 
         <b style="color:#ffd479;">4. ירידה ונחיתה.</b> הפחת גז כדי לרדת, הורד פלאפים (F) כדי
-        להאט ולאפשר גישה תלולה ואיטית יותר, ושאף לנחות בעדינות על קו האמצע. אחרי שהגלגלים על
-        הקרקע, השתמש בבלמים (Space) כדי לעצור, ובבלם החניה (P) כדי להישאר במקום.<br><br>
+        להאט ולאפשר גישה תלולה ואיטית יותר, ושאף לנחות בעדינות על קו האמצע. <b>ברגע האחרון ממש
+        לפני המגע</b> תופיע הודעה ברורה על המסך — 🟢 בטוח לנחות / 🟡 נחיתה תקיפה / 🔴 חזק מדי,
+        תרים את האף — כך שתדע בדיוק מה קורה בלי לפענח מספרים. אחרי שהגלגלים על הקרקע, השתמש
+        בבלמים (Space) כדי לעצור, ובבלם החניה (P) כדי להישאר במקום.<br><br>
 
         <b style="color:#ffd479;">תקוע או רוצה לדלג על החלק הקשה?</b> לחץ L בכל שלב כדי
         להפעיל נחיתה אוטומטית (autoland) — היא תטוס את הגישה והנחיתה בשבילך. לחץ G ליד המסלול
@@ -839,8 +849,11 @@
 
         <b style="color:#ffd479;">4. Descend and land.</b> Pull the throttle back to descend,
         lower flaps (F) to slow down and let you fly a steeper, slower final approach, and
-        aim to touch down gently on the centerline. Once the wheels are down, use wheel
-        brakes (Space) to stop, and the parking brake (P) to hold position.<br><br>
+        aim to touch down gently on the centerline. <b>In the last moment right before
+        touchdown</b>, a clear call-out appears on screen — 🟢 SAFE TO LAND / 🟡 FIRM / 🔴 TOO
+        HARD, flare now — so you know exactly what's about to happen without reading numbers.
+        Once the wheels are down, use wheel brakes (Space) to stop, and the parking brake (P)
+        to hold position.<br><br>
 
         <b style="color:#ffd479;">Stuck or want to skip the hard part?</b> Press L any time
         to toggle autoland — it will fly the approach and landing for you, hands-off. Press
@@ -870,6 +883,10 @@
         <span id="logbook-stats" style="font-size:11px;color:#9fe9ff;opacity:0.85;"></span>
       </div>
       <div id="logbook-progress" style="font-size:11px;color:#9fe9ff;opacity:0.85;margin-top:4px;"></div>
+      <div style="font-size:10px;color:#5fa8c9;opacity:0.8;margin-top:4px;">💡 Every landing counts toward your next license, no matter the grade - just keep flying</div>
+      <div style="text-align:right;margin-top:4px;">
+        <span id="tech-unlock-btn" style="font-size:9px;color:#3a5a6a;cursor:pointer;letter-spacing:0.5px;">🔧 technician</span>
+      </div>
     </div>
 
     <!-- Aircraft selection -->
@@ -1066,14 +1083,17 @@ const LICENSE_TIERS = [
     require: null,
     describe: () => '' },
   { id: 'private',    name: 'Private Pilot',    unlocks: ['cessna','glider'],
-    require: c => c.goodLandings >= 3,
-    describe: c => `${Math.min(c.goodLandings,3)}/3 smooth-or-better landings` },
+    // Simplified on purpose: ANY landing counts, not just a smooth/on-runway one - the old
+    // "3 smooth landings" requirement meant a run of rough landings made zero progress at all,
+    // which just felt stuck rather than difficult. Every landing now visibly moves you forward.
+    require: c => c.totalLandings >= 3,
+    describe: c => `${Math.min(c.totalLandings,3)}/3 landings` },
   { id: 'commercial', name: 'Commercial Pilot', unlocks: ['cessna','glider','jet'],
-    require: c => c.missionsCompleted >= 2,
-    describe: c => `${Math.min(c.missionsCompleted,2)}/2 missions completed` },
+    require: c => c.totalLandings >= 8,
+    describe: c => `${Math.min(c.totalLandings,8)}/8 landings` },
   { id: 'test',       name: 'Test Pilot',       unlocks: ['cessna','glider','jet','fighter'],
-    require: c => c.totalLandings >= 10 && c.missionsCompleted >= 1,
-    describe: c => `${Math.min(c.totalLandings,10)}/10 landings, ${Math.min(c.missionsCompleted,1)}/1 mission` },
+    require: c => c.totalLandings >= 15,
+    describe: c => `${Math.min(c.totalLandings,15)}/15 landings` },
 ];
 
 function defaultCareer(){
@@ -1110,9 +1130,18 @@ function checkLicenseProgress(){
   if (next && next.require && next.require(career)) {
     career.licenseId = next.id;
     saveCareer();
+
+    // Any airport gated on this tier (see isAirportUnlocked/RUNWAYS) becomes available
+    // immediately - no reload needed, since the minimap/cycling/missions all just check
+    // isAirportUnlocked live rather than caching who's available.
+    const newlyUnlockedAirports = RUNWAYS.filter(r => r.locked && r.unlockTier === next.id);
+    newlyUnlockedAirports.forEach(r => addMinimapAirportMarker(r));
+
     const el = document.getElementById('license-upgrade');
     const detailEl = document.getElementById('license-upgrade-detail');
-    if (detailEl) detailEl.textContent = `${next.name} - ${next.unlocks[next.unlocks.length-1]} unlocked!`;
+    let detail = `${next.name} - ${next.unlocks[next.unlocks.length-1]} unlocked!`;
+    if (newlyUnlockedAirports.length) detail += ` New airport: ${newlyUnlockedAirports.map(r=>r.name).join(', ')}!`;
+    if (detailEl) detailEl.textContent = detail;
     if (el) {
       el.style.display = 'block'; el.style.opacity = '1'; el.style.transition = 'none';
       setTimeout(() => { el.style.transition = 'opacity 1s ease'; el.style.opacity = '0'; }, 3500);
@@ -1129,7 +1158,7 @@ function renderLogbookUI(){
   const statsEl = document.getElementById('logbook-stats');
   const progEl = document.getElementById('logbook-progress');
   if (nameEl) nameEl.textContent = tier.name;
-  if (statsEl) statsEl.textContent = `${career.totalLandings} landings \u2022 ${career.missionsCompleted} missions \u2022 ${(career.totalFlightSeconds/60).toFixed(0)} min flown`;
+  if (statsEl) statsEl.textContent = `${career.totalLandings} landings (${career.goodLandings} smooth) \u2022 ${career.missionsCompleted} missions \u2022 ${(career.totalFlightSeconds/60).toFixed(0)} min flown`;
   const next = LICENSE_TIERS[currentTierIndex() + 1];
   if (progEl) progEl.textContent = next ? `Next: ${next.name} \u2014 ${next.describe(career)}` : 'Highest license reached - every aircraft unlocked';
 
@@ -1138,6 +1167,31 @@ function renderLogbookUI(){
     card.classList.toggle('locked', !isAircraftUnlocked(type));
   });
 }
+
+// Technician / QA backdoor: password-gated, maxes out every career stat so every tier, aircraft,
+// and hidden airport can be verified in one go without grinding real landings/missions first.
+// Not something a player would stumble into by accident (small, unlabeled-looking link + a
+// password prompt), but not trying to be real security either - this is a single-file offline
+// tool, not a server; treat this the same as any other local debug switch.
+const TECH_UNLOCK_PASSWORD = 'FLYALL2026';
+function attemptTechUnlock(){
+  const entered = window.prompt('Technician code:');
+  if (entered === null) return; // cancelled
+  if (entered !== TECH_UNLOCK_PASSWORD) {
+    window.alert('Incorrect code.');
+    return;
+  }
+  const topTier = LICENSE_TIERS[LICENSE_TIERS.length - 1];
+  career.licenseId = topTier.id;
+  career.totalLandings = Math.max(career.totalLandings, 10);
+  career.goodLandings = Math.max(career.goodLandings, 3);
+  career.missionsCompleted = Math.max(career.missionsCompleted, 2);
+  saveCareer();
+  RUNWAYS.filter(r => r.locked).forEach(r => addMinimapAirportMarker(r));
+  renderLogbookUI();
+  window.alert(`Technician unlock applied: ${topTier.name}, every aircraft and airport now available.`);
+}
+document.getElementById('tech-unlock-btn').addEventListener('click', attemptTechUnlock);
 
 /* =====================================================================
    WEATHER SYSTEM
@@ -1395,7 +1449,7 @@ const ATC_EXCHANGES = {
 function atcCurrentPhase(){
   if (!STATE.onGround) lastAtcAirborneTime = DAYNIGHT.elapsed;
   if (STATE.onGround) return (DAYNIGHT.elapsed - lastAtcAirborneTime < 20) ? 'landed' : 'ground';
-  const groundY = terrainHeight(airplane.position.x, airplane.position.z);
+  const groundY = STATE.groundY; // shared per-frame cache (set in updatePhysics) instead of a second identical terrainHeight call
   const agl = airplane.position.y - groundY;
   if (agl < 300) return STATE.verticalSpeed < -1 ? 'descent' : 'climb';
   if (STATE.verticalSpeed < -2) return 'descent';
@@ -1711,6 +1765,12 @@ function updateParticles(){
 let landingScoreTimer = 0;
 let justLanded = false;
 let prevOnGround = true;
+// Cached once instead of getElementById repeatedly (2x each for grade/label, plus the fade-out
+// loop below and resetAircraft() elsewhere all needing the same elements).
+const landingScoreEl = document.getElementById('landing-score');
+const lsGradeEl = document.getElementById('ls-grade');
+const lsLabelEl = document.getElementById('ls-label');
+const lsDetailEl = document.getElementById('ls-detail');
 
 function showLandingScore(vs, speed, onRunway){
   const vsAbs = Math.abs(vs * 196.85); // m/s to ft/min
@@ -1726,12 +1786,12 @@ function showLandingScore(vs, speed, onRunway){
   } else {
     grade='💥'; label='HARD LANDING'; color='#ff9944';
   }
-  const el = document.getElementById('landing-score');
-  document.getElementById('ls-grade').textContent = grade;
-  document.getElementById('ls-grade').style.color = color;
-  document.getElementById('ls-label').textContent = label;
-  document.getElementById('ls-label').style.color = color;
-  document.getElementById('ls-detail').textContent =
+  const el = landingScoreEl;
+  lsGradeEl.textContent = grade;
+  lsGradeEl.style.color = color;
+  lsLabelEl.textContent = label;
+  lsLabelEl.style.color = color;
+  lsDetailEl.textContent =
     `VS: ${Math.round(vsAbs)} ft/min  •  ${Math.round(speed*1.944)} kts`;
   el.style.display='block';
   el.style.opacity='1';
@@ -1988,7 +2048,23 @@ const RUNWAYS = [
     buildings: { hangars: 1, tower: false, sheds: 2, parked: 2 } }, // second airport, east - small regional strip: one hangar, no tower, a couple of sheds instead, fewer aircraft parked
   { cx: -3400, cz: 0,    rwyId: '18', heading: -Math.PI * 0.42,   biome: 'autumn', name: 'Amberfall',   length: 2200, width: 100,
     buildings: { hangars: 3, tower: true,  sheds: 1, parked: 6 } }, // third airport, west - bigger/busier field: extra hangar, a shed, and more aircraft parked
+  { cx: 0,     cz: 6200,  rwyId: '33', heading: Math.PI * 0.05,    biome: 'snow',   name: 'Frostpeak',   length: 1100, width: 50,
+    buildings: { hangars: 1, tower: true,  sheds: 0, parked: 1 },
+    // Hidden until Test Pilot: a short, narrow, far-flung strip that's genuinely a step up in
+    // difficulty from the other three - a fitting reward rather than just "one more airport".
+    // It physically exists in the world either way (so a curious player who navigates there
+    // manually can still find it - a nice touch, not a bug), but stays out of the minimap, the
+    // target-runway cycle button, and mission destinations until earned. See isAirportUnlocked().
+    locked: true, unlockTier: 'test' },
 ];
+
+// True once the given airport's own unlock requirement (if any) is met - airports with no
+// `locked` flag are always available. Consulted by the minimap, target-runway cycling, and
+// mission destination selection so a locked airport never gets surfaced through any of them
+// before its tier is reached.
+function isAirportUnlocked(r){
+  return !r.locked || LICENSE_TIERS.findIndex(t => t.id === career.licenseId) >= LICENSE_TIERS.findIndex(t => t.id === r.unlockTier);
+}
 
 // Every runway consumer below reads length/width through these two helpers instead of the bare
 // runwayLength/runwayWidth constants, so each airport's own size (set above) actually takes
@@ -2072,7 +2148,11 @@ function terrainHeight(x, z) {
   return h * flatten;
 }
 
-const terrainSize = 9000;
+// Sized to comfortably cover every airport's full flattened corridor (including Frostpeak, the
+// farthest out at cz=6200 - its corridor alone reaches about 8450 units from the world center).
+// Segment count is unchanged, so distant terrain is a bit coarser than before - an acceptable
+// trade for not having a hole in the world past the outermost airport.
+const terrainSize = 20000;
 const terrainSeg = isMobileDevice ? 90 : 180;
 const terrainGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSeg, terrainSeg);
 terrainGeo.rotateX(-Math.PI/2);
@@ -2492,7 +2572,7 @@ function buildParkedPlane(bodyColor){
 }
 
 /* Scatter some low-poly trees near runway edges for scale reference */
-const treeLeafColors = { grass: 0x2e5c2e, autumn: 0xb5651d, desert: 0x8a8f4a };
+const treeLeafColors = { grass: 0x2e5c2e, autumn: 0xb5651d, desert: 0x8a8f4a, snow: 0x3f5a4f };
 function buildTree(x,z,biome){
   const g = new THREE.Group();
   const trunkGeo = new THREE.CylinderGeometry(0.6,0.9,6,5);
@@ -2666,11 +2746,12 @@ function setTargetRunway(r){
 // that's often only ~70px across on a phone, with three airports potentially close together on
 // it - this guarantees an accurate pick every time regardless of screen size.
 function cycleTargetRunway(){
+  const available = RUNWAYS.filter(isAirportUnlocked); // locked airports (see isAirportUnlocked) are skipped here too, same as the minimap
   if (!selectedTargetRunway) {
-    selectedTargetRunway = RUNWAYS[0];
+    selectedTargetRunway = available[0] || null;
   } else {
-    const idx = RUNWAYS.indexOf(selectedTargetRunway);
-    selectedTargetRunway = (idx >= 0 && idx < RUNWAYS.length - 1) ? RUNWAYS[idx + 1] : null;
+    const idx = available.indexOf(selectedTargetRunway);
+    selectedTargetRunway = (idx >= 0 && idx < available.length - 1) ? available[idx + 1] : null;
   }
   refreshTargetRunwayUI();
 }
@@ -2696,22 +2777,24 @@ let missionDestination = null;
 let missionCargo = '';
 let missionElapsed = 0;
 let lastImpactVS = 0; // most recent touchdown vertical speed (m/s), used only to flavor the mission-complete message
+let lastMissionBannerTime = ''; // last displayed mm:ss string - lets the animate loop skip redundant DOM writes when it hasn't changed
+const missionBannerEl = document.getElementById('mission-banner'); // cached once instead of getElementById every frame
 const MISSION_CARGO_TYPES = ['a passenger', 'medical supplies', 'the mail', 'spare parts', 'fresh produce'];
 
 function startMission(){
   const origin = nearestRunway(STATE.position.x, STATE.position.z);
-  const choices = RUNWAYS.filter(r => r !== origin);
+  const choices = RUNWAYS.filter(r => r !== origin && isAirportUnlocked(r)); // locked airports (see isAirportUnlocked) never get assigned as a mission destination
   missionDestination = choices[Math.floor(Math.random() * choices.length)] || RUNWAYS[0];
   missionCargo = MISSION_CARGO_TYPES[Math.floor(Math.random() * MISSION_CARGO_TYPES.length)];
   missionElapsed = 0;
   missionActive = true;
+  lastMissionBannerTime = ''; // force the very first per-frame banner update to actually write, not skip as "unchanged"
   selectedTargetRunway = missionDestination;
   refreshTargetRunwayUI();
 
-  const banner = document.getElementById('mission-banner');
-  if (banner) {
-    banner.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId})`;
-    banner.style.display = 'block';
+  if (missionBannerEl) {
+    missionBannerEl.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId})`;
+    missionBannerEl.style.display = 'block';
   }
 
   safeShowAtcExchange({
@@ -2746,8 +2829,7 @@ function showMissionComplete(vsAbs, onRunway){
     pilot: c => `Thanks for the help, ${ATC_CALLSIGN}.`,
   }, atcContext());
 
-  const banner = document.getElementById('mission-banner');
-  if (banner) banner.style.display = 'none';
+  if (missionBannerEl) missionBannerEl.style.display = 'none';
   missionActive = false;
   missionDestination = null;
   selectedTargetRunway = null; // back to automatic/nearest navigation
@@ -2759,24 +2841,32 @@ function showMissionComplete(vsAbs, onRunway){
   checkLicenseProgress();
 }
 
+// Extracted so a newly-unlocked airport (see checkLicenseProgress) can add its own marker later
+// without re-running the whole minimap init.
+function addMinimapAirportMarker(r){
+  const g = document.getElementById('minimap-airports');
+  if (!g) return;
+  const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+  el.setAttribute('class','minimap-airport');
+  el.dataset.cx = r.cx; el.dataset.cz = r.cz; el.dataset.heading = r.heading || 0;
+  el.__runway = r; // direct reference back to the RUNWAYS entry, for tap-to-target
+  // A big transparent circle gives a much more forgiving tap target than the thin visible
+  // runway rect alone would - important on a small phone screen where the three airports can
+  // end up close together on the minimap. The visible rect stays the same size on top of it.
+  el.innerHTML =
+    '<circle cx="0" cy="0" r="14" fill="transparent"/>' +
+    '<rect x="-2" y="-7" width="4" height="14" rx="1" fill="#ffcc55"/>';
+  el.addEventListener('click', () => setTargetRunway(r));
+  el.addEventListener('touchstart', (e) => { e.preventDefault(); setTargetRunway(r); }, { passive:false });
+  g.appendChild(el);
+  minimapAirportNodes.push(el);
+}
 (function initMinimap(){
   const g = document.getElementById('minimap-airports');
   if (!g) return;
   RUNWAYS.forEach((r)=>{
-    const el = document.createElementNS('http://www.w3.org/2000/svg','g');
-    el.setAttribute('class','minimap-airport');
-    el.dataset.cx = r.cx; el.dataset.cz = r.cz; el.dataset.heading = r.heading || 0;
-    el.__runway = r; // direct reference back to the RUNWAYS entry, for tap-to-target
-    // A big transparent circle gives a much more forgiving tap target than the thin visible
-    // runway rect alone would - important on a small phone screen where the three airports can
-    // end up close together on the minimap. The visible rect stays the same size on top of it.
-    el.innerHTML =
-      '<circle cx="0" cy="0" r="14" fill="transparent"/>' +
-      '<rect x="-2" y="-7" width="4" height="14" rx="1" fill="#ffcc55"/>';
-    el.addEventListener('click', () => setTargetRunway(r));
-    el.addEventListener('touchstart', (e) => { e.preventDefault(); setTargetRunway(r); }, { passive:false });
-    g.appendChild(el);
-    minimapAirportNodes.push(el);
+    if (!isAirportUnlocked(r)) return; // stays off the minimap until earned - see isAirportUnlocked
+    addMinimapAirportMarker(r);
   });
 })();
 
@@ -3458,7 +3548,7 @@ function updateAirplaneLights(planeObj, dt, elapsed, nightFactor){
   // Landing light: on for taxi/takeoff/climb/approach/landing (low altitude or on the
   // ground), off at cruise - matches real operating procedure instead of just being
   // a night-only effect.
-  const groundY = terrainHeight(planeObj.position.x, planeObj.position.z);
+  const groundY = STATE.groundY; // shared per-frame cache (set in updatePhysics) - planeObj here is always the player's own aircraft, same position updatePhysics already computed this for
   const agl = planeObj.position.y - groundY;
   const wantLandingLight = STATE.onGround || agl < 250;
   L.landingLight.intensity = wantLandingLight ? 4 : 0;
@@ -3818,7 +3908,7 @@ function returnToMenu(){
   if(document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   // Hide crash overlay if showing
   document.getElementById('crash-overlay').classList.remove('visible');
-  document.getElementById('landing-score').style.display = 'none';
+  landingScoreEl.style.display = 'none';
 }
 
 // Secondary controls: flaps, trim, speedbrake, wheel brakes
@@ -4724,7 +4814,18 @@ function updatePhysics(dt){
   // one-frame-delayed onGround flag, so it kicks in before touchdown too): at typical touchdown
   // speed, full flap lift is actually MORE than gravity, which is exactly what was launching the
   // plane back into the air the instant it settled instead of letting it stay down.
-  const groundClearance = STATE.position.y - groundElevationAt(STATE.position.x, STATE.position.z);
+  // Ground elevation directly under the aircraft, computed once and shared for the rest of this
+  // frame: terrainHeight() loops over every runway doing trig + multi-octave noise per runway, so
+  // it's not free, and before this fix it was being independently recomputed for this exact same
+  // (x,z) up to half a dozen times a frame - here, again a few lines down for the ground-collision
+  // check, again in updateHUD for the ground-proximity warning and the landing-rate call-out,
+  // again in atcCurrentPhase(), and again in updateAirplaneLights(). All of those now read
+  // STATE.groundY instead (set at the bottom of this function) rather than calling terrainHeight
+  // themselves - same numbers, a fraction of the cost.
+  const groundElevHere = terrainHeight(STATE.position.x, STATE.position.z);
+  STATE.groundY = groundElevHere; // shared for the rest of this frame - see the comment above
+
+  const groundClearance = STATE.position.y - groundElevHere;
   // Declare onRunway here (not down in the ground-collision block) because the lift-suppression
   // logic uses it ~60 lines above where it used to be declared - that was a ReferenceError
   // every single frame, which is what was causing the "Script error" on mobile.
@@ -4950,7 +5051,7 @@ function updatePhysics(dt){
   }
 
   // ---- Ground collision / runway handling ----
-  const groundY = groundElevationAt(STATE.position.x, STATE.position.z);
+  const groundY = groundElevHere; // computed once, above - was a second identical terrainHeight call at this exact (x,z)
   const minY = groundY + GEAR_OFFSET;
 
   // (onRunway already declared above alongside groundClearance)
@@ -5241,6 +5342,7 @@ const alignText = document.getElementById('align-text');
 const ilsHNeedle = document.getElementById('ils-hneedle');
 const ilsVNeedle = document.getElementById('ils-vneedle');
 const autolandDebugEl = document.getElementById('autoland-debug'); // was looked up via getElementById inside updateHUD every single frame; cached here like every other HUD element above
+const landingRateCall = document.getElementById('landing-rate-call');
 
 // Build the analog gauge faces once
 buildSpeedFace(document.querySelector('#speed-gauge .gauge-face'));
@@ -5251,6 +5353,28 @@ function updateHUD(dt){
   const kts = STATE.speed * 1.94384; // m/s to knots
   const altFt = Math.max(0, STATE.position.y * 3.28084);
   const vsfpm = STATE.verticalSpeed * 196.85; // m/s to ft/min
+
+  // Live landing-rate call-out: only shown in the last ~60ft before touchdown, since that's the
+  // one moment where the CURRENT sink rate is actually a preview of how hard you're about to
+  // land - showing it throughout a normal descent (which is routinely -500fpm or steeper at
+  // altitude, on purpose, until the flare) would just cry wolf the entire approach. Same
+  // thresholds as the post-landing grade in showLandingScore, so what you see here matches
+  // what you'll see in the popup a second later - no separate scale to learn.
+  const heightAGL = (STATE.position.y - STATE.groundY) * 3.28084; // ft - reuses updatePhysics's per-frame cache instead of a fresh terrainHeight call
+  if (!STATE.onGround && heightAGL < 60 && heightAGL > -5 && vsfpm < 0) {
+    const sinkAbs = Math.abs(vsfpm);
+    let rateText, rateColor;
+    if (sinkAbs < 200) { rateText = '\uD83D\uDFE2 SAFE TO LAND'; rateColor = '#5ffcb0'; }
+    else if (sinkAbs < 400) { rateText = '\uD83D\uDFE1 FIRM \u2013 EASE UP'; rateColor = '#ffd479'; }
+    else { rateText = '\uD83D\uDD34 TOO HARD \u2013 FLARE NOW'; rateColor = '#ff6644'; }
+    landingRateCall.textContent = rateText;
+    landingRateCall.style.color = rateColor;
+    landingRateCall.style.background = 'rgba(5,15,20,0.55)';
+    landingRateCall.style.border = `1px solid ${rateColor}`;
+    landingRateCall.style.display = 'block';
+  } else {
+    landingRateCall.style.display = 'none';
+  }
 
   // Live autopilot diagnostics panel - visible whenever autoland is engaged (or was just
   // disconnected by manual input, briefly showing why).
@@ -5300,6 +5424,12 @@ function updateHUD(dt){
   throttleVal.textContent = Math.round(STATE.throttle*100);
   infoThrottle.textContent = Math.round(STATE.throttle*100);
   vspeedVal.textContent = (vsfpm>=0?'+':'') + Math.round(vsfpm);
+  // Same safe/firm/hard coloring as the flare call-out and the post-landing grade, applied here
+  // too (even far from the ground) so the color scale is familiar by the time it actually
+  // matters, instead of only ever seeing it for the first time in the last few feet.
+  if (vsfpm < -400) vspeedVal.style.color = '#ff6644';
+  else if (vsfpm < -200) vspeedVal.style.color = '#ffd479';
+  else vspeedVal.style.color = '';
   headingVal.textContent = String(Math.round(STATE.heading)).padStart(3,'0');
   if (throttleFill) throttleFill.style.height = Math.round(STATE.throttle*100) + '%';
 
@@ -5390,7 +5520,7 @@ function updateHUD(dt){
   stallWarning.classList.toggle('active', STATE.stalling);
 
   // ground proximity warning (steep descent near terrain, not on ground)
-  const groundY = groundElevationAt(STATE.position.x, STATE.position.z);
+  const groundY = STATE.groundY; // shared per-frame cache (set in updatePhysics) instead of another identical terrainHeight call
   const agl = STATE.position.y - groundY;
   const nearGroundFast = (!STATE.onGround) && agl < 60 && STATE.verticalSpeed < -8;
   groundWarning.classList.toggle('active', nearGroundFast);
@@ -6023,8 +6153,9 @@ function updateRefuel(dt){
 }
 
 let lastRefuelButtonState = '';
+const refuelBtnEl = document.getElementById('refuel-touch-btn'); // cached once instead of getElementById every frame
 function updateRefuelButtonUI(){
-  const btn = document.getElementById('refuel-touch-btn');
+  const btn = refuelBtnEl;
   if (!btn) return;
   const relevant = isParked && !towState && STATE.onGround && STATE.speed < 2 && (!acConfig || acConfig.hasFuel);
   const show = relevant && (STATE.fuel < 99.5 || refueling);
@@ -6270,8 +6401,9 @@ function updateTow(dt){
 }
 
 let lastTowButtonState = null;
+const towBtnEl = document.getElementById('tow-touch-btn'); // cached once instead of getElementById every frame
 function updateTowButtonUI(){
-  const btn = document.getElementById('tow-touch-btn');
+  const btn = towBtnEl;
   if (!btn) return;
   const avail = towAvailable();
   const label = towState ? 'TOWING\u2026' : (isParked ? 'TOW OUT' : 'TOW TO<br>PARKING');
@@ -6304,8 +6436,14 @@ function animate(){
     career.totalFlightSeconds += dt; // in-memory only here - saveCareer() is called at natural checkpoints (landings, missions, page close), not every frame
     if (missionActive) {
       missionElapsed += dt;
-      const banner = document.getElementById('mission-banner');
-      if (banner) banner.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId}) \u2022 ${formatMissionTime(missionElapsed)}`;
+      // Cached element + only touching the DOM when the displayed text actually changes -
+      // formatMissionTime rounds to whole seconds, so without this check the exact same string
+      // was being written to the DOM ~59 times a second for nothing.
+      const displayedTime = formatMissionTime(missionElapsed);
+      if (displayedTime !== lastMissionBannerTime) {
+        lastMissionBannerTime = displayedTime;
+        if (missionBannerEl) missionBannerEl.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId}) \u2022 ${displayedTime}`;
+      }
       // Arrival check - deliberately forgiving: fires whenever the aircraft has come to a stop or
       // is rolling slowly anywhere within the destination airport's grounds (a generous radius
       // around the airport center, not a strict on-pavement rectangle checked only on the exact
@@ -6327,7 +6465,7 @@ function animate(){
   // Fade out landing score
   if(landingScoreTimer > 0){
     landingScoreTimer -= (dt || 0.016);
-    const el = document.getElementById('landing-score');
+    const el = landingScoreEl; // cached once (see declaration near showLandingScore) instead of getElementById every frame this timer is running
     if(landingScoreTimer <= 1.0){
       el.style.transition = 'opacity 1s';
       el.style.opacity = Math.max(0, landingScoreTimer).toFixed(2);
