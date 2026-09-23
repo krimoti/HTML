@@ -5139,7 +5139,6 @@ function updatePhysics(dt){
     if(onRunway) spawnSmoke(isMobileDevice ? 12 : 28);
     lastImpactVS = impactVerticalSpeed; // remembered for the mission-arrival check below, which (on purpose) isn't tied to this exact instant
   }
-  prevOnGround = STATE.onGround;
 
   // Also puff a little ongoing smoke during rollout
   if(STATE.onGround && onRunway && STATE.speed > 8 && Math.random() < 0.25){
@@ -5159,6 +5158,15 @@ function updatePhysics(dt){
   } else {
     STATE.onGround = false;
   }
+  // This must run every frame regardless of which branch above ran - it used to sit inside the
+  // "on ground" branch only, which meant it never updated to false while airborne. That silently
+  // broke landing detection for basically every normal flight: prevOnGround stayed stuck at true
+  // from before takeoff, so when the aircraft actually touched down again, "!prevOnGround &&
+  // STATE.onGround" was never true - no score popup, no logbook credit, nothing. A crash-landing
+  // still got credited (triggerCrash counts it directly, independent of this), and a landing
+  // scored via manual testing/direct calls never exercised the real airborne-then-down path -
+  // which is exactly why this went unnoticed until an actual takeoff-circuit-land run caught it.
+  prevOnGround = STATE.onGround;
 
   // ---- Heading ----
   let headingRad = Math.atan2(forward.x, -forward.z);
@@ -6488,6 +6496,47 @@ camera.lookAt(new THREE.Vector3(0, 4, -700));
 
 animate();
 
+})();
+</script>
+
+<!-- ══════ Universal offline-cache registration + on-screen verification ══════
+     Paste this EXACT block, unedited, right before </body> in every index.html
+     on the domain. Nothing here needs per-repo changes. -->
+<div id="offline-badge" style="
+  position:fixed; bottom:8px; left:8px; z-index:99999;
+  font:11px/1.4 -apple-system,sans-serif; padding:5px 9px; border-radius:7px;
+  background:rgba(0,0,0,.78); color:#fff; direction:rtl; pointer-events:none;
+  opacity:0; transition:opacity .3s;"></div>
+<script>
+(function(){
+  const badge = document.getElementById('offline-badge');
+  function show(text, color){
+    badge.textContent = text;
+    badge.style.color = color;
+    badge.style.opacity = '1';
+    setTimeout(()=>{ badge.style.opacity = '0'; }, 6000);
+  }
+  if(!('serviceWorker' in navigator)){
+    show('⚠️ הדפדפן הזה לא תומך ב-Service Worker', '#ff6b6b');
+    return;
+  }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      if(navigator.serviceWorker.controller){
+        // This load was actually served/controlled by the SW → offline-ready NOW.
+        show('✅ מוכן לאופליין (מוגש מהמטמון)', '#3ecf8e');
+      } else {
+        // First-ever visit: installing now, but THIS load came from the network,
+        // not the cache. Reload once (still online) before trusting airplane mode.
+        show('⏳ טוען לראשונה — רענן פעם אחת עוד עם אינטרנט', '#f5a623');
+      }
+      reg.addEventListener('updatefound', () => {
+        console.log('[offline] new version of sw.js found, scope:', reg.scope);
+      });
+    }).catch(err => {
+      show('❌ רישום נכשל: ' + err.message, '#ff6b6b');
+    });
+  });
 })();
 </script>
 </body>
