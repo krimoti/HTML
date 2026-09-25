@@ -2056,6 +2056,13 @@ const RUNWAYS = [
     // manually can still find it - a nice touch, not a bug), but stays out of the minimap, the
     // target-runway cycle button, and mission destinations until earned. See isAirportUnlocked().
     locked: true, unlockTier: 'test' },
+  { cx: 0,     cz: -6200, rwyId: '15', heading: -Math.PI * 0.15,   biome: 'grass',  name: 'Saltmere',    length: 1600, width: 70,
+    buildings: { hangars: 2, tower: true,  sheds: 1, parked: 3 },
+    // Unlocked at Private Pilot (the very first tier up) rather than gated behind the hardest
+    // one like Frostpeak - the world visibly grows again just a few landings in, not only after
+    // a long grind. Mirrors Frostpeak's distance south instead of north, so both sit comfortably
+    // inside the terrain size bumped for Frostpeak - no separate coverage check needed.
+    locked: true, unlockTier: 'private' },
 ];
 
 // True once the given airport's own unlock requirement (if any) is met - airports with no
