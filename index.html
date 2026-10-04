@@ -61,6 +61,16 @@
     box-shadow:0 0 12px rgba(255,212,121,0.4);
   }
   .ac-card small, .wx-card small, .diff-card small { color:#5fa8c9; font-size:10px; }
+  .build-type-btn {
+    background:rgba(10,30,50,0.7); border:1px solid rgba(127,216,255,0.3);
+    border-radius:6px; padding:5px 9px; cursor:pointer; font-size:11px;
+    color:#9fe9ff; transition:all 0.15s;
+  }
+  .build-type-btn:hover { border-color:#7fd8ff; background:rgba(20,60,90,0.8); }
+  .build-type-btn.selected {
+    border-color:#ffd479; color:#ffd479; background:rgba(40,30,10,0.7);
+    box-shadow:0 0 10px rgba(255,212,121,0.4);
+  }
   .ac-card.locked {
     opacity:0.4; cursor:not-allowed; position:relative;
     filter:grayscale(0.6);
@@ -754,6 +764,34 @@
     <div class="touch-btn small" id="tow-touch-btn">TOW TO<br>PARKING</div>
     <div class="touch-btn small" id="refuel-touch-btn" style="display:none;">REFUEL</div>
   </div>
+</div>
+
+<!-- Build mode toggle + palette - NOT confined to #touch-controls (unlike the buttons above)
+     since picking from six object types genuinely needs mouse/touch clicking on any device, not
+     just a keyboard shortcut - desktop players get N/M/K as a convenience (see the keydown
+     handler) but the panel's own buttons work by click everywhere. Fly to a spot, pick a piece,
+     tap PLACE - drops it at the aircraft's current ground position. Everything here reuses the
+     exact same builder functions the procedural airports already use, just placed by the player
+     instead of the airport-generation code, so a placed hangar/tree/plane is pixel-for-pixel the
+     same quality as the "real" ones. -->
+<div class="touch-btn" id="build-toggle-btn" style="position:fixed;top:272px;right:14px;pointer-events:auto;">BUILD<br>&#128736;</div>
+<div id="build-panel" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);
+  z-index:60;background:rgba(5,20,30,0.88);border:1px solid rgba(127,216,255,0.4);border-radius:10px;
+  padding:10px 14px;text-align:center;font-family:'Courier New',monospace;color:#cdeeff;pointer-events:auto;">
+  <div style="font-size:10px;letter-spacing:1px;color:#5fa8c9;margin-bottom:6px;">🛠 BUILD MODE — <span id="build-count">0</span>/<span id="build-max">40</span> placed</div>
+  <div id="build-palette" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;">
+    <div class="build-type-btn selected" data-type="hangar">🛖 Hangar</div>
+    <div class="build-type-btn" data-type="shed">🏚 Shed</div>
+    <div class="build-type-btn" data-type="tower">🗼 Tower</div>
+    <div class="build-type-btn" data-type="tree">🌲 Tree</div>
+    <div class="build-type-btn" data-type="house">🏠 House</div>
+    <div class="build-type-btn" data-type="plane">✈️ Plane</div>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center;">
+    <div class="touch-btn small" id="build-place-btn" style="position:static;pointer-events:auto;">PLACE<br>HERE</div>
+    <div class="touch-btn small" id="build-remove-btn" style="position:static;pointer-events:auto;">REMOVE<br>NEAREST</div>
+  </div>
+  <div id="build-message" style="font-size:10px;color:#ffb45f;margin-top:6px;min-height:12px;"></div>
 </div>
 
 <!-- Bottom controls reference -->
@@ -2423,6 +2461,7 @@ function buildTower(x,z){
   g.add(cap);
   g.position.set(x, terrainHeight(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
   scene.add(g);
+  return g; // returned so callers (e.g. build mode) can track/remove this specific instance later - existing callers that ignore it are unaffected
 }
 
 function buildHangar(x,z, rotY){
@@ -2442,6 +2481,7 @@ function buildHangar(x,z, rotY){
   g.position.set(x, terrainHeight(x,z), z);
   g.rotation.y = rotY;
   scene.add(g);
+  return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
 
 // A small utility building - visually distinct from the hangar (boxy/flat-roofed instead of a
@@ -2463,6 +2503,7 @@ function buildShed(x, z, rotY){
   g.position.set(x, terrainHeight(x,z), z);
   g.rotation.y = rotY || 0;
   scene.add(g);
+  return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
 
 // A small, static decorative aircraft for the parking ramp - purely scenery (never moves, never
@@ -2596,6 +2637,7 @@ function buildTree(x,z,biome){
   g.add(leaf);
   g.position.set(x, terrainHeight(x,z), z);
   scene.add(g);
+  return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
 
 /* Small houses scattered near each airport, each with 1-2 windows that glow
@@ -2635,6 +2677,7 @@ function buildHouse(x,z){
   g.position.set(x, terrainHeight(x,z), z);
   g.rotation.y = Math.random()*Math.PI*2;
   scene.add(g);
+  return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
 
 // Build every airport: runway, tower, hangars, surrounding trees, and a small
@@ -2721,6 +2764,126 @@ RUNWAYS.forEach((r, idx)=>{
     buildHouse(p.x, p.z);
   }
 });
+
+/* =====================================================================
+   BUILD MODE - lets the player decorate the world themselves: fly to a
+   spot, pick a piece from the palette, and drop it exactly where the
+   aircraft currently is. Every piece reuses the SAME builder functions
+   the procedural airports use above (buildHangar, buildShed, buildTower,
+   buildTree, buildHouse, buildDecorativePlane) - a placed hangar is
+   pixel-for-pixel the same as a "real" one, just chosen by the player
+   instead of the airport-generation loop. Persists across sessions via
+   localStorage, the same pattern as the career/logbook system.
+===================================================================== */
+const CUSTOM_OBJECTS_KEY = 'flightSimCustomObjectsV1';
+const MAX_CUSTOM_OBJECTS = 40;
+const BUILD_TYPES = ['hangar', 'shed', 'tower', 'tree', 'house', 'plane'];
+const PLANE_COLORS = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff, 0x8a5fd9, 0x5fd98a];
+
+function loadCustomObjects(){
+  try {
+    const raw = localStorage.getItem(CUSTOM_OBJECTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* localStorage unavailable - just don't persist this session */ }
+  return [];
+}
+function saveCustomObjects(){
+  try { localStorage.setItem(CUSTOM_OBJECTS_KEY, JSON.stringify(customObjects)); } catch (e) { /* ignore - nothing else to do if storage is blocked */ }
+}
+let customObjects = loadCustomObjects(); // [{ id, type, x, z, rotY, color? }]
+const customObjectMeshes = new Map(); // id -> THREE.Object3D, so a specific placed piece can be found and removed again
+let buildModeActive = false;
+let selectedBuildType = 'hangar';
+
+// One shared dispatcher for "build a piece of type T at (x,z)" - used both when spawning
+// everything saved from a previous session on page load, and when the player places a new one
+// live. Keeping this in one place means build mode automatically stays in sync with however
+// these builders evolve, rather than duplicating their call signatures here.
+function spawnCustomObject(rec){
+  let obj;
+  if (rec.type === 'hangar') obj = buildHangar(rec.x, rec.z, rec.rotY || 0);
+  else if (rec.type === 'shed') obj = buildShed(rec.x, rec.z, rec.rotY || 0);
+  else if (rec.type === 'tower') obj = buildTower(rec.x, rec.z);
+  else if (rec.type === 'tree') obj = buildTree(rec.x, rec.z, 'grass');
+  else if (rec.type === 'house') obj = buildHouse(rec.x, rec.z);
+  else if (rec.type === 'plane') {
+    obj = buildDecorativePlane(rec.color != null ? rec.color : 0xffffff, { gear: true });
+    obj.position.set(rec.x, terrainHeight(rec.x, rec.z), rec.z);
+    obj.rotation.y = rec.rotY || 0;
+    scene.add(obj);
+  }
+  if (obj) customObjectMeshes.set(rec.id, obj);
+}
+customObjects.forEach(spawnCustomObject); // recreate whatever the player built in earlier sessions
+
+function updateBuildUI(){
+  const countEl = document.getElementById('build-count');
+  if (countEl) countEl.textContent = customObjects.length;
+}
+
+function placeObjectAtPlayer(){
+  if (customObjects.length >= MAX_CUSTOM_OBJECTS) {
+    const msg = document.getElementById('build-message');
+    if (msg) msg.textContent = `Limit reached (${MAX_CUSTOM_OBJECTS}) - remove something first`;
+    return;
+  }
+  const rec = {
+    id: Date.now() + '_' + Math.floor(Math.random()*10000),
+    type: selectedBuildType,
+    x: STATE.position.x,
+    z: STATE.position.z,
+    rotY: THREE.MathUtils.degToRad(STATE.heading),
+  };
+  if (selectedBuildType === 'plane') rec.color = PLANE_COLORS[Math.floor(Math.random()*PLANE_COLORS.length)];
+  customObjects.push(rec);
+  spawnCustomObject(rec);
+  saveCustomObjects();
+  updateBuildUI();
+  const msg = document.getElementById('build-message');
+  if (msg) msg.textContent = `Placed a ${selectedBuildType}!`;
+}
+
+function removeNearestCustomObject(){
+  if (!customObjects.length) return;
+  let bestIdx = -1, bestDist = Infinity;
+  customObjects.forEach((rec, i) => {
+    const d = Math.hypot(rec.x - STATE.position.x, rec.z - STATE.position.z);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  const RANGE = 60; // meters - has to be reasonably close, so this can't accidentally clear something across the map
+  const msg = document.getElementById('build-message');
+  if (bestIdx < 0 || bestDist > RANGE) {
+    if (msg) msg.textContent = 'Nothing placed nearby to remove';
+    return;
+  }
+  const rec = customObjects[bestIdx];
+  const mesh = customObjectMeshes.get(rec.id);
+  if (mesh) {
+    mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    scene.remove(mesh);
+    customObjectMeshes.delete(rec.id);
+  }
+  customObjects.splice(bestIdx, 1);
+  saveCustomObjects();
+  updateBuildUI();
+  if (msg) msg.textContent = `Removed the ${rec.type}`;
+}
+
+function toggleBuildMode(){
+  buildModeActive = !buildModeActive;
+  document.getElementById('build-panel').style.display = buildModeActive ? 'block' : 'none';
+  updateBuildUI();
+}
+document.getElementById('build-toggle-btn').addEventListener('click', toggleBuildMode);
+document.querySelectorAll('.build-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.build-type-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedBuildType = btn.dataset.type;
+  });
+});
+document.getElementById('build-place-btn').addEventListener('click', placeObjectAtPlayer);
+document.getElementById('build-remove-btn').addEventListener('click', removeNearestCustomObject);
 
 // Cache minimap airport nodes - querySelectorAll every frame is GC pressure on mobile
 const MINIMAP_RANGE = 6000; // meters - real-world distance mapped to the minimap's visible radius
@@ -3702,6 +3865,12 @@ window.addEventListener('keydown', (e)=>{
   if (e.code === 'KeyP') setParkingBrake(!STATE.parkingBrake);
   if (e.code === 'KeyG') startTow(); // tow to/from parking, same as the touch TOW button
   if (e.code === 'KeyU') startRefuel(); // refuel while parked, same as the touch REFUEL button
+  // Build mode on desktop (the on-screen BUILD button lives in the touch-only controls, which
+  // aren't shown without a touchscreen): N opens/closes the palette, M places the selected piece
+  // right where the aircraft is, K removes the nearest placed piece.
+  if (e.code === 'KeyN') toggleBuildMode();
+  if (e.code === 'KeyM' && buildModeActive) placeObjectAtPlayer();
+  if (e.code === 'KeyK' && buildModeActive) removeNearestCustomObject();
 });
 
 const MAX_FLAPS = 3;
