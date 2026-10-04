@@ -542,6 +542,83 @@
     #reset-touch-btn { top:96px; }
     #menu-touch-btn { top:168px; }
   }
+
+  /* =====================================================================
+     iPhone HUD layout v2 - overlap fixes. CSS only (no HTML/JS touched).
+     Desktop and tablets are unaffected: portrait rules apply at <=480px width
+     (same breakpoint as above), landscape rules only to touch devices with a
+     short viewport (phones in landscape). Placed LAST so it overrides the rules above.
+     ===================================================================== */
+
+  /* ---------- PORTRAIT phones ---------- */
+  @media (max-width: 480px) {
+    /* Button row now lives BETWEEN the audio button and the right edge (it used to be
+       centred and overflowed under the audio button on the left and the CAM button on the right). */
+    #secondary-controls { left:54px; right:8px; top:8px; transform:none; gap:3px; }
+    #secondary-controls .touch-btn.small {
+      flex:1 1 0; min-width:0; padding:5px 1px; font-size:7.5px; letter-spacing:0.2px; line-height:1.25;
+    }
+    /* Right-hand column starts BELOW that row, with a tighter pitch, and the minimap sits under BUILD. */
+    #cam-toggle-btn   { top:52px;  right:12px; }
+    #reset-touch-btn  { top:106px; right:12px; }
+    #menu-touch-btn   { top:160px; right:12px; }
+    #build-toggle-btn { top:214px !important; right:12px !important; }
+    #minimap { top:286px; right:10px; }
+    /* ILS block (shown on final) sits just under the RWY panel instead of 5px into it */
+    #approach-guidance { top:314px; }
+    /* Small phones (SE): keep the speed/alt dials clear of the joystick / throttle buttons */
+    #speed-gauge, #alt-gauge { bottom:max(20%, 150px); }
+  }
+
+  /* ---------- LANDSCAPE phones ---------- */
+  @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+    :root {
+      --sl: max(8px, env(safe-area-inset-left));    /* notch / Dynamic Island side */
+      --sr: max(8px, env(safe-area-inset-right));
+      --sb: max(8px, env(safe-area-inset-bottom));
+    }
+    #flight-info, #camera-indicator, #autoland-indicator { display:none !important; } /* redundant on touch, same as portrait */
+
+    /* TOP CENTRE: button row, then ONE row of four dials (speed | attitude | heading | altitude) */
+    #secondary-controls { top:6px; gap:3px; }
+    #secondary-controls .touch-btn.small { padding:4px 6px; font-size:8px; letter-spacing:0.3px; min-width:34px; line-height:1.2; }
+    #speed-gauge, #attitude-gauge, #heading-gauge, #alt-gauge {
+      width:80px; height:80px; top:44px; bottom:auto; right:auto;
+    }
+    #speed-gauge    { left:calc(50% - 166px); }
+    #attitude-gauge { left:calc(50% - 82px); }
+    #heading-gauge  { left:calc(50% + 2px); }
+    #alt-gauge      { left:calc(50% + 86px); }
+    #ai-ball { width:170px; height:170px; }
+    .ai-bank-tick { transform-origin:50% 33px; }
+    .gauge-digital span { font-size:12px; }
+    .gauge-title { font-size:6.5px; }
+
+    /* LEFT: audio + throttle bar in a narrow column, status panels beside them, joystick bottom-left */
+    #audio-toggle-btn { left:var(--sl); top:6px; }
+    #throttle-gauge { left:var(--sl); top:46px; width:44px; height:96px; }
+    #systems-panel  { left:calc(var(--sl) + 54px); top:6px;  font-size:9px; padding:4px 7px; min-width:70px; }
+    #rwy-nav-panel  { left:calc(var(--sl) + 54px); top:84px; padding:3px 7px; min-width:80px; }
+    .rwy-nav-label { font-size:8px; letter-spacing:0.5px; gap:3px; }
+    #approach-guidance { left:calc(var(--sl) + 128px); top:152px; }
+    #joystick-base  { width:110px; height:110px; left:calc(var(--sl) + 12px); bottom:calc(var(--sb) + 14px); }
+    #joystick-label { font-size:8px; bottom:-14px; }
+
+    /* RIGHT: button column on the edge, minimap beside it, throttle/yaw cluster bottom-right */
+    .touch-btn { padding:8px 10px; font-size:9.5px; min-width:48px; }
+    #cam-toggle-btn   { top:6px;   right:var(--sr); }
+    #reset-touch-btn  { top:51px;  right:var(--sr); }
+    #menu-touch-btn   { top:96px;  right:var(--sr); }
+    #build-toggle-btn { top:141px !important; right:var(--sr) !important; }
+    #minimap { width:70px; height:70px; top:20px; right:calc(var(--sr) + 74px); }
+    #minimap-label { font-size:8px; top:-11px; }
+    #right-controls { right:var(--sr); bottom:var(--sb); gap:6px; }
+    #throttle-row, #yaw-row { gap:6px; }
+
+    /* BOTTOM CENTRE: keep radio subtitles between joystick and throttle/yaw cluster */
+    #atc-radio { bottom:var(--sb); width:min(380px, calc(100vw - 300px)); }
+    .atc-line { font-size:11px; padding:4px 8px; }
+  }
 </style>
 </head>
 <body>
