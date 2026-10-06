@@ -3817,6 +3817,12 @@ function buildAirplane(type){
   // the others exactly as it was.
   if (BODY_LIFT) plane.children.forEach(c => { if (!gearParts.includes(c)) c.position.y += BODY_LIFT; });
   plane.userData.bodyLift = BODY_LIFT; // the cockpit camera adds this so the pilot's eye stays where it always was relative to the body
+  {
+    // Belly camera mount: on the centreline, just under the fuselage, 42% of its length back from the
+    // nose (far enough behind the nose gear and prop that they stay out of frame, still ahead of the main gear).
+    const fb = new THREE.Box3().setFromObject(plane.children[0]);
+    plane.userData.bellyCam = new THREE.Vector3(0, fb.min.y - 0.06, fb.min.z + (fb.max.z - fb.min.z) * 0.42);
+  }
 
   plane.userData.lights = {
     beacon, beaconMat, navGlow,
@@ -3877,6 +3883,7 @@ function rebuildAirplaneModel(type){
   airplane.userData.propeller = built.userData.propeller;
   airplane.userData.gear = built.userData.gear;
   airplane.userData.bodyLift = built.userData.bodyLift || 0;
+  airplane.userData.bellyCam = built.userData.bellyCam;
   airplane.userData.lights = built.userData.lights;
   airplane.userData.__builtType = type;
 }
@@ -3902,8 +3909,9 @@ const STATE = {
   position: new THREE.Vector3(0, 0, -700), // start on runway near threshold
   velocity: new THREE.Vector3(0,0,0),      // world-space velocity (m/s)
   speed: 0,           // scalar airspeed m/s
-  throttle: 0.15,      // 0..1
-  pitch: 0, roll: 0, yaw: 0, // euler-ish orientation angles (radians)
+  throttle: 0,         // 0..1 - starts at idle-zero so the parked aircraft does not creep
+  pitch: 0, roll: 0, yaw: -Math.PI, // euler-ish orientation angles (radians). yaw -PI = nose toward +z, down the 1600 m of runway ahead
+
   pitchRate: 0, rollRate: 0, yawRate: 0,
   onGround: true,
   stalling: false,
@@ -3937,7 +3945,11 @@ airplane.position.copy(STATE.position);
 // These are read each frame from acConfig (set when the player presses START).
 // (BASE_GRAVITY defined earlier with scratch objects)
 // Add defensive checks for undefined acConfig values
-function MAX_THRUST(){ return (acConfig && acConfig.maxThrust) ? acConfig.maxThrust : 35; }
+// A maxThrust of 0 is a real value (the glider has no engine). Only a missing config falls back to 35.
+function MAX_THRUST(){
+  if (acConfig && typeof acConfig.maxThrust === 'number') return acConfig.maxThrust;
+  return 35;
+}
 // Thrust the engine can actually deliver right now - zero once the tank is dry, same as a real
 // flameout: the throttle lever can be all the way forward and it won't matter with no fuel.
 function AVAILABLE_THRUST(){
@@ -3957,14 +3969,34 @@ function updateFuel(dt){
 function DRAG_COEFF(){ return (acConfig && acConfig.drag) ? acConfig.drag : 0.04; }
 function LIFT_COEFF(){ return (acConfig && acConfig.lift) ? acConfig.lift : 0.095; }
 function STALL_SPEED(){ return (acConfig && acConfig.stallSpeed) ? acConfig.stallSpeed : 18; }
-const GROUND_FRICTION = 0.985;
+const GROUND_FRICTION = 0.985; // legacy, unused
+// Ground deceleration in m/s^2 (real-time, frame-rate independent). Rolling resistance alone gives a
+// rollout of about 300 m from typical touchdown speed; wheel brakes add to it for about 150 m.
+const ROLLING_DECEL = 1.2;
+const BRAKE_DECEL   = 1.8;
+// Removes `decel` m/s of horizontal speed over this frame, never reversing direction.
+function applyGroundDeceleration(decel, dt){
+  const vx = STATE.velocity.x, vz = STATE.velocity.z;
+  const speedH = Math.hypot(vx, vz);
+  if (speedH < 1e-6) return;
+  const newSpeedH = Math.max(0, speedH - decel * dt);
+  const k = newSpeedH / speedH;
+  STATE.velocity.x = vx * k;
+  STATE.velocity.z = vz * k;
+}
 // How far above bare terrain height the aircraft's "on the ground" resting position actually
 // is (accounts for gear/fuselage height) - shared between the normal physics ground-check and
 // anything else that needs to place the aircraft exactly on the ground (like the tow system),
 // so the two can never disagree about where "on the ground" actually is.
 const GEAR_OFFSET = 1.0;
 
-let cameraMode = 'chase'; // 'chase' | 'cockpit'
+let cameraMode = 'chase'; // 'chase' | 'cockpit' | 'belly'
+const CAMERA_MODES = ['chase', 'cockpit', 'belly'];
+const CAMERA_LABELS = { chase:'CHASE', cockpit:'COCKPIT', belly:'BELLY' };
+function cycleCamera(){
+  cameraMode = CAMERA_MODES[(CAMERA_MODES.indexOf(cameraMode) + 1) % CAMERA_MODES.length];
+  document.getElementById('cam-mode').textContent = CAMERA_LABELS[cameraMode];
+}
 let pitchInverted = false; // false = realistic yoke (S/Down=climb, W/Up=dive); true = game-style (W/Up=climb)
 
 /* =====================================================================
@@ -3975,10 +4007,7 @@ window.addEventListener('keydown', (e)=>{ keys[e.code] = true; if (['ArrowUp','A
 window.addEventListener('keyup', (e)=>{ keys[e.code] = false; });
 
 window.addEventListener('keydown', (e)=>{
-  if (e.code === 'KeyC') {
-    cameraMode = (cameraMode === 'chase') ? 'cockpit' : 'chase';
-    document.getElementById('cam-mode').textContent = cameraMode === 'chase' ? 'CHASE' : 'COCKPIT';
-  }
+  if (e.code === 'KeyC') cycleCamera();
   if (e.code === 'KeyR') resetAircraft();
   if (e.code === 'Escape') returnToMenu();
   if (e.code === 'KeyL') setAutoland(!STATE.autoland);
@@ -4193,10 +4222,7 @@ bindHoldButton('throttle-down-btn', ()=>touchInput.throttleDown=true, ()=>touchI
 bindHoldButton('yaw-left-btn',      ()=>touchInput.yawLeft=true,      ()=>touchInput.yawLeft=false);
 bindHoldButton('yaw-right-btn',     ()=>touchInput.yawRight=true,     ()=>touchInput.yawRight=false);
 
-bindTapButton('cam-toggle-btn', ()=>{
-  cameraMode = (cameraMode === 'chase') ? 'cockpit' : 'chase';
-  document.getElementById('cam-mode').textContent = cameraMode === 'chase' ? 'CHASE' : 'COCKPIT';
-});
+bindTapButton('cam-toggle-btn', cycleCamera);
 bindTapButton('reset-touch-btn', ()=> resetAircraft());
 bindTapButton('menu-touch-btn', ()=> returnToMenu());
 
@@ -4258,8 +4284,8 @@ function resetAircraft(){
   STATE.position.set(0,0,-700);
   STATE.velocity.set(0,0,0);
   STATE.speed = 0;
-  STATE.throttle = 0.15;
-  STATE.pitch = 0; STATE.roll = 0; STATE.yaw = 0;
+  STATE.throttle = 0; // start parked with the throttle at zero - the pilot sets power
+  STATE.pitch = 0; STATE.roll = 0; STATE.yaw = -Math.PI; // face the long side of the runway, as at spawn
   STATE.pitchRate = 0; STATE.rollRate = 0; STATE.yawRate = 0;
   STATE.onGround = true;
   STATE.stalling = false;
@@ -5021,12 +5047,9 @@ function updatePhysics(dt){
     yawInput = manualYawInput;
     if (manualThrottleUp) STATE.throttle = Math.min(1, STATE.throttle + dt*0.5);
     if (manualThrottleDown) STATE.throttle = Math.max(0, STATE.throttle - dt*0.5);
-    // Auto-idle only during landing rollout (speed decreasing = we just landed).
-    // Don't touch throttle during takeoff roll - if the player is pushing throttle up, they're
-    // trying to take off, not land.
-    if (STATE.onGround && !manualThrottleUp && STATE.speed < 20) {
-      STATE.throttle = Math.max(0, STATE.throttle - dt*0.7);
-    }
+    // The throttle stays exactly where the pilot leaves it, on the ground and in the air.
+    // The old auto-idle below 20 m/s pulled it to 0 in about 1.4 s, which made it impossible to
+    // set a power level and let go. Pilots reduce power themselves with the throttle-down control.
   }
 
   // ---- Rotational dynamics (rate-controlled with damping) ----
@@ -5065,9 +5088,13 @@ function updatePhysics(dt){
   // and damping normal values would overpower the steady input. In manual flight, higher damping
   // prevents overcontrol and jittering - but in autopilot, steady commands should accumulate.
   const dampMult = STATE.autoland ? 0.4 : 1.0; // during autoland, MUCH less damping to allow rotation to build
-  STATE.pitchRate *= (0.90 * dampMult);
-  STATE.rollRate  *= (0.88 * dampMult);
-  STATE.yawRate   *= (0.92 * dampMult);
+  // Damping is applied per unit of real time, not per frame. The factors were tuned at 60fps
+  // (x60 = per-second), so Math.pow(f, dt*60) gives the same feel at 60fps while keeping the
+  // result identical at 30fps or 120fps.
+  const dampScale = dt * 60;
+  STATE.pitchRate *= Math.pow(0.90 * dampMult, dampScale);
+  STATE.rollRate  *= Math.pow(0.88 * dampMult, dampScale);
+  STATE.yawRate   *= Math.pow(0.92 * dampMult, dampScale);
 
   // hard safety clamp on rotation rates so control input can never runaway/diverge
   STATE.pitchRate = THREE.MathUtils.clamp(STATE.pitchRate, -2.2, 2.2);
@@ -5080,6 +5107,17 @@ function updatePhysics(dt){
   STATE.pitch += STATE.pitchRate * dt;
   STATE.roll  += STATE.rollRate  * dt;
   STATE.yaw   += STATE.yawRate   * dt;
+
+  // Coordinated turn: a banked wing turns the aircraft, without any rudder input. The wing's lift
+  // has a sideways component proportional to tan(bank), which turns the flight path at the rate
+  // g*tan(bank)/V. Yaw grows toward the bank side (positive roll = positive yaw here), so a 32 deg
+  // bank at about 50 m/s turns roughly 7 deg/s - the same as a real aircraft. Applied only in the
+  // air; on the ground the wheels steer the aircraft, not the wings.
+  if (!STATE.onGround && !STATE.crashed) {
+    const turnSpeed = Math.max(STATE.speed, 25); // floor so a near-stopped aircraft doesn't spin
+    const coordinatedRate = 9.81 * Math.tan(STATE.roll) / turnSpeed;
+    STATE.yaw += THREE.MathUtils.clamp(coordinatedRate, -0.6, 0.6) * dt;
+  }
 
   // Hard safety clamp on bank angle: never allow full inversion. Regardless of any remaining
   // sign/tuning issue in the roll-turn coupling above, this makes it physically impossible for
@@ -5202,7 +5240,17 @@ function updatePhysics(dt){
   // Lift: proportional to speed^2 and controlled by pitch attitude (angle of attack proxy), acts along
   // 'up'. This alone naturally ties descent/climb to throttle: less throttle -> less speed -> less lift
   // -> the plane sinks; more throttle -> more speed -> more lift -> the plane climbs.
-  const liftMag = LIFT_COEFF() * horizSpeedForLift * horizSpeedForLift * 0.02 * flapLiftBonus * speedbrakeLiftMult;
+  // Lift now depends on the angle of attack (wing-to-airflow angle), not only on airspeed.
+  // Angle of attack = nose pitch minus the flight-path angle (the direction the aircraft is
+  // actually moving). A nose pitched above its path bites more air and makes more lift; a nose
+  // below it makes less. At level flight with the nose on the horizon the factor is exactly 1,
+  // so the cruise feel matches the old model. Climbing lowers the angle of attack, which cuts
+  // lift on its own - that negative feedback is what keeps climbs from running away, so the old
+  // hard 15 m/s climb ceiling is no longer needed.
+  const flightPathAngle = Math.atan2(STATE.velocity.y, Math.max(horizSpeedForLift, 0.1));
+  const angleOfAttack = STATE.pitch - flightPathAngle;
+  const aoaLiftFactor = THREE.MathUtils.clamp(1 + 2.5 * angleOfAttack, 0.2, 1.8);
+  const liftMag = LIFT_COEFF() * horizSpeedForLift * horizSpeedForLift * 0.02 * aoaLiftFactor * flapLiftBonus * speedbrakeLiftMult;
   let effectiveLift = liftMag;
   // Ensure lift is finite
   if (!isFinite(effectiveLift) || effectiveLift < 0) effectiveLift = 0;
@@ -5299,7 +5347,7 @@ function updatePhysics(dt){
   // keep rotating more of that fixed-magnitude velocity vector into the vertical axis every frame.
   // Capping vertical speed instead means gravity and reduced throttle can actually pull the nose
   // back down and bleed off climb rate, exactly like a real aircraft running out of excess power.
-  const MAX_CLIMB_RATE = 15;   // m/s (~3000 ft/min) - generous but bounded climb rate
+  const MAX_CLIMB_RATE = 60;   // m/s - a safety ceiling only; the angle-of-attack lift above is what limits climbs
   const MAX_DESCENT_RATE = 60; // m/s (~11800 ft/min) - allows a steep dive/crash without exploding
   STATE.velocity.y = THREE.MathUtils.clamp(STATE.velocity.y, -MAX_DESCENT_RATE, MAX_CLIMB_RATE);
 
@@ -5408,9 +5456,10 @@ function updatePhysics(dt){
     }
 
     // friction / rolling resistance
-    const groundFrictionThisFrame = frameRateIndependentDecay(GROUND_FRICTION, dt);
-    STATE.velocity.x *= groundFrictionThisFrame;
-    STATE.velocity.z *= groundFrictionThisFrame;
+    // Rolling resistance: a constant deceleration in m/s^2 so the rollout length is the same at any
+    // frame rate. Without brakes a landing rolls about 300 m; the old per-frame multiplier stopped it
+    // in about 30-45 m.
+    applyGroundDeceleration(ROLLING_DECEL, dt);
 
     // NOTE: there used to be an "automatic braking" step here that kicked in on its own
     // whenever throttle was low and speed was under 55 m/s - even with the brakes untouched.
@@ -5423,9 +5472,8 @@ function updatePhysics(dt){
     // normal rolling friction - this is what lets you actually stop on the runway instead of
     // slowly rolling out forever.
     if (keys['Space'] || touchInput.wheelBrakes) {
-      const wheelBrakeFactor = frameRateIndependentDecay(0.90, dt);
-      STATE.velocity.x *= wheelBrakeFactor;
-      STATE.velocity.z *= wheelBrakeFactor;
+      // Brakes add to rolling resistance: about 3 m/s^2 in total, so a landing stops in about 150 m.
+      applyGroundDeceleration(BRAKE_DECEL, dt);
     }
     if (STATE.parkingBrake) {
       const parkingBrakeFactor = frameRateIndependentDecay(0.75, dt);
@@ -5574,6 +5622,7 @@ const _camLookEuler = new THREE.Euler(0,0,0,'YXZ'); // reused each frame instead
 const _camScratchA = new THREE.Vector3(); // reused for the chase/cockpit "desired position" math
 const _camScratchB = new THREE.Vector3(); // reused for the look-target / look-direction math
 const _camScratchC = new THREE.Vector3(); // reused for the cockpit look-target (needs to stay distinct from _camScratchB mid-calculation)
+const BELLY_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI/4); // belly cam: pitched 45 deg DOWN from the aircraft's forward axis
 const UP_VECTOR_OFFSET = new THREE.Vector3(0, 1.2, 0); // constant offset, read-only - never mutated, so safe to share across frames
 const CHASE_ROLL_INFLUENCE = 0.2;  // how much the chase cam orbits with bank - low on purpose
 const CHASE_PITCH_INFLUENCE = 0.35; // how much the chase cam orbits with pitch - same idea as roll:
@@ -5619,6 +5668,17 @@ function updateCamera(dt){
     camera.position.copy(currentCamPos);
     const lookTarget = _camScratchB.copy(airplane.position).add(UP_VECTOR_OFFSET);
     camera.up.set(0,1,0);
+    camera.lookAt(lookTarget);
+  } else if (cameraMode === 'belly') {
+    // Belly camera: bolted under the fuselage, looking 45 deg down and FORWARD (not straight down).
+    // Follows the aircraft's full attitude like the cockpit view; dragging to look turns it on top of that.
+    combinedQuat.copy(airplane.quaternion).multiply(BELLY_TILT).multiply(lookQuat);
+    const mount = airplane.userData.bellyCam;
+    const desired = _camScratchA.copy(mount).applyQuaternion(airplane.quaternion).add(airplane.position);
+    camera.position.copy(desired);
+    const lookDir = _camScratchB.set(0,0,-1).applyQuaternion(combinedQuat);
+    const lookTarget = _camScratchC.copy(desired).add(lookDir.multiplyScalar(10));
+    camera.up.copy(_camScratchB.set(0,1,0).applyQuaternion(combinedQuat));
     camera.lookAt(lookTarget);
   } else {
     // Cockpit: head position stays fixed to the plane (full attitude, including roll - you're
