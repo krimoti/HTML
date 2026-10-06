@@ -3134,6 +3134,7 @@ function buildAirplane(type){
 
   let propGroup = null;
   let gearParts = [];
+  let BODY_LIFT = 0; // Cessna only: how far the body (everything except the gear) is raised above the origin - applied in one pass before return
 
   if (type === 'jet') {
     // ==================== JET: sleek low-wing, swept tail, twin tail-mounted engines, no prop ====================
@@ -3246,27 +3247,47 @@ function buildAirplane(type){
     vstab.castShadow = true;
     plane.add(vstab);
 
-    // Retracted-look tricycle gear (thinner, tucked closer to body)
-    function makeJetGear(x,z,scale){
-      const g = new THREE.Group();
-      const strutGeo = new THREE.CylinderGeometry(0.04,0.04,0.8,6);
-      const strut = new THREE.Mesh(strutGeo, darkMat);
-      strut.position.y = -0.4;
-      g.add(strut);
-      const wheelGeo = new THREE.CylinderGeometry(0.28,0.28,0.18,10);
-      wheelGeo.rotateZ(Math.PI/2);
-      const wheel = new THREE.Mesh(wheelGeo, darkMat);
-      wheel.position.y = -0.82;
-      g.add(wheel);
-      g.position.set(x,-0.55,z);
-      g.scale.setScalar(scale || 1);
-      return g;
+    // Tricycle gear. Same contact rule as the Cessna: the physics rests the origin 1.0 above the
+    // terrain and the runway surface is 0.05 above it, so the tyres' lowest point is at -0.95.
+    // Before: the wheels sat ~0.65 below the ground and the main legs hung from a point 0.4 under
+    // the wing, touching nothing. Now the main legs start inside the wing root and the nose leg
+    // inside the fuselage belly; the body is lifted by BODY_LIFT (in the pass at the end of
+    // buildAirplane) so the belly clears the ground and the legs have a real length.
+    const JET_GROUND_Y = -0.95;
+    BODY_LIFT = 0.35;
+    const _jetUp = new THREE.Vector3(0,1,0);
+    function jetStrut(a, b, radius){
+      const dir = new THREE.Vector3().subVectors(b, a);
+      const len = dir.length();
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 8), darkMat);
+      m.position.copy(a).addScaledVector(dir, 0.5);
+      m.quaternion.setFromUnitVectors(_jetUp, dir.normalize());
+      m.castShadow = true;
+      return m;
     }
-    const gearL = makeJetGear(-1.1, 0.4, 1);
-    const gearR = makeJetGear(1.1, 0.4, 1);
-    const gearNose = makeJetGear(0, -3.4, 0.85);
-    plane.add(gearL, gearR, gearNose);
-    gearParts = [gearL, gearR, gearNose];
+    function jetWheel(x, z, r, w){
+      const geo = new THREE.CylinderGeometry(r, r, w, 16); // 16 sides: a vertex sits exactly at the bottom
+      geo.rotateZ(Math.PI/2);
+      const wheel = new THREE.Mesh(geo, darkMat);
+      wheel.position.set(x, JET_GROUND_Y + r, z);
+      wheel.castShadow = true;
+      return wheel;
+    }
+    const JMAIN_X = 1.1, JMAIN_Z = 0.4, JMAIN_R = 0.28;
+    [-1, 1].forEach(side => {
+      const top = new THREE.Vector3(side*JMAIN_X, BODY_LIFT + WING_Y - 0.03, JMAIN_Z); // inside the 0.14-thick wing root
+      const hub = new THREE.Vector3(side*JMAIN_X, JET_GROUND_Y + JMAIN_R, JMAIN_Z);
+      gearParts.push(jetStrut(top, hub, 0.05), jetWheel(side*JMAIN_X, JMAIN_Z, JMAIN_R, 0.18));
+    });
+    const JNOSE_Z = -3.4, JNOSE_R = 0.24;
+    const jNoseHubY = JET_GROUND_Y + JNOSE_R;
+    gearParts.push(
+      jetStrut(new THREE.Vector3(0, BODY_LIFT - 0.62, JNOSE_Z), new THREE.Vector3(0, jNoseHubY + 0.14, JNOSE_Z), 0.045), // belly is ~0.71 deep here: starts inside it
+      jetStrut(new THREE.Vector3(0, jNoseHubY + 0.14, JNOSE_Z), new THREE.Vector3(-0.09, jNoseHubY, JNOSE_Z), 0.03),
+      jetStrut(new THREE.Vector3(0, jNoseHubY + 0.14, JNOSE_Z), new THREE.Vector3( 0.09, jNoseHubY, JNOSE_Z), 0.03),
+      jetWheel(0, JNOSE_Z, JNOSE_R, 0.15)
+    );
+    gearParts.forEach(g => plane.add(g));
 
     // Nav lights
     const navGeoR = new THREE.SphereGeometry(0.1,6,6);
@@ -3619,12 +3640,14 @@ function buildAirplane(type){
       g.add(tipCap);
 
       // Wing strut (fuselage belly -> mid-wing) - the classic Cessna high-wing brace
-      const strutGeo = new THREE.BoxGeometry(0.09, 1.55, 0.22);
-      const strut = new THREE.Mesh(strutGeo, bodyMat);
-      const strutMidX = sign*2.6;
-      strut.position.set(strutMidX, 0.15, 0.75);
-      const dx = strutMidX - sign*0.55, dy = WING_Y - (-0.55);
-      strut.rotation.z = -sign*Math.atan2(dx, dy);
+      // Both ends are real: bottom buried in the fuselage's lower flank, top touching the wing
+      // underside (before it hung in mid-air, touching neither).
+      const sBot = new THREE.Vector3(sign*0.75, -0.55, 0.75);
+      const sTop = new THREE.Vector3(sign*2.9, WING_Y - 0.06, 0.75);
+      const sDir = new THREE.Vector3().subVectors(sTop, sBot);
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, sDir.length(), 0.22), bodyMat);
+      strut.position.copy(sBot).addScaledVector(sDir, 0.5);
+      strut.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), sDir.clone().normalize());
       g.add(strut);
 
       return g;
@@ -3646,31 +3669,53 @@ function buildAirplane(type){
     vstab.castShadow = true;
     plane.add(vstab);
 
-    // ---- Fixed tricycle landing gear (typical of this type of light aircraft) ----
-    function makeGear(x,z,scale){
-      const g = new THREE.Group();
-      const strutGeo = new THREE.CylinderGeometry(0.06,0.06,1.1,6);
-      const strut = new THREE.Mesh(strutGeo, darkMat);
-      strut.position.y = -0.55;
-      g.add(strut);
-      const fairingGeo = new THREE.BoxGeometry(0.14, 0.5, 0.35);
-      const fairing = new THREE.Mesh(fairingGeo, bodyMat);
-      fairing.position.y = -0.35;
-      g.add(fairing);
-      const wheelGeo = new THREE.CylinderGeometry(0.36,0.36,0.24,10);
-      wheelGeo.rotateZ(Math.PI/2);
-      const wheel = new THREE.Mesh(wheelGeo, darkMat);
-      wheel.position.y = -1.12;
-      g.add(wheel);
-      g.position.set(x,-0.65,z);
-      g.scale.setScalar(scale || 1);
-      return g;
+    // ---- Fixed tricycle landing gear ----
+    // Contact: the physics rests the aircraft origin GEAR_OFFSET (1.0) above the terrain and the
+    // runway surface is 0.05 above the terrain, so the tyres' lowest point has to be at -0.95 in
+    // plane coordinates. (A literal, not GEAR_OFFSET: that const is declared further down the
+    // file, after the first buildAirplane() call at load time.)
+    // Structure: the legs now start INSIDE the fuselage's lower flank and run out to the wheel
+    // hubs (before, they hung from a point out in the air beside the hull, and the wheels sat
+    // ~1.1 below the ground). The body is lifted by BODY_LIFT in the pass at the end of this
+    // function so the belly clears the ground and the legs have a real, visible length.
+    const GROUND_Y = -0.95;
+    BODY_LIFT = 0.7;
+    const _upAxis = new THREE.Vector3(0,1,0);
+    function strutBetween(a, b, radius){
+      const dir = new THREE.Vector3().subVectors(b, a);
+      const len = dir.length();
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 8), darkMat);
+      m.position.copy(a).addScaledVector(dir, 0.5);
+      m.quaternion.setFromUnitVectors(_upAxis, dir.normalize());
+      m.castShadow = true;
+      return m;
     }
-    const gearL = makeGear(-1.55, 0.55, 1);
-    const gearR = makeGear(1.55, 0.55, 1);
-    const gearNose = makeGear(0, -2.9, 0.85);
-    plane.add(gearL, gearR, gearNose);
-    gearParts = [gearL, gearR, gearNose];
+    function makeWheel(x, z, r, w){
+      // 16 sides: a vertex sits exactly at the bottom, so the tyre really touches GROUND_Y
+      const geo = new THREE.CylinderGeometry(r, r, w, 16);
+      geo.rotateZ(Math.PI/2);
+      const wheel = new THREE.Mesh(geo, darkMat);
+      wheel.position.set(x, GROUND_Y + r, z);
+      wheel.castShadow = true;
+      return wheel;
+    }
+    // Main gear: spring-steel legs from the lower fuselage flank out to the wheels
+    const MAIN_X = 1.4, MAIN_Z = 0.55, MAIN_R = 0.36;
+    [-1, 1].forEach(side => {
+      const top = new THREE.Vector3(side*0.70, BODY_LIFT - Math.sqrt(0.95*0.95 - 0.70*0.70), MAIN_Z); // 0.95 < hull radius 1.05: buried in the hull, no gap
+      const hub = new THREE.Vector3(side*MAIN_X, GROUND_Y + MAIN_R, MAIN_Z);
+      gearParts.push(strutBetween(top, hub, 0.07), makeWheel(side*MAIN_X, MAIN_Z, MAIN_R, 0.24));
+    });
+    // Nose gear: one strut from under the cowl to a short fork around the wheel
+    const NOSEGEAR_Z = -3.0, NOSE_R = 0.28;
+    const noseHubY = GROUND_Y + NOSE_R;
+    gearParts.push(
+      strutBetween(new THREE.Vector3(0, BODY_LIFT - 0.80, NOSEGEAR_Z), new THREE.Vector3(0, noseHubY + 0.18, NOSEGEAR_Z), 0.06),
+      strutBetween(new THREE.Vector3(0, noseHubY + 0.18, NOSEGEAR_Z), new THREE.Vector3(-0.10, noseHubY, NOSEGEAR_Z), 0.04),
+      strutBetween(new THREE.Vector3(0, noseHubY + 0.18, NOSEGEAR_Z), new THREE.Vector3( 0.10, noseHubY, NOSEGEAR_Z), 0.04),
+      makeWheel(0, NOSEGEAR_Z, NOSE_R, 0.17)
+    );
+    gearParts.forEach(g => plane.add(g));
   }
 
   plane.userData.propeller = propGroup; // null for jet/glider - guarded at call site
@@ -3763,6 +3808,16 @@ function buildAirplane(type){
   navGlow.position.set(0, 0.3, 0);
   plane.add(navGlow);
 
+  if (type === 'cessna') {
+    // Wingtip lights belong AT the wingtips (they were left ~1 below the wing, floating in the air)
+    [navLightL, navLightR, strobeL, strobeR].forEach(l => { l.position.y = 0.99; });
+  }
+  // Cessna: raise the whole body (fuselage, wings, tail, lights - everything except the gear) so
+  // the belly clears the ground. Done in one pass so every part keeps its position relative to
+  // the others exactly as it was.
+  if (BODY_LIFT) plane.children.forEach(c => { if (!gearParts.includes(c)) c.position.y += BODY_LIFT; });
+  plane.userData.bodyLift = BODY_LIFT; // the cockpit camera adds this so the pilot's eye stays where it always was relative to the body
+
   plane.userData.lights = {
     beacon, beaconMat, navGlow,
     strobeL, strobeR, strobeTail,
@@ -3821,6 +3876,7 @@ function rebuildAirplaneModel(type){
   while (built.children.length) airplane.add(built.children[0]);
   airplane.userData.propeller = built.userData.propeller;
   airplane.userData.gear = built.userData.gear;
+  airplane.userData.bodyLift = built.userData.bodyLift || 0;
   airplane.userData.lights = built.userData.lights;
   airplane.userData.__builtType = type;
 }
@@ -5568,7 +5624,9 @@ function updateCamera(dt){
     // Cockpit: head position stays fixed to the plane (full attitude, including roll - you're
     // sitting inside it), but the gaze direction turns freely on top of that.
     combinedQuat.copy(airplane.quaternion).multiply(lookQuat);
-    const desired = _camScratchA.copy(cockpitOffset).applyQuaternion(airplane.quaternion).add(airplane.position);
+    const desired = _camScratchA.copy(cockpitOffset);
+    desired.y += airplane.userData.bodyLift || 0; // body is lifted on the Cessna: keep the eye where it was relative to the cockpit
+    desired.applyQuaternion(airplane.quaternion).add(airplane.position);
     camera.position.copy(desired);
     const lookDir = _camScratchB.set(0,0,-1).applyQuaternion(combinedQuat);
     const lookTarget = _camScratchC.copy(desired).add(lookDir.multiplyScalar(10));
