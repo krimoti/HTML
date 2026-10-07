@@ -1152,20 +1152,23 @@ if (typeof THREE === 'undefined') {
 ===================================================================== */
 const AIRCRAFT_CONFIGS = {
   cessna: {
-    name:'Cessna', maxThrust:45, drag:0.0022, lift:0.62,
-    stallSpeed:28, maxSpeed:95, color:0xf0f0e8, accentColor:0x3366cc,
+    // Calibrated against a real light single: stall 26 m/s (~50 kt), top speed ~70 m/s (~135 kt), ~6 m/s best climb, ~9:1 glide.
+    // maxThrust = acceleration at full throttle (m/s^2); drag = quadratic drag coeff (top speed = sqrt(maxThrust/drag));
+    // induced = induced-drag coeff (slow flight costs power); aoaStall/incidence in radians. `lift` is a legacy field and unused.
+    name:'Cessna', maxThrust:2.4, drag:0.00049, lift:0.62, induced:6.0, aoaStall:0.262, incidence:0.07, maxG:3.8,
+    stallSpeed:26, maxSpeed:80, color:0xf0f0e8, accentColor:0x3366cc,
     mass:1, pitchRate:1.0, rollRate:1.0, engineType:'propeller',
     fuelCapacity:100, fuelIdleBurn:0.028, fuelMaxBurn:0.11, hasFuel:true,
   },
   jet: {
-    name:'Jet', maxThrust:90, drag:0.0014, lift:0.48,
-    stallSpeed:42, maxSpeed:220, color:0xe8e8f0, accentColor:0xcc3333,
+    name:'Jet', maxThrust:5.0, drag:0.000125, lift:0.48, induced:31, aoaStall:0.244, incidence:0.052, maxG:5,
+    stallSpeed:40, maxSpeed:210, color:0xe8e8f0, accentColor:0xcc3333,
     mass:1, pitchRate:1.4, rollRate:1.5, engineType:'jet',
     fuelCapacity:100, fuelIdleBurn:0.05, fuelMaxBurn:0.22, hasFuel:true,
   },
   fighter: {
-    name:'Fighter', maxThrust:150, drag:0.0012, lift:0.4,
-    stallSpeed:50, maxSpeed:260, color:0x6c7178, accentColor:0x2a2a2a,
+    name:'Fighter', maxThrust:9, drag:0.00008, lift:0.4, induced:54, aoaStall:0.31, incidence:0.035, maxG:9,
+    stallSpeed:48, maxSpeed:280, color:0x6c7178, accentColor:0x2a2a2a,
     // Pitch/roll rate dialed back from the first pass (was 1.9/2.1) - it made the fighter so
     // twitchy that a small pitch-up input could send it into a steep zoom climb before the
     // player meant to, which combined with its very low drag (it barely bleeds off speed/energy
@@ -1175,10 +1178,13 @@ const AIRCRAFT_CONFIGS = {
     fuelCapacity:100, fuelIdleBurn:0.07, fuelMaxBurn:0.32, hasFuel:true,
   },
   glider: {
-    name:'Glider', maxThrust:0, drag:0.0006, lift:0.82,
-    stallSpeed:18, maxSpeed:70, color:0xf8f0d8, accentColor:0x44aa44,
+    name:'Glider', maxThrust:0, drag:0.0002, lift:0.82, induced:1.28, aoaStall:0.26, incidence:0.07, maxG:4,
+    stallSpeed:17, maxSpeed:75, color:0xf8f0d8, accentColor:0x44aa44,
     mass:1, pitchRate:0.8, rollRate:0.7, engineType:'none',
     fuelCapacity:100, fuelIdleBurn:0, fuelMaxBurn:0, hasFuel:false, // no engine, nothing to burn
+    // A glider can't take off by itself: its throttle lever drives a winch launch instead - it pulls along the
+    // nose until the cable is released at releaseAGL metres, then the glider flies on with no power at all.
+    winchLaunch: { accel:12, releaseAGL:250 },
   },
 };
 let selectedAircraft = 'cessna';
@@ -3906,14 +3912,14 @@ scene.add(airplane);
    FLIGHT STATE & PHYSICS
 ===================================================================== */
 const STATE = {
-  position: new THREE.Vector3(0, 0, -700), // start on runway near threshold
+  position: new THREE.Vector3(0, 0, 700), // start on runway, ~1600 m of runway ahead in the direction of travel (yaw 0 = -Z)
   velocity: new THREE.Vector3(0,0,0),      // world-space velocity (m/s)
   speed: 0,           // scalar airspeed m/s
-  throttle: 0,         // 0..1 - starts at idle-zero so the parked aircraft does not creep
-  pitch: 0, roll: 0, yaw: -Math.PI, // euler-ish orientation angles (radians). yaw -PI = nose toward +z, down the 1600 m of runway ahead
-
+  throttle: 0.15,      // 0..1
+  pitch: 0, roll: 0, yaw: 0, // euler-ish orientation angles (radians)
   pitchRate: 0, rollRate: 0, yawRate: 0,
   onGround: true,
+  rolloutIdle: false,   // true only between touchdown and the next throttle push: the throttle then eases back to idle on its own
   stalling: false,
   crashed: false,       // true after hitting terrain outside a runway too fast/hard/steep - freezes physics until reset
   heading: 0,          // degrees 0-360
@@ -3945,11 +3951,8 @@ airplane.position.copy(STATE.position);
 // These are read each frame from acConfig (set when the player presses START).
 // (BASE_GRAVITY defined earlier with scratch objects)
 // Add defensive checks for undefined acConfig values
-// A maxThrust of 0 is a real value (the glider has no engine). Only a missing config falls back to 35.
-function MAX_THRUST(){
-  if (acConfig && typeof acConfig.maxThrust === 'number') return acConfig.maxThrust;
-  return 35;
-}
+// typeof check, not truthiness: the glider's maxThrust is 0 (no engine) and `0 ? x : 35` used to hand it a 35 m/s^2 engine
+function MAX_THRUST(){ return (acConfig && typeof acConfig.maxThrust === 'number') ? acConfig.maxThrust : 35; }
 // Thrust the engine can actually deliver right now - zero once the tank is dry, same as a real
 // flameout: the throttle lever can be all the way forward and it won't matter with no fuel.
 function AVAILABLE_THRUST(){
@@ -3969,21 +3972,6 @@ function updateFuel(dt){
 function DRAG_COEFF(){ return (acConfig && acConfig.drag) ? acConfig.drag : 0.04; }
 function LIFT_COEFF(){ return (acConfig && acConfig.lift) ? acConfig.lift : 0.095; }
 function STALL_SPEED(){ return (acConfig && acConfig.stallSpeed) ? acConfig.stallSpeed : 18; }
-const GROUND_FRICTION = 0.985; // legacy, unused
-// Ground deceleration in m/s^2 (real-time, frame-rate independent). Rolling resistance alone gives a
-// rollout of about 300 m from typical touchdown speed; wheel brakes add to it for about 150 m.
-const ROLLING_DECEL = 1.2;
-const BRAKE_DECEL   = 1.8;
-// Removes `decel` m/s of horizontal speed over this frame, never reversing direction.
-function applyGroundDeceleration(decel, dt){
-  const vx = STATE.velocity.x, vz = STATE.velocity.z;
-  const speedH = Math.hypot(vx, vz);
-  if (speedH < 1e-6) return;
-  const newSpeedH = Math.max(0, speedH - decel * dt);
-  const k = newSpeedH / speedH;
-  STATE.velocity.x = vx * k;
-  STATE.velocity.z = vz * k;
-}
 // How far above bare terrain height the aircraft's "on the ground" resting position actually
 // is (accounts for gear/fuselage height) - shared between the normal physics ground-check and
 // anything else that needs to place the aircraft exactly on the ground (like the tow system),
@@ -4281,13 +4269,14 @@ bindTapButton('refuel-touch-btn', ()=> startRefuel());
 const throttleFill = document.getElementById('throttle-bar-fill');
 
 function resetAircraft(){
-  STATE.position.set(0,0,-700);
+  STATE.position.set(0,0,700);
   STATE.velocity.set(0,0,0);
   STATE.speed = 0;
-  STATE.throttle = 0; // start parked with the throttle at zero - the pilot sets power
-  STATE.pitch = 0; STATE.roll = 0; STATE.yaw = -Math.PI; // face the long side of the runway, as at spawn
+  STATE.throttle = 0.15;
+  STATE.pitch = 0; STATE.roll = 0; STATE.yaw = 0;
   STATE.pitchRate = 0; STATE.rollRate = 0; STATE.yawRate = 0;
   STATE.onGround = true;
+  STATE.rolloutIdle = false;
   STATE.stalling = false;
   STATE.verticalSpeed = 0;
   STATE.crashed = false;
@@ -4995,6 +4984,8 @@ function frameRateIndependentDecay(factorAt60fps, dt){
   return Math.pow(factorAt60fps, dt * 60);
 }
 
+const _vHat = new THREE.Vector3(), _liftDir = new THREE.Vector3(), _rightVec = new THREE.Vector3();
+
 function updatePhysics(dt){
   dt = Math.min(dt, 0.05);
 
@@ -5047,9 +5038,14 @@ function updatePhysics(dt){
     yawInput = manualYawInput;
     if (manualThrottleUp) STATE.throttle = Math.min(1, STATE.throttle + dt*0.5);
     if (manualThrottleDown) STATE.throttle = Math.max(0, STATE.throttle - dt*0.5);
-    // The throttle stays exactly where the pilot leaves it, on the ground and in the air.
-    // The old auto-idle below 20 m/s pulled it to 0 in about 1.4 s, which made it impossible to
-    // set a power level and let go. Pilots reduce power themselves with the throttle-down control.
+    // Auto-idle only during the landing rollout: STATE.rolloutIdle is set at touchdown and cleared as soon
+    // as the player pushes the throttle (or leaves the ground). It used to key on "on the ground and slower
+    // than 20 m/s", which also hit the START of a takeoff: set 100% and let go, and the throttle fell back
+    // to 0 within ~1.4 s - the plane never got going unless the throttle button was held.
+    if (manualThrottleUp || !STATE.onGround) STATE.rolloutIdle = false;
+    if (STATE.onGround && STATE.rolloutIdle && !manualThrottleUp && STATE.speed < 20) {
+      STATE.throttle = Math.max(0, STATE.throttle - dt*0.7);
+    }
   }
 
   // ---- Rotational dynamics (rate-controlled with damping) ----
@@ -5062,9 +5058,10 @@ function updatePhysics(dt){
     ? THREE.MathUtils.clamp(STATE.speed / 32, 0, 1.0)
     : THREE.MathUtils.clamp(0.35 + STATE.speed / 55, 0.35, 1.0);
 
-  const pitchAccel = pitchInput * 1.5 * controlAuthority;
+  // STATE.stallPush: past the stall angle of attack the nose drops (set in the lift block below), even against full back stick.
+  const pitchAccel = pitchInput * 1.5 * controlAuthority - (STATE.stallPush || 0);
   const rollAccel  = rollInput  * 2.2 * controlAuthority;
-  const yawAccel   = yawInput   * 1.0 * controlAuthority;
+  const yawAccel   = -yawInput  * 1.0 * controlAuthority; // heading = -yaw, so right rudder (+1) must DEcrease yaw. Before, YAW> / E turned the nose left.
 
   STATE.pitchRate += pitchAccel * dt;
   STATE.rollRate  += rollAccel  * dt;
@@ -5088,13 +5085,12 @@ function updatePhysics(dt){
   // and damping normal values would overpower the steady input. In manual flight, higher damping
   // prevents overcontrol and jittering - but in autopilot, steady commands should accumulate.
   const dampMult = STATE.autoland ? 0.4 : 1.0; // during autoland, MUCH less damping to allow rotation to build
-  // Damping is applied per unit of real time, not per frame. The factors were tuned at 60fps
-  // (x60 = per-second), so Math.pow(f, dt*60) gives the same feel at 60fps while keeping the
-  // result identical at 30fps or 120fps.
-  const dampScale = dt * 60;
-  STATE.pitchRate *= Math.pow(0.90 * dampMult, dampScale);
-  STATE.rollRate  *= Math.pow(0.88 * dampMult, dampScale);
-  STATE.yawRate   *= Math.pow(0.92 * dampMult, dampScale);
+  // Per-frame decay factors are tuned at 60 fps; raising them to dt*60 makes the damping (and with it
+  // the stick authority) identical at any frame rate. Before, the same stick input gave 19 deg of pitch
+  // after 1 s at 30 fps but only 6 deg at 120 fps.
+  STATE.pitchRate *= Math.pow(0.90 * dampMult, dt * 60);
+  STATE.rollRate  *= Math.pow(0.88 * dampMult, dt * 60);
+  STATE.yawRate   *= Math.pow(0.92 * dampMult, dt * 60);
 
   // hard safety clamp on rotation rates so control input can never runaway/diverge
   STATE.pitchRate = THREE.MathUtils.clamp(STATE.pitchRate, -2.2, 2.2);
@@ -5102,21 +5098,15 @@ function updatePhysics(dt){
   STATE.yawRate   = THREE.MathUtils.clamp(STATE.yawRate,   -2.2, 2.2);
 
   // auto-level tendency roll->yaw coupling (mild) for arcade feel
-  STATE.yawRate += STATE.rollRate * 0.15 * dt * 10;
+  STATE.yawRate -= STATE.rollRate * 0.15 * dt * 10; // rolling right (+) nudges the nose right (yaw down) - proverse yaw
 
   STATE.pitch += STATE.pitchRate * dt;
   STATE.roll  += STATE.rollRate  * dt;
   STATE.yaw   += STATE.yawRate   * dt;
-
-  // Coordinated turn: a banked wing turns the aircraft, without any rudder input. The wing's lift
-  // has a sideways component proportional to tan(bank), which turns the flight path at the rate
-  // g*tan(bank)/V. Yaw grows toward the bank side (positive roll = positive yaw here), so a 32 deg
-  // bank at about 50 m/s turns roughly 7 deg/s - the same as a real aircraft. Applied only in the
-  // air; on the ground the wheels steer the aircraft, not the wings.
-  if (!STATE.onGround && !STATE.crashed) {
-    const turnSpeed = Math.max(STATE.speed, 25); // floor so a near-stopped aircraft doesn't spin
-    const coordinatedRate = 9.81 * Math.tan(STATE.roll) / turnSpeed;
-    STATE.yaw += THREE.MathUtils.clamp(coordinatedRate, -0.6, 0.6) * dt;
+  // Coordinated turn: in the air a held bank turns the aircraft at g*tan(bank)/V (30 deg at 40 m/s = 8 deg/s).
+  // Before, a held bank gave NO turn at all - only rolling motion or rudder changed the heading.
+  if (!STATE.onGround) {
+    STATE.yaw -= (BASE_GRAVITY * Math.tan(STATE.roll) / Math.max(STATE.speed, 15)) * dt; // right bank (+) -> yaw down -> heading up
   }
 
   // Hard safety clamp on bank angle: never allow full inversion. Regardless of any remaining
@@ -5130,7 +5120,9 @@ function updatePhysics(dt){
   STATE.pitch = THREE.MathUtils.clamp(STATE.pitch, -Math.PI/2.4, Math.PI/2.4);
 
   // ---- Orientation quaternion — reuse scratch objects (no GC allocation per frame) ----
-  _scratchEuler.set(STATE.pitch, STATE.yaw, STATE.roll);
+  // STATE.roll is right-bank-positive (what the stick, the autopilot and the attitude indicator all assume);
+  // three.js rotates about +Z the other way round (+angle = right wing UP), hence the minus. Before, D / stick-right banked LEFT.
+  _scratchEuler.set(STATE.pitch, STATE.yaw, -STATE.roll);
   quat.setFromEuler(_scratchEuler);
   const forward = _scratchForward.set(0,0,-1).applyQuaternion(quat);
   const up      = _scratchUp.set(0,1,0).applyQuaternion(quat);
@@ -5143,6 +5135,10 @@ function updatePhysics(dt){
   const throttleInfluence = Math.max(0, Math.min(1, STATE.throttle || 0)); // Clamp to 0-1 range
   updateFuel(dt);
   let thrustAccel = throttleInfluence * AVAILABLE_THRUST();
+  if (acConfig && acConfig.winchLaunch) {
+    const aglNow = STATE.position.y - (STATE.groundY || 0); // STATE.groundY is last frame's value - good enough for a cable release height
+    if (aglNow < acConfig.winchLaunch.releaseAGL) thrustAccel += throttleInfluence * acConfig.winchLaunch.accel;
+  }
 
   // Ensure thrustAccel is finite
   if (!isFinite(thrustAccel)) thrustAccel = 0;
@@ -5193,14 +5189,13 @@ function updatePhysics(dt){
   // altitude on final approach with flaps out, felt as a jump right when you're concentrating
   // hardest (short final). The fade still fully removes the flap lift bonus by touchdown, which
   // is what originally stopped full-flap landings from launching the plane back into the air.
-  const nearGroundFade = THREE.MathUtils.clamp((groundClearance - 2) / 6, 0, 1); // 0 at <=2m, 1 at >=8m
-  const flapLiftBonus = 1 + STATE.flaps * 0.14 * nearGroundFade;
-  const flapDragAccel = STATE.flaps * 0.00045 * airspeed * airspeed;
+  // Flap lift is now in effectiveStallSpeed below (each notch lowers the 1g stall speed) - the old extra lift bonus and its near-ground fade are gone.
+  const flapDragAccel = STATE.flaps * 0.7 * DRAG_COEFF() * airspeed * airspeed; // each notch adds ~70% of the clean parasitic drag
   const effectiveStallSpeed = Math.max(5, STALL_SPEED() - STATE.flaps * 2.6); // Minimum 5 m/s stall speed
 
   // Speedbrakes/spoilers: extra drag and reduced lift while deployed - for descending faster
   // without gaining speed, or for extra stopping power just after touchdown.
-  const speedbrakeDragAccel = STATE.speedbrake ? 0.0035 * airspeed * airspeed : 0;
+  const speedbrakeDragAccel = STATE.speedbrake ? 4.0 * DRAG_COEFF() * airspeed * airspeed : 0; // 5x the clean drag in total
   const speedbrakeLiftMult = STATE.speedbrake ? 0.82 : 1;
 
   // Drag opposes velocity - purely aerodynamic (proportional to speed^2), no throttle-based hacks.
@@ -5220,7 +5215,8 @@ function updatePhysics(dt){
   // deceleration right at the threshold. A smooth quadratic in (1 - throttle) means every bit of
   // throttle reduction contributes a proportional bit of extra drag, so deceleration builds
   // gradually the whole way down instead of being flat-then-sudden.
-  const idlePropDragMult = 1 + (1 - throttleInfluence) * (1 - throttleInfluence) * 0.6; // 1.0x at full throttle, up to 1.6x at zero
+  // A glider has no engine or propeller, so its throttle lever must not change its drag at all (it used to get the full 1.6x 'windmilling prop' penalty at throttle 0).
+  const idlePropDragMult = (acConfig && acConfig.engineType === 'none') ? 1 : 1 + (1 - throttleInfluence) * (1 - throttleInfluence) * 0.6; // 1.0x at full throttle, up to 1.6x at zero
   const dragAccel = DRAG_COEFF() * airspeed * airspeed * idlePropDragMult + flapDragAccel + speedbrakeDragAccel;
 
   // Ensure dragAccel is finite
@@ -5237,63 +5233,48 @@ function updatePhysics(dt){
   // is exactly how a real aircraft behaves and gives a much more believable feel than an artificial boost.
   const gravityVec = _scratchGravity.set(0, -BASE_GRAVITY, 0);
 
-  // Lift: proportional to speed^2 and controlled by pitch attitude (angle of attack proxy), acts along
-  // 'up'. This alone naturally ties descent/climb to throttle: less throttle -> less speed -> less lift
-  // -> the plane sinks; more throttle -> more speed -> more lift -> the plane climbs.
-  // Lift now depends on the angle of attack (wing-to-airflow angle), not only on airspeed.
-  // Angle of attack = nose pitch minus the flight-path angle (the direction the aircraft is
-  // actually moving). A nose pitched above its path bites more air and makes more lift; a nose
-  // below it makes less. At level flight with the nose on the horizon the factor is exactly 1,
-  // so the cruise feel matches the old model. Climbing lowers the angle of attack, which cuts
-  // lift on its own - that negative feedback is what keeps climbs from running away, so the old
-  // hard 15 m/s climb ceiling is no longer needed.
-  const flightPathAngle = Math.atan2(STATE.velocity.y, Math.max(horizSpeedForLift, 0.1));
-  const angleOfAttack = STATE.pitch - flightPathAngle;
-  const aoaLiftFactor = THREE.MathUtils.clamp(1 + 2.5 * angleOfAttack, 0.2, 1.8);
-  const liftMag = LIFT_COEFF() * horizSpeedForLift * horizSpeedForLift * 0.02 * aoaLiftFactor * flapLiftBonus * speedbrakeLiftMult;
-  let effectiveLift = liftMag;
-  // Ensure lift is finite
-  if (!isFinite(effectiveLift) || effectiveLift < 0) effectiveLift = 0;
-
-  STATE.stalling = false;
-  if (!STATE.onGround) {
-    if (airspeed < effectiveStallSpeed) {
-      const stallFactor = airspeed / effectiveStallSpeed;
-      // Softer stall onset: lift tapers off but never fully collapses (floors at 45%), so a slow
-      // final approach doesn't suddenly drop out from under you - you still get the stall
-      // warning and reduced authority, but recovery stays controllable instead of a hard punch
-      // downward. A real wing does keep producing some lift well past the stall break too.
-      effectiveLift *= 0.45 + 0.55 * stallFactor;
-      if (airspeed < effectiveStallSpeed*0.85) STATE.stalling = true;
-    }
-
-    // Ground effect: within ~12m of the terrain/runway, the wing gets a small cushioning lift
-    // boost (a real effect from air compressing between the wing and the ground) - just enough
-    // to soften the descent rate on final, not so much that it can out-lift gravity and bounce
-    // the plane back into the air right at touchdown.
-    if (groundClearance < 12) {
-      const groundEffectFactor = 1 + 0.15 * (1 - THREE.MathUtils.clamp(groundClearance / 12, 0, 1));
-      effectiveLift *= groundEffectFactor;
+  // ---- Lift: angle-of-attack model ----
+  // lift = weight * (airspeed / stallSpeed)^2 * s(alpha), acting perpendicular to the flight path: exactly 1 g at the
+  // (flap-adjusted) 1 g stall speed with the wing at its stall angle. Fly faster and a smaller angle of attack carries
+  // the same weight; fly slower and you need more nose-up; past the stall angle the lift drops to ~half and the nose falls.
+  // Altitude therefore follows speed and pitch the way it really does (power sets climb, pitch sets speed).
+  // This replaced lift = k*v^2 with no angle dependence, under which any speed above stall climbed (hands-off cruise =
+  // maximum climb, level flight impossible above ~40 m/s) and any speed below it sank at a fixed rate.
+  const vNow = STATE.velocity.length();
+  const aoaStall = (acConfig && acConfig.aoaStall) || 0.26;       // rad
+  const wingIncidence = (acConfig && acConfig.incidence) || 0.07; // rad: wing's built-in angle relative to the fuselage axis
+  let effectiveLift = 0, aoa = 0, liftDirOK = false;
+  if (vNow > 1) {
+    _vHat.copy(STATE.velocity).divideScalar(vNow);
+    _liftDir.copy(up).addScaledVector(_vHat, -up.dot(_vHat)); // body 'up' made perpendicular to the flight path
+    const ld = _liftDir.length();
+    if (ld > 1e-3) {
+      _liftDir.divideScalar(ld);
+      liftDirOK = true;
+      aoa = Math.atan2(forward.dot(_liftDir), forward.dot(_vHat)) + wingIncidence; // + when the nose is above the flight path
+      let s;
+      if (aoa >= 0) s = (aoa <= aoaStall) ? aoa / aoaStall : Math.max(0.5, 1 - 0.5 * (aoa - aoaStall) / (aoaStall * 0.5));
+      else s = Math.max(aoa / aoaStall, -0.6); // some negative lift for a push-over, bounded
+      effectiveLift = BASE_GRAVITY * (vNow / effectiveStallSpeed) * (vNow / effectiveStallSpeed) * s * speedbrakeLiftMult;
     }
   }
+  // Structural / flight-control g limit: without it a small stick input at high speed would produce 10+ g
+  // (lift grows with speed squared). Real aircraft are limited the same way.
+  const gLim = ((acConfig && acConfig.maxG) || 4) * BASE_GRAVITY;
+  effectiveLift = THREE.MathUtils.clamp(effectiveLift, -0.4 * gLim, gLim);
+  if (!isFinite(effectiveLift)) effectiveLift = 0;
 
-  // Weight-on-wheels: right at/on the ground, lift can still exceed gravity purely from speed
-  // (this simple model doesn't reduce lift for a level, non-rotated attitude the way a real wing's
-  // angle of attack would) - which is exactly what was relaunching the plane the instant it
-  // touched down, since a normal touchdown speed sits right around stall speed. Gating lift by
-  // throttle fixes this at any touchdown speed: full lift only applies with real takeoff power
-  // held in; idle/rolling-out power means lift is cut way down so the plane stays down, while a
-  // deliberate touch-and-go (throttle back up) still lifts off normally.
-  // Same idea as the flap-lift fade above: this used to be a hard binary switch (full lift, or
-  // almost none, flipping the instant groundClearance crossed 5m AND throttle crossed 0.5) which
-  // could snap lift in a single frame right on short final. Turned into a smooth 2D fade instead -
-  // it reaches the exact same end states (kill lift once you're actually on the ground/runway at
-  // low power) but blends into them instead of switching.
-  const groundProximity = THREE.MathUtils.clamp(1 - groundClearance / 5, 0, 1); // 0 far away, 1 at ground
-  const throttleLowness = THREE.MathUtils.clamp(1 - throttleInfluence / 0.5, 0, 1); // 0 at >=50% throttle, 1 at 0%
-  const touchdownSuppression = groundProximity * throttleLowness;
-  const touchdownTargetMult = onRunway ? 0 : 0.05;
-  effectiveLift *= 1 - touchdownSuppression * (1 - touchdownTargetMult);
+  STATE.stalling = !STATE.onGround && vNow > 3 && aoa > aoaStall * 0.92; // buffet / warning just before the break
+  STATE.stallPush = (!STATE.onGround && aoa > aoaStall) ? 2.0 * Math.min(1, (aoa - aoaStall) / (aoaStall * 0.5)) : 0;
+
+  // Induced drag: the price of lift. Small at cruise, large when slow - this is what makes slow flight need power.
+  const kInd = (acConfig && acConfig.induced) || 0;
+  if (kInd > 0 && vNow > 1) forwardAccel -= kInd * effectiveLift * effectiveLift / Math.max(vNow * vNow, 100);
+
+  // Ground effect: a small cushion within ~12 m of the surface.
+  if (!STATE.onGround && groundClearance < 12) {
+    effectiveLift *= 1 + 0.15 * (1 - THREE.MathUtils.clamp(groundClearance / 12, 0, 1));
+  }
 
   // Thinning air / service ceiling: lift and thrust taper off above a realistic altitude so the
   // plane can't just keep accelerating upward forever (this was previously letting the plane
@@ -5306,7 +5287,6 @@ function updatePhysics(dt){
     forwardAccel *= THREE.MathUtils.clamp(0.3 + altFactor*0.7, 0.3, 1);
   }
 
-  const liftVec = up; // reuse 'up' directly as the lift direction - see addScaledVector below, no separate vector needed
 
   // Combine: velocity update. addScaledVector(v, s) is THREE's built-in "this += v*s" - it writes
   // directly into STATE.velocity with no intermediate vector, unlike the .clone().multiplyScalar()
@@ -5316,7 +5296,7 @@ function updatePhysics(dt){
   // this same function and are safe to read here without cloning: nothing multiplies them in place.
   STATE.velocity.addScaledVector(forward, forwardAccel * dt);
   STATE.velocity.addScaledVector(gravityVec, dt);
-  STATE.velocity.addScaledVector(liftVec, effectiveLift * dt);
+  if (liftDirOK) STATE.velocity.addScaledVector(_liftDir, effectiveLift * dt);
 
   // Velocity-vector alignment toward forward direction (arcade stability).
   // IMPORTANT: we blend direction only - the speed change from thrust/drag already happened
@@ -5328,12 +5308,11 @@ function updatePhysics(dt){
   // could push vertical speed back above the cap immediately afterward, silently violating it
   // every single frame. Enforcing the caps last guarantees the value actually used for position
   // integration below is always within bounds - no exceptions, no order-dependent violations.
-  const alignFactor = STATE.onGround ? 0.0 : THREE.MathUtils.clamp(dt * 1.2, 0, 0.35);
-  if (STATE.velocity.length() > 0.5) {
-    const curSpeedForAlign = STATE.velocity.length(); // capture before we start rewriting velocity's direction below
-    _scratchDir.copy(STATE.velocity).normalize().lerp(forward, alignFactor).normalize();
-    // Keep the actual speed that physics produced (don't restore curSpeed)
-    STATE.velocity.copy(_scratchDir).multiplyScalar(curSpeedForAlign);
+  // Sideslip damping only: the velocity is pulled toward the nose in the LEFT-RIGHT sense (the fin's weathervane effect).
+  // The up-down sense is no longer dragged around artificially - the flight path now bends only through lift (angle of attack).
+  if (!STATE.onGround && STATE.velocity.length() > 0.5) {
+    _rightVec.set(1, 0, 0).applyQuaternion(quat);
+    STATE.velocity.addScaledVector(_rightVec, -STATE.velocity.dot(_rightVec) * Math.min(1, dt * 1.5));
   }
 
   // Vertical speed cap (climb/descent rate limiter) - prevents the lift/speed positive-feedback
@@ -5347,7 +5326,7 @@ function updatePhysics(dt){
   // keep rotating more of that fixed-magnitude velocity vector into the vertical axis every frame.
   // Capping vertical speed instead means gravity and reduced throttle can actually pull the nose
   // back down and bleed off climb rate, exactly like a real aircraft running out of excess power.
-  const MAX_CLIMB_RATE = 60;   // m/s - a safety ceiling only; the angle-of-attack lift above is what limits climbs
+  const MAX_CLIMB_RATE = 90;   // m/s - now only a runaway safety net; climb rate comes from excess thrust and the lift model (it used to be a hard 15 m/s for every aircraft)
   const MAX_DESCENT_RATE = 60; // m/s (~11800 ft/min) - allows a steep dive/crash without exploding
   STATE.velocity.y = THREE.MathUtils.clamp(STATE.velocity.y, -MAX_DESCENT_RATE, MAX_CLIMB_RATE);
 
@@ -5455,11 +5434,19 @@ function updatePhysics(dt){
       }
     }
 
-    // friction / rolling resistance
-    // Rolling resistance: a constant deceleration in m/s^2 so the rollout length is the same at any
-    // frame rate. Without brakes a landing rolls about 300 m; the old per-frame multiplier stopped it
-    // in about 30-45 m.
-    applyGroundDeceleration(ROLLING_DECEL, dt);
+    // Rolling resistance: a real tyre's rolling-resistance coefficient is small (~0.02-0.03 of weight),
+    // i.e. roughly a CONSTANT deceleration, unlike the old model, which decayed velocity by a fixed
+    // *proportion* every frame. That proportional decay was tuned against the old, much larger
+    // (unrealistic) thrust values and was fine while thrust dwarfed it; now that thrust is calibrated
+    // to real aircraft performance it would otherwise cap ground speed at a couple of m/s and the
+    // aircraft could never reach flying speed.
+    const ROLLING_RESIST_DECEL = 0.25; // m/s^2, dry pavement, brakes off
+    const hSpeed = Math.hypot(STATE.velocity.x, STATE.velocity.z);
+    if (hSpeed > 0.05) {
+      const decel = Math.min(ROLLING_RESIST_DECEL * dt, hSpeed);
+      STATE.velocity.x -= STATE.velocity.x / hSpeed * decel;
+      STATE.velocity.z -= STATE.velocity.z / hSpeed * decel;
+    }
 
     // NOTE: there used to be an "automatic braking" step here that kicked in on its own
     // whenever throttle was low and speed was under 55 m/s - even with the brakes untouched.
@@ -5468,18 +5455,21 @@ function updatePhysics(dt){
     // the jarring surge-then-slow-down-then-surge feeling on landing. Wheel brakes and parking
     // brake below are now the only things that actively slow the plane on the ground.
 
-    // Wheel brakes (hold Space) and parking brake (P) add much stronger deceleration than
-    // normal rolling friction - this is what lets you actually stop on the runway instead of
-    // slowly rolling out forever.
-    if (keys['Space'] || touchInput.wheelBrakes) {
-      // Brakes add to rolling resistance: about 3 m/s^2 in total, so a landing stops in about 150 m.
-      applyGroundDeceleration(BRAKE_DECEL, dt);
+    // Wheel brakes (hold Space) and parking brake (P): a real brake applies roughly a CONSTANT
+    // deceleration (limited by tyre grip), not a fixed proportion of whatever speed you happen to
+    // be going - the old proportional-decay model stopped the aircraft in a scant 3-8 m regardless
+    // of touchdown speed (28 m/s decayed to a stop in ~4 m), which also meant it barely mattered
+    // whether the plane was fast or slow. ~3.5 m/s^2 (wheel brakes) gives a 28 m/s touchdown roughly
+    // a 110 m rollout, in line with a real light aircraft's braking distance.
+    function applyBrakeDecel(decelMps2){
+      const hs = Math.hypot(STATE.velocity.x, STATE.velocity.z);
+      if (hs < 0.05) return;
+      const d = Math.min(decelMps2 * dt, hs);
+      STATE.velocity.x -= STATE.velocity.x / hs * d;
+      STATE.velocity.z -= STATE.velocity.z / hs * d;
     }
-    if (STATE.parkingBrake) {
-      const parkingBrakeFactor = frameRateIndependentDecay(0.75, dt);
-      STATE.velocity.x *= parkingBrakeFactor;
-      STATE.velocity.z *= parkingBrakeFactor;
-    }
+    if (keys['Space'] || touchInput.wheelBrakes) applyBrakeDecel(3.5);
+    if (STATE.parkingBrake) applyBrakeDecel(2.2);
 
     // Off-runway rough terrain slows plane hard (crash-ish deceleration) & dampens roll/pitch attitude toward level
     if (!onRunway) {
@@ -5489,6 +5479,7 @@ function updatePhysics(dt){
     // ---- Landing detection: score + smoke on touchdown ----
   if(!prevOnGround && STATE.onGround && !STATE.crashed){
     justLanded = true;
+    STATE.rolloutIdle = true;
     // Use the impact values captured at the moment of touchdown (above), not STATE.verticalSpeed/
     // STATE.speed - those two fields are only refreshed at the very end of this function, so at
     // this point they still hold last frame's numbers, not the actual impact that just happened.
@@ -5657,7 +5648,7 @@ function updateCamera(dt){
     // is disorienting and makes the model look broken/unrecognizable in a turn. Real chase cams
     // in most flight games keep mostly world-up and let the plane visibly bank within the frame
     // instead - much easier to read.
-    chaseEuler.set(STATE.pitch * CHASE_PITCH_INFLUENCE, STATE.yaw, STATE.roll * CHASE_ROLL_INFLUENCE, 'YXZ');
+    chaseEuler.set(STATE.pitch * CHASE_PITCH_INFLUENCE, STATE.yaw, -STATE.roll * CHASE_ROLL_INFLUENCE, 'YXZ'); // same sign flip as the aircraft's own quaternion
     chaseAttitudeQuat.setFromEuler(chaseEuler);
     combinedQuat.copy(chaseAttitudeQuat).multiply(lookQuat);
     // Reused scratch vectors below (_camScratchA/B) instead of .clone()/`new Vector3(...)` - this
@@ -6863,7 +6854,7 @@ function animate(){
 
 // initial camera position before start
 camera.position.set(0, 8, -685);
-camera.lookAt(new THREE.Vector3(0, 4, -700));
+camera.lookAt(new THREE.Vector3(0, 4, 700));
 
 animate();
 
