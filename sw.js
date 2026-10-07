@@ -4,7 +4,7 @@
 // (its folder URL), so every repo/folder gets a unique, collision-free
 // cache with ZERO manual editing — nothing to remember, nothing to forget.
 
-const CACHE_VERSION = 'v4'; // bump ONLY this number to force-refresh THIS app's own cache
+const CACHE_VERSION = 'v5'; // bump ONLY this number to force-refresh THIS app's own cache
 const CACHE_NAME = 'offline-' + self.registration.scope + '::' + CACHE_VERSION;
 const URLS_TO_CACHE = ['./', './index.html'];
 
