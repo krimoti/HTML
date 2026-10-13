@@ -643,6 +643,8 @@
     <svg id="minimap-svg" viewBox="0 0 140 140">
       <rect x="1" y="1" width="138" height="138" rx="6" fill="rgba(10,20,30,0.55)" stroke="rgba(140,220,255,0.35)" stroke-width="1"/>
       <g id="minimap-airports"></g>
+      <g id="minimap-towns"></g>
+      <g id="minimap-ships"></g>
       <g id="minimap-plane">
         <polygon points="0,-5 4,5 0,3 -4,5" fill="#5ffcff"/>
       </g>
@@ -1117,6 +1119,25 @@
   border:1px solid rgba(255,212,121,0.45);border-radius:14px;padding:4px 16px;
   z-index:15;pointer-events:none;max-width:92vw;text-align:center;white-space:normal;font-family:'Courier New',monospace;"></div>
 
+<!-- Load-cargo prompt: appears only when mission mode is pending and the aircraft is stopped in the
+     hangar/ramp area at the origin airport. Pressing it runs a short loading timer, then the mission
+     (already built: startMission()) actually begins. -->
+<div id="cargo-taxi-hint" style="display:none;position:fixed;top:34px;left:50%;transform:translateX(-50%);
+  z-index:15;font-family:'Courier New',monospace;font-size:11px;letter-spacing:0.4px;color:#9fe9ff;
+  background:rgba(10,20,25,0.6);border:1px solid rgba(159,233,255,0.4);border-radius:12px;
+  padding:4px 14px;pointer-events:none;">📦 Taxi to the hangar to load cargo</div>
+<div id="cargo-load-btn" style="display:none;position:fixed;bottom:34%;left:50%;transform:translateX(-50%);
+  z-index:16;font-family:'Courier New',monospace;font-size:13px;letter-spacing:0.5px;color:#eaffea;
+  background:rgba(15,25,15,0.75);border:1px solid rgba(140,255,140,0.55);border-radius:10px;
+  padding:9px 18px;cursor:pointer;user-select:none;">📦 LOAD CARGO</div>
+<div id="cargo-load-bar-wrap" style="display:none;position:fixed;bottom:34%;left:50%;transform:translateX(-50%);
+  z-index:16;font-family:'Courier New',monospace;font-size:11px;color:#ffd479;text-align:center;">
+  <div id="cargo-load-label" style="margin-bottom:4px;"></div>
+  <div style="width:160px;height:8px;border:1px solid rgba(255,212,121,0.55);border-radius:5px;overflow:hidden;background:rgba(0,0,0,0.3);">
+    <div id="cargo-load-bar" style="width:0%;height:100%;background:#ffd479;"></div>
+  </div>
+</div>
+
 <!-- Mission complete popup - same visual family as the landing-score popup, shown right after it -->
 <div id="mission-complete" style="display:none;position:fixed;top:42%;left:50%;transform:translateX(-50%);
   z-index:121;text-align:center;pointer-events:none;font-family:'Courier New',monospace;">
@@ -1207,14 +1228,17 @@ const LICENSE_TIERS = [
     // Simplified on purpose: ANY landing counts, not just a smooth/on-runway one - the old
     // "3 smooth landings" requirement meant a run of rough landings made zero progress at all,
     // which just felt stuck rather than difficult. Every landing now visibly moves you forward.
-    require: c => c.totalLandings >= 3,
-    describe: c => `${Math.min(c.totalLandings,3)}/3 landings` },
+    // Missions are a second, independent path to the same tier (OR, not AND) - a mission takes a
+    // full load/fly/unload cycle, worth noticeably more progress than one landing, but this is
+    // never a stricter gate than landings alone used to be.
+    require: c => c.totalLandings >= 3 || c.missionsCompleted >= 1,
+    describe: c => `${Math.min(c.totalLandings,3)}/3 landings (or ${Math.min(c.missionsCompleted,1)}/1 missions)` },
   { id: 'commercial', name: 'Commercial Pilot', unlocks: ['cessna','glider','jet'],
-    require: c => c.totalLandings >= 8,
-    describe: c => `${Math.min(c.totalLandings,8)}/8 landings` },
+    require: c => c.totalLandings >= 8 || c.missionsCompleted >= 3,
+    describe: c => `${Math.min(c.totalLandings,8)}/8 landings (or ${Math.min(c.missionsCompleted,3)}/3 missions)` },
   { id: 'test',       name: 'Test Pilot',       unlocks: ['cessna','glider','jet','fighter'],
-    require: c => c.totalLandings >= 15,
-    describe: c => `${Math.min(c.totalLandings,15)}/15 landings` },
+    require: c => c.totalLandings >= 15 || c.missionsCompleted >= 6,
+    describe: c => `${Math.min(c.totalLandings,15)}/15 landings (or ${Math.min(c.missionsCompleted,6)}/6 missions)` },
 ];
 
 function defaultCareer(){
@@ -2298,6 +2322,23 @@ const terrainMat = new THREE.MeshStandardMaterial({ color:0x4d7a3a, flatShading:
 const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
 terrainMesh.receiveShadow = true;
 terrainMesh.castShadow = false;
+
+// The rendered terrain is a coarse grid (a vertex roughly every 110-220 m - see terrainSeg above),
+// flat between vertices. terrainHeight(x,z) is the raw procedural noise *function* instead - at
+// an arbitrary point between grid vertices it can disagree with where the actual mesh surface
+// is by several metres, which is exactly what showed up as houses floating with their shadow
+// falling on the hillside below them, and roads that don't quite sit on the visible ground.
+// Every piece of placed scenery below asks THIS for its height - what the rendered mesh itself
+// says is there - instead of the analytic function.
+const _groundRay = new THREE.Raycaster();
+const _groundRayDir = new THREE.Vector3(0, -1, 0);
+const _groundRayOrigin = new THREE.Vector3();
+function groundY(x, z){
+  _groundRayOrigin.set(x, 4000, z);
+  _groundRay.set(_groundRayOrigin, _groundRayDir);
+  const hit = _groundRay.intersectObject(terrainMesh, false)[0];
+  return hit ? hit.point.y : terrainHeight(x, z); // fallback for the rare miss (right at the mesh's outer edge)
+}
 scene.add(terrainMesh);
 
 // Ground color by elevation - smoothly blended across each band edge (instead of a hard color
@@ -2542,7 +2583,7 @@ function buildTower(x,z){
   cap.position.y = 43;
   cap.castShadow = true;
   g.add(cap);
-  g.position.set(x, terrainHeight(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
+  g.position.set(x, groundY(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later - existing callers that ignore it are unaffected
 }
@@ -2561,7 +2602,7 @@ function buildHangar(x,z, rotY){
   // its actual bounding box confirms it spans y=[0,18] locally, not y=[-18,+18]. Adding an extra
   // +18 here (as this used to) shifts an already-grounded shape another 18 units UP, floating the
   // whole hangar in midair. Just the ground height, like buildTower and every other decoration.
-  g.position.set(x, terrainHeight(x,z), z);
+  g.position.set(x, groundY(x,z), z);
   g.rotation.y = rotY;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2583,7 +2624,7 @@ function buildShed(x, z, rotY){
   roof.position.y = 4.15;
   roof.castShadow = true;
   g.add(roof);
-  g.position.set(x, terrainHeight(x,z), z);
+  g.position.set(x, groundY(x,z), z);
   g.rotation.y = rotY || 0;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2718,7 +2759,7 @@ function buildTree(x,z,biome){
   leaf.position.y = 9;
   leaf.castShadow = true;
   g.add(leaf);
-  g.position.set(x, terrainHeight(x,z), z);
+  g.position.set(x, groundY(x,z), z);
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
@@ -2757,7 +2798,7 @@ function buildHouse(x,z){
     g.add(win);
   }
 
-  g.position.set(x, terrainHeight(x,z), z);
+  g.position.set(x, groundY(x,z), z);
   g.rotation.y = Math.random()*Math.PI*2;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2840,13 +2881,377 @@ RUNWAYS.forEach((r, idx)=>{
     buildTree(p.x, p.z, r.biome);
   }
   for (let i=0;i<houseCountPerAirport;i++){
-    const side = Math.random()<0.5?-1:1;
-    const across = side*(rwWid(r)/2 + 320 + Math.random()*500);
-    const along = (Math.random()-0.5)*rwLen(r)*1.6;
-    const p = runwayLocalToWorld(r, along, across);
-    buildHouse(p.x, p.z);
+    // A candidate spot's general area being fine doesn't guarantee THIS exact point is - the
+    // terrain's finer noise octaves vary within just a couple hundred metres, so a few spots per
+    // airport could land in a water dip even though the airport itself sits on dry land. A few
+    // retries, skipping the house entirely if none land, beats placing it half-submerged.
+    let p = null;
+    for (let t = 0; t < 5; t++) {
+      const side = Math.random()<0.5?-1:1;
+      const across = side*(rwWid(r)/2 + 320 + Math.random()*500);
+      const along = (Math.random()-0.5)*rwLen(r)*1.6;
+      const cand = runwayLocalToWorld(r, along, across);
+      if (terrainHeight(cand.x, cand.z) >= 8) { p = cand; break; }
+    }
+    if (p) buildHouse(p.x, p.z);
   }
 });
+
+/* =====================================================================
+   RANDOM WORLD POPULATION - scattered towns/cities (with connecting roads)
+   on dry land, and ships out on the water. Reuses the existing buildHouse
+   procedural builder for every settlement; adds three new small builders
+   (city tower, road segment, ship) in the same low-poly style. Runs once,
+   after the airports above (so it can steer clear of them), using the
+   terrainHeight(x,z) function already used to place every other piece of
+   scenery - "land" and "sea" are simply read off of it (it dips below the
+   water plane's y=-6 in scattered low patches rather than one single
+   coastline, so settlements and ships both end up scattered, not neatly
+   split down the middle of the map).
+===================================================================== */
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x33302c, roughness: 0.95 });
+const cityWallMat = new THREE.MeshStandardMaterial({ color: 0xb9b9c2, roughness: 0.75 });
+const shipHullMat = new THREE.MeshStandardMaterial({ color: 0x7a2e2e, roughness: 0.7 });
+const shipDeckMat = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.6 });
+
+// One short flat strip between two points, sitting at the average of their own local terrain
+// heights. Kept short by the caller (a few hundred metres) so that average stays a fair
+// approximation of the ground in between, instead of a long plank floating over the noise.
+function buildRoadSegment(x1, z1, x2, z2, width){
+  const dx = x2 - x1, dz = z2 - z1;
+  const len = Math.hypot(dx, dz);
+  if (len < 1) return;
+  const y = (groundY(x1, z1) + groundY(x2, z2)) / 2 + 0.12; // just proud of the ACTUAL rendered ground, avoids z-fighting
+  const geo = new THREE.PlaneGeometry(width, len);
+  geo.rotateX(-Math.PI / 2);
+  const seg = new THREE.Mesh(geo, roadMat);
+  seg.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
+  seg.rotation.y = Math.atan2(dx, dz);
+  seg.receiveShadow = true;
+  scene.add(seg);
+}
+
+// A road between two settlements, broken into short segments (each following its own local
+// ground height) rather than one long straight plank - the terrain noise has enough relief
+// that a single flat segment across a long road would float over dips and clip through rises.
+function buildRoad(x1, z1, x2, z2, width){
+  const len = Math.hypot(x2 - x1, z2 - z1);
+  const steps = Math.max(1, Math.round(len / 180));
+  for (let i = 0; i < steps; i++) {
+    const a0 = i / steps, a1 = (i + 1) / steps;
+    buildRoadSegment(x1 + (x2 - x1) * a0, z1 + (z2 - z1) * a0, x1 + (x2 - x1) * a1, z1 + (z2 - z1) * a1, width);
+  }
+}
+
+// Taller than a house, flat-roofed, plain grey - reads as "city" rather than another control
+// tower (buildTower already owns that silhouette/colour at the airports).
+function buildCityTower(x, z){
+  const g = new THREE.Group();
+  const w = 8 + Math.random() * 5, d = 8 + Math.random() * 5, h = 16 + Math.random() * 22;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cityWallMat);
+  body.position.y = h / 2;
+  body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  const rows = Math.floor(h / 4);
+  for (let row = 1; row < rows; row++) {
+    if (Math.random() < 0.45) continue; // not every floor lit - reads as a real building, not a grid
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 1.1), houseWindowMat);
+    win.position.set(0, row * 4, d / 2 + 0.02);
+    g.add(win);
+  }
+  g.position.set(x, groundY(x, z), z);
+  g.rotation.y = Math.random() * Math.PI * 2;
+  scene.add(g);
+  return g;
+}
+
+// A simple hull + deckhouse + mast, sized for the open water - sits AT the water surface
+// (the fixed decorative plane at y=-6), not at terrainHeight, since that's the actual visible
+// sea level regardless of how deep the underlying noise dips at that point.
+function buildShip(x, z){
+  const g = new THREE.Group();
+  const len = 14 + Math.random() * 18, w = len * 0.22;
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(w, 3, len), shipHullMat);
+  hull.position.y = 0.6;
+  hull.castShadow = true;
+  g.add(hull);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 2.2, len * 0.3), shipDeckMat);
+  deck.position.set(0, 2.6, -len * 0.28);
+  deck.castShadow = true;
+  g.add(deck);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 6, 6), shipDeckMat);
+  mast.position.set(0, 6.7, -len * 0.28);
+  g.add(mast);
+  g.position.set(x, -6, z); // water.position.y above
+  g.rotation.y = Math.random() * Math.PI * 2;
+  scene.add(g);
+  return g;
+}
+
+let minimapAirportNodes = [];
+let minimapTownNodes = [];
+let minimapShipNodes = [];
+function populateWorld(){
+  // Kept closer-in than the full terrain extent, mostly overlapping where the 5 airports already
+  // are (+-6200 on Z, +-3400 on X) - scenery out past that is terrain the player will rarely if
+  // ever actually fly over, so placing settlements there would mostly go unseen.
+  // Tighter on mobile, same object counts (see settlementTarget/shipTarget below) - a short
+  // local flight is far more likely to actually pass near something placed 3 km out than 6 km
+  // out, and this costs nothing extra to render: it's the same handful of objects, just closer
+  // together instead of spread across more empty terrain.
+  const WORLD_RADIUS = isMobileDevice ? 3200 : 6000;
+  const MIN_FROM_RUNWAY = isMobileDevice ? 450 : 900; // clear of each airport's own flattened corridor + house/tree scatter
+  const MIN_SETTLEMENT_SPACING = 700;
+  const MIN_SHIP_SPACING = 500;
+  const LAND_MIN = 15, LAND_MAX = 150; // below LAND_MIN reads as shoreline/marsh, above LAND_MAX as a mountainside - neither suits a town
+  const SEA_MAX = 0;                   // at/below the water plane's own level
+  const settlementTarget = isMobileDevice ? 5 : 9;
+  const shipTarget = isMobileDevice ? 4 : 7;
+  const ATTEMPTS = 1500; // generous - this runs once at load, rejection sampling just needs enough tries to actually hit the targets above
+
+  function randomPoint(){
+    const ang = Math.random() * Math.PI * 2, rad = Math.sqrt(Math.random()) * WORLD_RADIUS;
+    return { x: Math.sin(ang) * rad, z: Math.cos(ang) * rad };
+  }
+  function tooCloseToRunway(x, z){
+    return RUNWAYS.some(r => Math.hypot(x - r.cx, z - r.cz) < MIN_FROM_RUNWAY + rwLen(r) / 2);
+  }
+
+  const settlements = [];
+  for (let tries = 0; tries < ATTEMPTS && settlements.length < settlementTarget; tries++) {
+    const p = randomPoint();
+    const h = terrainHeight(p.x, p.z);
+    if (h < LAND_MIN || h > LAND_MAX) continue;
+    if (tooCloseToRunway(p.x, p.z)) continue;
+    if (settlements.some(s => Math.hypot(p.x - s.x, p.z - s.z) < MIN_SETTLEMENT_SPACING)) continue;
+    settlements.push(p);
+  }
+
+  const ships = [];
+  for (let tries = 0; tries < ATTEMPTS && ships.length < shipTarget; tries++) {
+    const p = randomPoint();
+    if (terrainHeight(p.x, p.z) > SEA_MAX) continue;
+    if (ships.some(s => Math.hypot(p.x - s.x, p.z - s.z) < MIN_SHIP_SPACING)) continue;
+    ships.push(p);
+  }
+  ships.forEach(p => { buildShip(p.x, p.z); addMinimapShipMarker(p.x, p.z); });
+
+  // A settlement is no longer just a scatter of houses around a point - it's a real (if simple)
+  // street layout: one main street through the middle plus a few cross streets, houses placed
+  // ALONGSIDE those streets (with a small front-yard offset) rather than anywhere in a circle, so
+  // the town actually reads as built along roads instead of roads happening to pass nearby. Each
+  // candidate house/tower spot is still individually checked for land (see the comment that used
+  // to sit here about the centre check not covering the whole footprint - still true, same fix).
+  function landSpot(candidateFn, tries){
+    for (let t = 0; t < (tries || 5); t++) {
+      const p = candidateFn();
+      if (terrainHeight(p.x, p.z) >= 8) return p;
+    }
+    return null; // gave up - better to place one fewer building than to float it over water
+  }
+  // Walks outward from (ox,oz) along (dirx,dirz) in small steps, stopping at the last point
+  // that's still land - so a street shortens itself to the shoreline instead of running out over
+  // the water (a settlement's centre passing the land check says nothing about how far a whole
+  // street spanning 60-200 m from it stays dry, especially for a waterfront town).
+  function landMarch(ox, oz, dirx, dirz, maxDist){
+    const STEP = 8;
+    let last = 0;
+    for (let d = STEP; d <= maxDist; d += STEP) {
+      if (terrainHeight(ox + dirx * d, oz + dirz * d) < 3) break;
+      last = d;
+    }
+    return last;
+  }
+  function buildSettlementStreets(cx, cz, isCity){
+    const blockSize = isCity ? 42 : 34;
+    const crossCount = isCity ? 3 : 2;
+    const mainHalf = isCity ? blockSize * 2.2 : blockSize * 1.1;
+    const crossHalf = isCity ? blockSize * 1.6 : blockSize * 0.9;
+    const mainAngle = Math.random() * Math.PI;
+    const dx = Math.sin(mainAngle), dz = Math.cos(mainAngle);
+    const px = Math.sin(mainAngle + Math.PI / 2), pz = Math.cos(mainAngle + Math.PI / 2);
+    const mainFwd = landMarch(cx, cz, dx, dz, mainHalf), mainBack = landMarch(cx, cz, -dx, -dz, mainHalf);
+    if (mainFwd + mainBack > 10) {
+      buildRoad(cx - dx * mainBack, cz - dz * mainBack, cx + dx * mainFwd, cz + dz * mainFwd, isCity ? 8 : 6);
+    }
+    for (let i = 0; i < crossCount; i++) {
+      const t = -mainHalf + (i + 0.5) * (2 * mainHalf / crossCount);
+      if (t > mainFwd || -t > mainBack) continue; // this cross street's junction point is itself off the (shortened) main street
+      const bx = cx + dx * t, bz = cz + dz * t;
+      const fwd = landMarch(bx, bz, px, pz, crossHalf), back = landMarch(bx, bz, -px, -pz, crossHalf);
+      if (fwd + back > 10) {
+        buildRoad(bx - px * back, bz - pz * back, bx + px * fwd, bz + pz * fwd, isCity ? 7 : 5);
+      }
+    }
+    return { dx, dz, px, pz, mainHalf: Math.min(mainHalf, Math.max(mainFwd, mainBack)), crossHalf: Math.min(crossHalf, Math.max(0, crossHalf)) };
+  }
+  settlements.forEach(p => {
+    const isCity = Math.random() < 0.3;
+    addMinimapTownMarker(p.x, p.z, isCity);
+    const st = buildSettlementStreets(p.x, p.z, isCity);
+    const houseCount = isCity ? 14 + Math.floor(Math.random() * 8) : 5 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < houseCount; i++) {
+      // Half the houses line the main street, half line a cross street - either way, offset to
+      // one side like a real front yard, not scattered at an arbitrary angle from the centre.
+      const onMain = Math.random() < 0.5;
+      const spot = landSpot(() => {
+        const t = (Math.random() * 2 - 1) * (onMain ? st.mainHalf : st.crossHalf);
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const setback = 9 + Math.random() * 10;
+        const ax = onMain ? p.x + st.dx * t : p.x + st.px * t;
+        const az = onMain ? p.z + st.dz * t : p.z + st.pz * t;
+        const ox = onMain ? st.px : st.dx, oz = onMain ? st.pz : st.dz;
+        return { x: ax + ox * setback * side, z: az + oz * setback * side };
+      });
+      if (spot) buildHouse(spot.x, spot.z);
+    }
+    if (isCity) {
+      const towerCount = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < towerCount; i++) {
+        const spot = landSpot(() => {
+          const t = (Math.random() * 2 - 1) * st.mainHalf * 0.6;
+          const side = Math.random() < 0.5 ? -1 : 1;
+          const setback = 14 + Math.random() * 10;
+          return { x: p.x + st.dx * t + st.px * setback * side, z: p.z + st.dz * t + st.pz * setback * side };
+        });
+        if (spot) buildCityTower(spot.x, spot.z);
+      }
+    }
+  });
+
+  // Inter-settlement roads: connect each settlement to its nearest neighbour(s) within range,
+  // skipping a connection if the terrain dips too low anywhere along the way (a quick, cheap
+  // stand-in for real pathfinding - good enough for a few short procedural roads, not meant to
+  // always find the one dry route through complex terrain).
+  const MAX_ROAD_LEN = 3400;
+  const connected = new Set();
+  const builtRoads = []; // {x1,z1,x2,z2} for every inter-settlement road actually built, so crossing roads can get an interchange below
+  function roadKey(i, j){ return i < j ? i + ':' + j : j + ':' + i; }
+  function pathClear(x1, z1, x2, z2){
+    // The road itself already follows the LOCAL ground height segment by segment (buildRoad), so
+    // a shallow dip in between isn't a problem on its own - this check exists only to keep a road
+    // from being routed straight through an actual substantial body of water (the kind a ship
+    // would sit in), which calls for a much deeper threshold than "not perfectly flat".
+    const samples = 5;
+    for (let i = 1; i < samples; i++) {
+      const t = i / samples;
+      if (terrainHeight(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t) < -50) return false;
+    }
+    return true;
+  }
+  // Up to 2 nearest neighbours per settlement, not just 1 - a real road network has more than
+  // one route out of most towns, and this also makes an actual crossing (for the interchange
+  // below) far more likely to occur with only a handful of settlements to work with.
+  settlements.forEach((s, i) => {
+    const candidates = settlements
+      .map((o, j) => ({ j, d: Math.hypot(s.x - o.x, s.z - o.z) }))
+      .filter(c => c.j !== i && c.d < MAX_ROAD_LEN)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 2);
+    candidates.forEach(({ j: nearest }) => {
+      const key = roadKey(i, nearest);
+      if (connected.has(key)) return;
+      const o = settlements[nearest];
+      if (!pathClear(s.x, s.z, o.x, o.z)) return;
+      connected.add(key);
+      buildRoad(s.x, s.z, o.x, o.z, 6);
+      builtRoads.push({ x1: s.x, z1: s.z, x2: o.x, z2: o.z });
+    });
+  });
+
+  // Interchanges: where two of the inter-settlement roads above actually cross, lift one of them
+  // onto a short flat bridge deck over the other (two support pylons, a ramp up, a ramp down) -
+  // a simplified overpass, not a full cloverleaf, but a real grade-separated crossing rather than
+  // the two roads just painted through each other at the same height.
+  function segmentIntersection(a1, a2, b1, b2){
+    const d1x = a2.x - a1.x, d1z = a2.z - a1.z, d2x = b2.x - b1.x, d2z = b2.z - b1.z;
+    const denom = d1x * d2z - d1z * d2x;
+    if (Math.abs(denom) < 1e-6) return null; // parallel
+    const t = ((b1.x - a1.x) * d2z - (b1.z - a1.z) * d2x) / denom;
+    const u = ((b1.x - a1.x) * d1z - (b1.z - a1.z) * d1x) / denom;
+    if (t <= 0.08 || t >= 0.92 || u <= 0.08 || u >= 0.92) return null; // ignore near-endpoint "crossings" (two roads meeting at a shared settlement)
+    return { x: a1.x + d1x * t, z: a1.z + d1z * t };
+  }
+  function buildOverpass(road, crossPoint){
+    const dx = road.x2 - road.x1, dz = road.z2 - road.z1, len = Math.hypot(dx, dz);
+    const ux = dx / len, uz = dz / len;
+    const baseY = groundY(crossPoint.x, crossPoint.z);
+    const deckY = baseY + 6.5;
+    const DECK_HALF = 26, RAMP_LEN = 55;
+    // Flat deck centred on the crossing
+    const deckGeo = new THREE.PlaneGeometry(7, DECK_HALF * 2);
+    deckGeo.rotateX(-Math.PI / 2);
+    const deck = new THREE.Mesh(deckGeo, roadMat);
+    deck.position.set(crossPoint.x, deckY, crossPoint.z);
+    deck.rotation.y = Math.atan2(dx, dz);
+    deck.receiveShadow = true;
+    scene.add(deck);
+    // Ramps up/down on either side of the deck
+    [-1, 1].forEach(side => {
+      const nearX = crossPoint.x + ux * side * DECK_HALF, nearZ = crossPoint.z + uz * side * DECK_HALF;
+      const farX = crossPoint.x + ux * side * (DECK_HALF + RAMP_LEN), farZ = crossPoint.z + uz * side * (DECK_HALF + RAMP_LEN);
+      const farGroundY = groundY(farX, farZ);
+      const rampLen = Math.hypot(farX - nearX, farZ - nearZ);
+      const rampGeo = new THREE.PlaneGeometry(7, rampLen);
+      rampGeo.rotateX(-Math.PI / 2);
+      const ramp = new THREE.Mesh(rampGeo, roadMat);
+      ramp.position.set((nearX + farX) / 2, (deckY + farGroundY) / 2 + 0.1, (nearZ + farZ) / 2);
+      ramp.rotation.y = Math.atan2(dx, dz);
+      ramp.rotation.x = -Math.atan2(deckY - farGroundY, rampLen) * side; // tilt to meet the ground at the far end
+      ramp.receiveShadow = true;
+      scene.add(ramp);
+    });
+    // Two simple support pylons under the deck
+    [-1, 1].forEach(side => {
+      const px2 = crossPoint.x + uz * side * 3.2, pz2 = crossPoint.z - ux * side * 3.2; // offset sideways from the deck centreline
+      const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, deckY - baseY, 8), roadMat);
+      pylon.position.set(px2, baseY + (deckY - baseY) / 2, pz2);
+      pylon.castShadow = true;
+      scene.add(pylon);
+    });
+  }
+  const overpassesBuilt = new Set();
+  for (let i = 0; i < builtRoads.length && overpassesBuilt.size < 3; i++) {
+    for (let j = i + 1; j < builtRoads.length; j++) {
+      const a = builtRoads[i], b = builtRoads[j];
+      const cp = segmentIntersection({ x: a.x1, z: a.z1 }, { x: a.x2, z: a.z2 }, { x: b.x1, z: b.z1 }, { x: b.x2, z: b.z2 });
+      if (!cp) continue;
+      buildOverpass(a, cp);
+      overpassesBuilt.add(i + ':' + j);
+      break; // one interchange per road is plenty - move on
+    }
+  }
+  // With only a handful of settlements (especially on mobile), a nearest-neighbour road network
+  // rarely happens to cross itself on its own - rather than leave the interchange entirely to
+  // chance, build one guaranteed short spur straight across the midpoint of the longest road, and
+  // grade-separate that crossing. It's real geometry (checked against water the same as any other
+  // road), just deliberately placed instead of hoping for a coincidence.
+  if (overpassesBuilt.size === 0 && builtRoads.length > 0) {
+    // Try several points along each road (longest first), not just the exact midpoint of the
+    // single longest one - a single sample point can land on a locally low patch even when the
+    // road itself is a perfectly fine, mostly-dry route.
+    const byLen = builtRoads.slice().sort((a, b) =>
+      Math.hypot(b.x2 - b.x1, b.z2 - b.z1) - Math.hypot(a.x2 - a.x1, a.z2 - a.z1));
+    outer:
+    for (const road of byLen) {
+      const len = Math.hypot(road.x2 - road.x1, road.z2 - road.z1);
+      if (len < 40) continue;
+      const dx = (road.x2 - road.x1) / len, dz = (road.z2 - road.z1) / len;
+      const px = dz, pz = -dx; // perpendicular to the base road
+      for (const frac of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+        const mx = road.x1 + dx * len * frac, mz = road.z1 + dz * len * frac;
+        const fwd = landMarch(mx, mz, px, pz, 260), back = landMarch(mx, mz, -px, -pz, 260);
+        if (fwd + back > 60) {
+          const spur = { x1: mx - px * back, z1: mz - pz * back, x2: mx + px * fwd, z2: mz + pz * fwd };
+          buildRoad(spur.x1, spur.z1, spur.x2, spur.z2, 6);
+          buildOverpass(road, { x: mx, z: mz });
+          break outer;
+        }
+      }
+    }
+  }
+}
+populateWorld();
 
 /* =====================================================================
    BUILD MODE - lets the player decorate the world themselves: fly to a
@@ -2970,7 +3375,6 @@ document.getElementById('build-remove-btn').addEventListener('click', removeNear
 
 // Cache minimap airport nodes - querySelectorAll every frame is GC pressure on mobile
 const MINIMAP_RANGE = 6000; // meters - real-world distance mapped to the minimap's visible radius
-let minimapAirportNodes = [];
 
 /* =====================================================================
    TARGET RUNWAY SELECTION - by default the HUD needle/distance, approach
@@ -3029,6 +3433,7 @@ let missionActive = false;
 let missionDestination = null;
 let missionCargo = '';
 let missionElapsed = 0;
+let missionTimeTarget = 0; // seconds - a soft target shown in the banner; beating it just adds a note at delivery, never a penalty for missing it
 let lastImpactVS = 0; // most recent touchdown vertical speed (m/s), used only to flavor the mission-complete message
 let lastMissionBannerTime = ''; // last displayed mm:ss string - lets the animate loop skip redundant DOM writes when it hasn't changed
 const missionBannerEl = document.getElementById('mission-banner'); // cached once instead of getElementById every frame
@@ -3040,7 +3445,16 @@ function startMission(){
   missionDestination = choices[Math.floor(Math.random() * choices.length)] || RUNWAYS[0];
   missionCargo = MISSION_CARGO_TYPES[Math.floor(Math.random() * MISSION_CARGO_TYPES.length)];
   missionElapsed = 0;
+  // Target time: straight-line distance at a fraction of the aircraft's top speed (climb, the
+  // pattern, and not holding max speed the whole way all eat into a straight-line average), plus
+  // 30% margin so it's a realistic target to beat, not a speedrun-only one.
+  {
+    const dist = Math.hypot(missionDestination.cx - STATE.position.x, missionDestination.cz - STATE.position.z);
+    const avgSpeed = Math.max(15, (acConfig.maxSpeed || 60) * 0.45);
+    missionTimeTarget = (dist / avgSpeed) * 1.3;
+  }
   missionActive = true;
+  missionArrived = false; // reset in case a future change ever chains missions without a full restart
   lastMissionBannerTime = ''; // force the very first per-frame banner update to actually write, not skip as "unchanged"
   selectedTargetRunway = missionDestination;
   refreshTargetRunwayUI();
@@ -3074,7 +3488,10 @@ function showMissionComplete(vsAbs, onRunway){
 
   const el = document.getElementById('mission-complete');
   const detailEl = document.getElementById('mc-detail');
-  if (detailEl) detailEl.textContent = `${missionCargo} ${grade} at ${missionDestination.name} \u2022 time ${formatMissionTime(missionElapsed)}`;
+  const aheadOfSchedule = missionElapsed <= missionTimeTarget;
+  // Computed once here and reused below for career tracking, instead of twice.
+  const weatherBonus = difficultyMode === 'realistic' && (WEATHER_CONFIGS[selectedWeather].windSpeed || 0) >= 4;
+  if (detailEl) detailEl.textContent = `${missionCargo} ${grade} at ${missionDestination.name} \u2022 time ${formatMissionTime(missionElapsed)}${aheadOfSchedule ? ' ⚡ ahead of schedule!' : ''}${weatherBonus ? ' 🌬 weather bonus - counted double!' : ''}`;
   if (el) { el.style.display = 'block'; el.style.opacity = '1'; setTimeout(() => { el.style.transition = 'opacity 1s ease'; el.style.opacity = '0'; }, 3500); setTimeout(() => { el.style.display = 'none'; el.style.transition = 'none'; }, 4500); }
 
   safeShowAtcExchange({
@@ -3085,17 +3502,210 @@ function showMissionComplete(vsAbs, onRunway){
   if (missionBannerEl) missionBannerEl.style.display = 'none';
   missionActive = false;
   missionDestination = null;
+  cargoLoaded = false;
+  updateCargoVisual();
   selectedTargetRunway = null; // back to automatic/nearest navigation
   refreshTargetRunwayUI();
+  // Offer another mission right where this one was just delivered, instead of requiring a full
+  // restart - the LOAD CARGO prompt (now checking the nearest airport, see inCargoHangarZone)
+  // picks this up the same way it did for the very first mission.
+  const missionCheckEl = document.getElementById('mission-mode-check');
+  if (missionCheckEl && missionCheckEl.checked) missionPending = true;
 
   // Career tracking - missions are the main driver toward the Commercial/Test Pilot tiers.
-  career.missionsCompleted++;
+  // A mission flown in realistic mode with real wind (not just the 1 m/s clear-sky breeze) is
+  // harder, so it counts double - rewards taking the harder weather on rather than only ever
+  // flying clear-and-easy (weatherBonus computed once above).
+  career.missionsCompleted += weatherBonus ? 2 : 1;
   saveCareer();
   checkLicenseProgress();
 }
 
+/* =====================================================================
+   CARGO LOADING - the player must taxi to the home airport's hangar/ramp
+   (the same "isParked" spot the tow system and refuelling already use) and
+   hold there to load before a mission actually starts. Loading drives three
+   things once it finishes: startMission() (unchanged - picks the destination
+   and cargo name), cargoLoaded (the small stall-speed penalty above, cleared
+   on delivery in showMissionComplete), and updateCargoVisual() (what's
+   visibly sitting in the cabin).
+===================================================================== */
+let missionPending = false;       // mission mode was checked at the start screen; waiting for the player to load cargo
+let cargoLoading = false;
+let cargoLoadElapsed = 0;
+const CARGO_LOAD_TIME = 6;        // seconds
+let cargoLoaded = false;          // true from load-complete until delivery
+let missionArrived = false;       // stopped near the destination airport - waiting for the player to taxi to ITS hangar and unload
+let cargoUnloading = false;
+let cargoUnloadElapsed = 0;
+const CARGO_STALL_PENALTY = 1.08; // +8% effective stall speed while carrying cargo
+
+// Geometric "at the home hangar/ramp" check - independent of isParked (which only ever becomes
+// true after a full tow sequence, not simply by sitting on the ramp, e.g. right at spawn).
+// Zone matches the ramp slab + hangar positions authored in the airport-building code above
+// (ramp centred at along=-215, across=100, 155x210; hangars at across=150) for the HOME airport
+// specifically - missions always load at the player's home field, never the destination.
+function inCargoHangarZone(runway){
+  // Default: the nearest airport to the player right now - correct both for the very first
+  // mission (always starts at the home field) and for a follow-up mission picked up right where
+  // the previous one was delivered, instead of only ever checking the home field.
+  const r = runway || nearestRunway(STATE.position.x, STATE.position.z);
+  const scale = rwLen(r) / 1800; // along-axis positions scale with runway length; across does not (see buildAirport)
+  const loc = worldToRunwayLocal(r, STATE.position.x, STATE.position.z);
+  return Math.abs(loc.along - (-215 * scale)) < 130 * scale && loc.across > 15 && loc.across < 185;
+}
+
+function cargoLoadAvailable(){
+  return missionPending && !missionActive && !cargoLoading && !towState && STATE.onGround && STATE.speed < 2 && inCargoHangarZone();
+}
+
+let lastCargoButtonState = '';
+const cargoTaxiHintEl = document.getElementById('cargo-taxi-hint');
+const cargoLoadBtnEl = document.getElementById('cargo-load-btn');
+const cargoLoadBarWrapEl = document.getElementById('cargo-load-bar-wrap');
+const cargoLoadBarEl = document.getElementById('cargo-load-bar');
+const cargoLoadLabelEl = document.getElementById('cargo-load-label');
+
+function updateCargoLoadUI(dt){
+  if (cargoLoading) {
+    // Stops cleanly without finishing if the player taxis off mid-load - same rule the fuel
+    // truck already uses, so nothing is left stuck mid-animation on a moving aircraft.
+    if (STATE.speed >= 2 || towState || !STATE.onGround) {
+      cargoLoading = false;
+    } else {
+      cargoLoadElapsed += dt;
+      if (cargoLoadElapsed >= CARGO_LOAD_TIME) {
+        cargoLoading = false;
+        missionPending = false;
+        cargoLoaded = true;
+        startMission();
+        updateCargoVisual();
+      } else {
+        const pct = Math.round(100 * cargoLoadElapsed / CARGO_LOAD_TIME);
+        if (cargoLoadBarEl) cargoLoadBarEl.style.width = pct + '%';
+        if (cargoLoadLabelEl) cargoLoadLabelEl.textContent = `LOADING... ${pct}%`;
+      }
+    }
+  }
+  const showBtn = cargoLoadAvailable();
+  const showBar = cargoLoading;
+  const showHint = missionPending && !missionActive && !cargoLoading && !showBtn;
+  const key = showBtn + '|' + showBar + '|' + showHint;
+  if (key === lastCargoButtonState) return; // skip redundant DOM writes
+  lastCargoButtonState = key;
+  if (cargoLoadBtnEl) { cargoLoadBtnEl.style.display = showBtn ? '' : 'none'; if (showBtn) cargoLoadBtnEl.textContent = '📦 LOAD CARGO'; }
+  if (cargoLoadBarWrapEl) cargoLoadBarWrapEl.style.display = showBar ? '' : 'none';
+  if (cargoTaxiHintEl) { cargoTaxiHintEl.style.display = showHint ? '' : 'none'; if (showHint) cargoTaxiHintEl.textContent = '📦 Taxi to the hangar to load cargo'; }
+}
+
+bindTapButton('cargo-load-btn', () => {
+  if (cargoLoadAvailable()) { cargoLoading = true; cargoLoadElapsed = 0; return; }
+  if (cargoUnloadAvailable()) { cargoUnloading = true; cargoUnloadElapsed = 0; }
+});
+
+function cargoUnloadAvailable(){
+  return missionActive && missionArrived && !cargoUnloading && !towState && STATE.onGround && STATE.speed < 2 &&
+         missionDestination && inCargoHangarZone(missionDestination);
+}
+
+let lastCargoUnloadState = '';
+function updateCargoUnloadUI(dt){
+  if (cargoUnloading) {
+    // Same "stops cleanly if you drive off mid-action" rule as loading and refuelling.
+    if (STATE.speed >= 2 || towState || !STATE.onGround) {
+      cargoUnloading = false;
+    } else {
+      cargoUnloadElapsed += dt;
+      if (cargoUnloadElapsed >= CARGO_LOAD_TIME) {
+        cargoUnloading = false;
+        missionArrived = false;
+        showMissionComplete(Math.abs(lastImpactVS * 196.85), true); // unchanged call/score - just deferred from the instant of touchdown to the instant of unloading
+      } else {
+        const pct = Math.round(100 * cargoUnloadElapsed / CARGO_LOAD_TIME);
+        if (cargoLoadBarEl) cargoLoadBarEl.style.width = pct + '%';
+        if (cargoLoadLabelEl) cargoLoadLabelEl.textContent = `UNLOADING... ${pct}%`;
+      }
+    }
+  }
+  const showBtn = cargoUnloadAvailable();
+  const showBar = cargoUnloading;
+  const showHint = missionActive && missionArrived && !cargoUnloading && !showBtn;
+  const key = showBtn + '|' + showBar + '|' + showHint;
+  if (key === lastCargoUnloadState) return;
+  lastCargoUnloadState = key;
+  if (cargoLoadBtnEl) { cargoLoadBtnEl.style.display = showBtn ? '' : 'none'; if (showBtn) cargoLoadBtnEl.textContent = '📦 UNLOAD CARGO'; }
+  if (cargoLoadBarWrapEl) cargoLoadBarWrapEl.style.display = showBar ? '' : 'none';
+  if (cargoTaxiHintEl) { cargoTaxiHintEl.style.display = showHint ? '' : 'none'; if (showHint) cargoTaxiHintEl.textContent = '🏁 Taxi to the hangar to unload cargo'; }
+}
+
+// Builds (or removes) the small cabin model representing the current mission's cargo - a seated
+// passenger silhouette, or a few crates, depending on missionCargo. Parented to the persistent
+// `airplane` group at its own userData.cargoSpot, so it's positioned correctly for whichever
+// aircraft is currently built and survives a mid-mission aircraft switch (rebuildAirplaneModel
+// calls this again after rebuilding). Purely cosmetic - see CARGO_STALL_PENALTY above for the
+// actual flight-performance effect.
+let cargoMeshGroup = null;
+function updateCargoVisual(){
+  if (cargoMeshGroup) {
+    airplane.remove(cargoMeshGroup);
+    cargoMeshGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    cargoMeshGroup = null;
+  }
+  if (!cargoLoaded || !airplane.userData.cargoSpot) return;
+  const g = new THREE.Group();
+  g.name = 'missionCargoVisual'; // tagged so it can be found/identified unambiguously (propGroup and others are also plain THREE.Group objects)
+  g.position.copy(airplane.userData.cargoSpot);
+  const s = airplane.userData.cargoScale || 1;
+  if (missionCargo === 'a passenger') {
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2b2b33, roughness: 0.85 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.11 * s, 8, 8), mat);
+    head.position.y = 0.30 * s;
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.13 * s, 0.15 * s, 0.30 * s, 8), mat);
+    torso.position.y = 0.11 * s;
+    g.add(head, torso);
+  } else {
+    // Crates: colour hints at the cargo type (medical/mail/parts/produce all read as plain freight otherwise).
+    const colorByCargo = { 'medical supplies':0xe8e8e8, 'the mail':0x3a6fb0, 'spare parts':0x6b6b6b, 'fresh produce':0x5a8a3c };
+    const mat = new THREE.MeshStandardMaterial({ color: colorByCargo[missionCargo] || 0x8a6a3c, roughness: 0.9 });
+    const sizes = [[0.22,0.18,0.22],[0.18,0.15,0.18],[0.2,0.14,0.16]];
+    const offs  = [[-0.13,0,0],[0.12,0,0.03],[0,0.17,-0.06]];
+    sizes.forEach((sz,i) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(sz[0]*s, sz[1]*s, sz[2]*s), mat);
+      b.position.set(offs[i][0]*s, offs[i][1]*s, offs[i][2]*s);
+      g.add(b);
+    });
+  }
+  g.traverse(o => { o.castShadow = true; });
+  cargoMeshGroup = g;
+  airplane.add(g);
+}
+
 // Extracted so a newly-unlocked airport (see checkLicenseProgress) can add its own marker later
 // without re-running the whole minimap init.
+// Small, simple dot markers for the procedurally-placed settlements and ships (see
+// populateWorld) - same player-relative minimap already used for airports, so a town or ship
+// that's actually been generated nearby is easy to confirm at a glance instead of having to
+// stumble onto it mid-flight.
+function addMinimapTownMarker(x, z, isCity){
+  const g = document.getElementById('minimap-towns');
+  if (!g) return;
+  const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+  el.dataset.cx = x; el.dataset.cz = z;
+  el.innerHTML = isCity
+    ? '<rect x="-2.2" y="-2.2" width="4.4" height="4.4" fill="#d9a05b" stroke="#2a1a08" stroke-width="0.6"/>'
+    : '<circle cx="0" cy="0" r="1.8" fill="#c9b27a" stroke="#2a1a08" stroke-width="0.5"/>';
+  g.appendChild(el);
+  minimapTownNodes.push(el);
+}
+function addMinimapShipMarker(x, z){
+  const g = document.getElementById('minimap-ships');
+  if (!g) return;
+  const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+  el.dataset.cx = x; el.dataset.cz = z;
+  el.innerHTML = '<circle cx="0" cy="0" r="1.8" fill="#6fc6ff" stroke="#0a2a3a" stroke-width="0.5"/>';
+  g.appendChild(el);
+  minimapShipNodes.push(el);
+}
 function addMinimapAirportMarker(r){
   const g = document.getElementById('minimap-airports');
   if (!g) return;
@@ -3828,6 +4438,11 @@ function buildAirplane(type){
     // nose (far enough behind the nose gear and prop that they stay out of frame, still ahead of the main gear).
     const fb = new THREE.Box3().setFromObject(plane.children[0]);
     plane.userData.bellyCam = new THREE.Vector3(0, fb.min.y - 0.06, fb.min.z + (fb.max.z - fb.min.z) * 0.42);
+    // Cargo/passenger mount: inside the cabin, a bit further back than the belly-camera point
+    // (which sits ahead, clear of the nose gear/prop) - roughly where a seat or cargo bay would be.
+    // Sized as a fraction of the fuselage's own box so it stays inside the hull on every aircraft.
+    plane.userData.cargoSpot = new THREE.Vector3(0, fb.min.y + (fb.max.y - fb.min.y) * 0.55, fb.min.z + (fb.max.z - fb.min.z) * 0.58);
+    plane.userData.cargoScale = Math.max(0.5, Math.min(1.6, (fb.max.x - fb.min.x) * 1.8));
   }
 
   plane.userData.lights = {
@@ -3890,8 +4505,11 @@ function rebuildAirplaneModel(type){
   airplane.userData.gear = built.userData.gear;
   airplane.userData.bodyLift = built.userData.bodyLift || 0;
   airplane.userData.bellyCam = built.userData.bellyCam;
+  airplane.userData.cargoSpot = built.userData.cargoSpot;
+  airplane.userData.cargoScale = built.userData.cargoScale;
   airplane.userData.lights = built.userData.lights;
   airplane.userData.__builtType = type;
+  updateCargoVisual(); // re-attach the cargo/passenger model at the new mount point if a mission is currently active
 }
 rebuildAirplaneModel(selectedAircraft);
 
@@ -4791,7 +5409,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
   clock.start();
 
   const missionCheck = document.getElementById('mission-mode-check');
-  if (missionCheck && missionCheck.checked) startMission();
+  missionPending = !!(missionCheck && missionCheck.checked); // mission mode on: wait until cargo is loaded at the hangar instead of starting immediately
 });
 
 document.getElementById('audio-toggle-btn').addEventListener('click', () => {
@@ -5191,7 +5809,11 @@ function updatePhysics(dt){
   // is what originally stopped full-flap landings from launching the plane back into the air.
   // Flap lift is now in effectiveStallSpeed below (each notch lowers the 1g stall speed) - the old extra lift bonus and its near-ground fade are gone.
   const flapDragAccel = STATE.flaps * 0.7 * DRAG_COEFF() * airspeed * airspeed; // each notch adds ~70% of the clean parasitic drag
-  const effectiveStallSpeed = Math.max(5, STALL_SPEED() - STATE.flaps * 2.6); // Minimum 5 m/s stall speed
+  // Mission cargo adds weight: a loaded aircraft needs more speed to make the same lift, i.e. a
+  // higher effective stall speed, which (through the same angle-of-attack lift model) also costs
+  // some climb rate until the cargo is delivered - same mechanism flaps use above, just the other
+  // direction.
+  const effectiveStallSpeed = Math.max(5, STALL_SPEED() - STATE.flaps * 2.6) * (cargoLoaded ? CARGO_STALL_PENALTY : 1); // Minimum 5 m/s stall speed
 
   // Speedbrakes/spoilers: extra drag and reduced lift while deployed - for descending faster
   // without gaining speed, or for extra stopping power just after touchdown.
@@ -5795,6 +6417,25 @@ function updateHUD(dt){
     // strip visibly points a different way on the map too - not just three identical icons.
     const iconRotDeg = THREE.MathUtils.radToDeg(parseFloat(el.dataset.heading)) - STATE.heading;
     el.setAttribute('transform', `translate(${mx},${my}) rotate(${iconRotDeg})`);
+  });
+
+  minimapTownNodes.forEach(el=>{
+    const dx = parseFloat(el.dataset.cx) - STATE.position.x;
+    const dz = parseFloat(el.dataset.cz) - STATE.position.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    let bearing = THREE.MathUtils.radToDeg(Math.atan2(dx, -dz));
+    const relBearing = THREE.MathUtils.degToRad(((bearing - STATE.heading) % 360 + 360) % 360);
+    const r = Math.min(dist * mmScale, 66);
+    el.setAttribute('transform', `translate(${70 + r * Math.sin(relBearing)},${70 - r * Math.cos(relBearing)})`);
+  });
+  minimapShipNodes.forEach(el=>{
+    const dx = parseFloat(el.dataset.cx) - STATE.position.x;
+    const dz = parseFloat(el.dataset.cz) - STATE.position.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    let bearing = THREE.MathUtils.radToDeg(Math.atan2(dx, -dz));
+    const relBearing = THREE.MathUtils.degToRad(((bearing - STATE.heading) % 360 + 360) % 360);
+    const r = Math.min(dist * mmScale, 66);
+    el.setAttribute('transform', `translate(${70 + r * Math.sin(relBearing)},${70 - r * Math.cos(relBearing)})`);
   });
 
   speedVal.textContent = Math.round(kts);
@@ -6802,6 +7443,8 @@ function animate(){
     updateTowButtonUI();
     updateRefuel(dt);
     updateRefuelButtonUI();
+    updateCargoLoadUI(dt);
+    updateCargoUnloadUI(dt);
     updateHUD(dt);
     updateEngineSound();
     updateBirdFlocks(dt);
@@ -6820,7 +7463,7 @@ function animate(){
       const displayedTime = formatMissionTime(missionElapsed);
       if (displayedTime !== lastMissionBannerTime) {
         lastMissionBannerTime = displayedTime;
-        if (missionBannerEl) missionBannerEl.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId}) \u2022 ${displayedTime}`;
+        if (missionBannerEl) missionBannerEl.textContent = `🎯 MISSION: deliver ${missionCargo} to ${missionDestination.name} (RWY ${missionDestination.rwyId}) \u2022 ${displayedTime} / ${formatMissionTime(missionTimeTarget)}`;
       }
       // Arrival check - deliberately forgiving: fires whenever the aircraft has come to a stop or
       // is rolling slowly anywhere within the destination airport's grounds (a generous radius
@@ -6829,9 +7472,9 @@ function animate(){
       // drifted a bit off centerline, or was still rolling fast at the instant of touchdown could
       // all miss it entirely. Checking every frame for "stopped near the destination" instead
       // means however the arrival actually happens, the mission still completes.
-      if (STATE.onGround && STATE.speed < 3) {
+      if (!missionArrived && STATE.onGround && STATE.speed < 3) {
         const distToDest = Math.hypot(STATE.position.x - missionDestination.cx, STATE.position.z - missionDestination.cz);
-        if (distToDest < 400) showMissionComplete(Math.abs(lastImpactVS * 196.85), true);
+        if (distToDest < 400) missionArrived = true; // landed/stopped near the field - actual delivery now waits for the hangar unload above
       }
     }
   }
