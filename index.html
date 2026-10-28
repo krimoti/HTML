@@ -1176,19 +1176,19 @@ const AIRCRAFT_CONFIGS = {
     // Calibrated against a real light single: stall 26 m/s (~50 kt), top speed ~70 m/s (~135 kt), ~6 m/s best climb, ~9:1 glide.
     // maxThrust = acceleration at full throttle (m/s^2); drag = quadratic drag coeff (top speed = sqrt(maxThrust/drag));
     // induced = induced-drag coeff (slow flight costs power); aoaStall/incidence in radians. `lift` is a legacy field and unused.
-    name:'Cessna', maxThrust:2.4, drag:0.00049, lift:0.62, induced:6.0, aoaStall:0.262, incidence:0.07, maxG:3.8,
+    name:'Cessna', maxThrust:2.4, drag:0.00049, induced:6.0, aoaStall:0.262, incidence:0.07, maxG:3.8,
     stallSpeed:26, maxSpeed:80, color:0xf0f0e8, accentColor:0x3366cc,
     mass:1, pitchRate:1.0, rollRate:1.0, engineType:'propeller',
     fuelCapacity:100, fuelIdleBurn:0.028, fuelMaxBurn:0.11, hasFuel:true,
   },
   jet: {
-    name:'Jet', maxThrust:5.0, drag:0.000125, lift:0.48, induced:31, aoaStall:0.244, incidence:0.052, maxG:5,
+    name:'Jet', maxThrust:5.0, drag:0.000125, induced:31, aoaStall:0.244, incidence:0.052, maxG:5,
     stallSpeed:40, maxSpeed:210, color:0xe8e8f0, accentColor:0xcc3333,
     mass:1, pitchRate:1.4, rollRate:1.5, engineType:'jet',
     fuelCapacity:100, fuelIdleBurn:0.05, fuelMaxBurn:0.22, hasFuel:true,
   },
   fighter: {
-    name:'Fighter', maxThrust:9, drag:0.00008, lift:0.4, induced:54, aoaStall:0.31, incidence:0.035, maxG:9,
+    name:'Fighter', maxThrust:9, drag:0.00008, induced:54, aoaStall:0.31, incidence:0.035, maxG:9,
     stallSpeed:48, maxSpeed:280, color:0x6c7178, accentColor:0x2a2a2a,
     // Pitch/roll rate dialed back from the first pass (was 1.9/2.1) - it made the fighter so
     // twitchy that a small pitch-up input could send it into a steep zoom climb before the
@@ -1199,7 +1199,7 @@ const AIRCRAFT_CONFIGS = {
     fuelCapacity:100, fuelIdleBurn:0.07, fuelMaxBurn:0.32, hasFuel:true,
   },
   glider: {
-    name:'Glider', maxThrust:0, drag:0.0002, lift:0.82, induced:1.28, aoaStall:0.26, incidence:0.07, maxG:4,
+    name:'Glider', maxThrust:0, drag:0.0002, induced:1.28, aoaStall:0.26, incidence:0.07, maxG:4,
     stallSpeed:17, maxSpeed:75, color:0xf8f0d8, accentColor:0x44aa44,
     mass:1, pitchRate:0.8, rollRate:0.7, engineType:'none',
     fuelCapacity:100, fuelIdleBurn:0, fuelMaxBurn:0, hasFuel:false, // no engine, nothing to burn
@@ -1774,7 +1774,7 @@ function maybeTriggerAtc(dt){
 ===================================================================== */
 const DAYNIGHT = {
   enabled: true,
-  cycleSeconds: 300, // one full day -> night -> day loop, in seconds
+  cycleSeconds: 1200, // one full day -> night -> day loop, in seconds (was 300 - a 5-minute loop made a whole day pass within a single short flight; 20 minutes gives a much gentler, slower transition)
   elapsed: 0,
   baseSky: new THREE.Color(0x8fd0ff),
   baseFog: new THREE.Color(0xbfe3ff),
@@ -1908,7 +1908,6 @@ function updateParticles(){
    LANDING SCORE
 ===================================================================== */
 let landingScoreTimer = 0;
-let justLanded = false;
 let prevOnGround = true;
 // Cached once instead of getElementById repeatedly (2x each for grade/label, plus the fade-out
 // loop below and resetAircraft() elsewhere all needing the same elements).
@@ -2102,7 +2101,11 @@ try {
   const dbgInfo = probeGl && probeGl.getExtension('WEBGL_debug_renderer_info');
   if (dbgInfo) {
     const rendererStr = (probeGl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
-    isKnownWeakRenderer = /swiftshader|llvmpipe|software|microsoft basic render|d3d11 warp/.test(rendererStr);
+    // Beyond pure software rendering, common integrated GPUs (a large share of real desktops and
+    // laptops, not just low-end ones) are also genuinely weak for a scene this shadow-heavy -
+    // catching them here, not just full software renderers, is what actually addresses "desktop
+    // stutters more than phones", since these are exactly the "desktop" GPUs that struggle.
+    isKnownWeakRenderer = /swiftshader|llvmpipe|software|microsoft basic render|d3d11 warp|intel.*(hd|uhd) graphics|intel\(r\) hd|intel\(r\) uhd|radeon\(tm\) graphics|vega 3|vega 8/.test(rendererStr);
   }
 } catch (e) { /* renderer info not exposed by this browser - fall back to the other signals below */ }
 const useLowGraphicsSettings = isTouchSmallScreen || isKnownWeakRenderer || (isLowCoreCount && isLargeViewport);
@@ -2308,6 +2311,12 @@ const terrainSize = 20000;
 const terrainSeg = isMobileDevice ? 90 : 180;
 const terrainGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSeg, terrainSeg);
 terrainGeo.rotateX(-Math.PI/2);
+// A plain grid of the exact same heights baked into the mesh above, indexed by (x,z) instead of
+// by vertex order - this is what meshGroundHeight() below reads from, instead of the raw noise function.
+// (Built from grid position, not vertex index, so it works regardless of PlaneGeometry's internal
+// vertex ordering.)
+const terrainGridW = terrainSeg + 1;
+const heightGrid = new Float32Array(terrainGridW * terrainGridW);
 {
   const pos = terrainGeo.attributes.position;
   for (let i=0;i<pos.count;i++){
@@ -2315,6 +2324,9 @@ terrainGeo.rotateX(-Math.PI/2);
     const z = pos.getZ(i);
     const y = terrainHeight(x, z);
     pos.setY(i, y);
+    const gi = Math.round((x / terrainSize + 0.5) * terrainSeg);
+    const gj = Math.round((z / terrainSize + 0.5) * terrainSeg);
+    heightGrid[gj * terrainGridW + gi] = y;
   }
   terrainGeo.computeVertexNormals();
 }
@@ -2325,19 +2337,33 @@ terrainMesh.castShadow = false;
 
 // The rendered terrain is a coarse grid (a vertex roughly every 110-220 m - see terrainSeg above),
 // flat between vertices. terrainHeight(x,z) is the raw procedural noise *function* instead - at
-// an arbitrary point between grid vertices it can disagree with where the actual mesh surface
-// is by several metres, which is exactly what showed up as houses floating with their shadow
-// falling on the hillside below them, and roads that don't quite sit on the visible ground.
-// Every piece of placed scenery below asks THIS for its height - what the rendered mesh itself
-// says is there - instead of the analytic function.
-const _groundRay = new THREE.Raycaster();
-const _groundRayDir = new THREE.Vector3(0, -1, 0);
-const _groundRayOrigin = new THREE.Vector3();
-function groundY(x, z){
-  _groundRayOrigin.set(x, 4000, z);
-  _groundRay.set(_groundRayOrigin, _groundRayDir);
-  const hit = _groundRay.intersectObject(terrainMesh, false)[0];
-  return hit ? hit.point.y : terrainHeight(x, z); // fallback for the rare miss (right at the mesh's outer edge)
+// an arbitrary point between grid vertices it can disagree with where the actual mesh surface is
+// by anywhere up to ~100 m. That's what showed up as houses floating with their shadow falling on
+// the hillside below them, roads that don't sit on the visible ground, AND (since flight physics'
+// own ground-contact height came from that same raw function - see STATE.groundY in updatePhysics)
+// as the aircraft crashing in mid-air against invisible terrain that wasn't where it looked like it
+// was. meshGroundHeight(x,z) bilinearly interpolates the SAME heights actually baked into the mesh above, so
+// it always agrees with what's rendered - and being plain array lookups and arithmetic rather than
+// a raycast or multi-octave noise evaluation, it's cheap enough to call every physics frame too.
+function meshGroundHeight(x, z){
+  const gi = (x / terrainSize + 0.5) * terrainSeg;
+  const gj = (z / terrainSize + 0.5) * terrainSeg;
+  if (gi < 0 || gi > terrainSeg || gj < 0 || gj > terrainSeg) return terrainHeight(x, z); // past the mesh's outer edge
+  const i0 = Math.min(terrainSeg - 1, Math.floor(gi)), j0 = Math.min(terrainSeg - 1, Math.floor(gj));
+  const fx = gi - i0, fz = gj - j0;
+  const h00 = heightGrid[j0 * terrainGridW + i0], h10 = heightGrid[j0 * terrainGridW + i0 + 1];
+  const h01 = heightGrid[(j0 + 1) * terrainGridW + i0], h11 = heightGrid[(j0 + 1) * terrainGridW + i0 + 1];
+  // Plain bilinear across the 4 corners is NOT the same surface as what's actually rendered: each
+  // grid cell is two FLAT triangles (PlaneGeometry splits it along the h00-h01-h10 / h01-h11-h10
+  // diagonal), and with this much height variation between neighbouring corners the smooth
+  // bilinear blend can diverge from that flat-triangulated surface by tens of metres - which was
+  // still letting the aircraft clip into "ground" the player couldn't see. This instead picks the
+  // same triangle the renderer would and interpolates linearly across THAT, matching it exactly.
+  if (fx + fz <= 1) {
+    return h00 + (h10 - h00) * fx + (h01 - h00) * fz;
+  } else {
+    return h11 + (h10 - h11) * (1 - fz) + (h01 - h11) * (1 - fx);
+  }
 }
 scene.add(terrainMesh);
 
@@ -2583,7 +2609,7 @@ function buildTower(x,z){
   cap.position.y = 43;
   cap.castShadow = true;
   g.add(cap);
-  g.position.set(x, groundY(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
+  g.position.set(x, meshGroundHeight(x,z), z); // sit on the ACTUAL local ground height, not an assumed flat 0
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later - existing callers that ignore it are unaffected
 }
@@ -2602,7 +2628,7 @@ function buildHangar(x,z, rotY){
   // its actual bounding box confirms it spans y=[0,18] locally, not y=[-18,+18]. Adding an extra
   // +18 here (as this used to) shifts an already-grounded shape another 18 units UP, floating the
   // whole hangar in midair. Just the ground height, like buildTower and every other decoration.
-  g.position.set(x, groundY(x,z), z);
+  g.position.set(x, meshGroundHeight(x,z), z);
   g.rotation.y = rotY;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2624,7 +2650,7 @@ function buildShed(x, z, rotY){
   roof.position.y = 4.15;
   roof.castShadow = true;
   g.add(roof);
-  g.position.set(x, groundY(x,z), z);
+  g.position.set(x, meshGroundHeight(x,z), z);
   g.rotation.y = rotY || 0;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2759,7 +2785,7 @@ function buildTree(x,z,biome){
   leaf.position.y = 9;
   leaf.castShadow = true;
   g.add(leaf);
-  g.position.set(x, groundY(x,z), z);
+  g.position.set(x, meshGroundHeight(x,z), z);
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
 }
@@ -2798,7 +2824,7 @@ function buildHouse(x,z){
     g.add(win);
   }
 
-  g.position.set(x, groundY(x,z), z);
+  g.position.set(x, meshGroundHeight(x,z), z);
   g.rotation.y = Math.random()*Math.PI*2;
   scene.add(g);
   return g; // returned so callers (e.g. build mode) can track/remove this specific instance later
@@ -2862,7 +2888,7 @@ RUNWAYS.forEach((r, idx)=>{
   parkedPlaneSpots.forEach((spot, i) => {
     const pw = runwayLocalToWorld(r, spot.along, spot.across);
     const deco = buildParkedPlane(parkedPlaneColors[i % parkedPlaneColors.length]);
-    deco.position.set(pw.x, terrainHeight(pw.x, pw.z), pw.z);
+    deco.position.set(pw.x, meshGroundHeight(pw.x, pw.z), pw.z);
     // Roughly facing the same way the player's own aircraft parks, with a little random splay
     // per aircraft so the ramp doesn't look like a perfectly regimented row.
     deco.rotation.y = (r.heading || 0) + THREE.MathUtils.degToRad(spot.yaw);
@@ -2891,7 +2917,7 @@ RUNWAYS.forEach((r, idx)=>{
       const across = side*(rwWid(r)/2 + 320 + Math.random()*500);
       const along = (Math.random()-0.5)*rwLen(r)*1.6;
       const cand = runwayLocalToWorld(r, along, across);
-      if (terrainHeight(cand.x, cand.z) >= 8) { p = cand; break; }
+      if (meshGroundHeight(cand.x, cand.z) >= 8) { p = cand; break; }
     }
     if (p) buildHouse(p.x, p.z);
   }
@@ -2921,13 +2947,12 @@ function buildRoadSegment(x1, z1, x2, z2, width){
   const dx = x2 - x1, dz = z2 - z1;
   const len = Math.hypot(dx, dz);
   if (len < 1) return;
-  const y = (groundY(x1, z1) + groundY(x2, z2)) / 2 + 0.12; // just proud of the ACTUAL rendered ground, avoids z-fighting
+  const y = (meshGroundHeight(x1, z1) + meshGroundHeight(x2, z2)) / 2 + 0.12; // just proud of the ACTUAL rendered ground, avoids z-fighting
   const geo = new THREE.PlaneGeometry(width, len);
   geo.rotateX(-Math.PI / 2);
   const seg = new THREE.Mesh(geo, roadMat);
   seg.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
   seg.rotation.y = Math.atan2(dx, dz);
-  seg.receiveShadow = true;
   scene.add(seg);
 }
 
@@ -2936,7 +2961,7 @@ function buildRoadSegment(x1, z1, x2, z2, width){
 // that a single flat segment across a long road would float over dips and clip through rises.
 function buildRoad(x1, z1, x2, z2, width){
   const len = Math.hypot(x2 - x1, z2 - z1);
-  const steps = Math.max(1, Math.round(len / 180));
+  const steps = Math.max(1, Math.round(len / 360));
   for (let i = 0; i < steps; i++) {
     const a0 = i / steps, a1 = (i + 1) / steps;
     buildRoadSegment(x1 + (x2 - x1) * a0, z1 + (z2 - z1) * a0, x1 + (x2 - x1) * a1, z1 + (z2 - z1) * a1, width);
@@ -2959,7 +2984,7 @@ function buildCityTower(x, z){
     win.position.set(0, row * 4, d / 2 + 0.02);
     g.add(win);
   }
-  g.position.set(x, groundY(x, z), z);
+  g.position.set(x, meshGroundHeight(x, z), z);
   g.rotation.y = Math.random() * Math.PI * 2;
   scene.add(g);
   return g;
@@ -3004,9 +3029,16 @@ function populateWorld(){
   const MIN_SETTLEMENT_SPACING = 700;
   const MIN_SHIP_SPACING = 500;
   const LAND_MIN = 15, LAND_MAX = 150; // below LAND_MIN reads as shoreline/marsh, above LAND_MAX as a mountainside - neither suits a town
-  const SEA_MAX = 0;                   // at/below the water plane's own level
-  const settlementTarget = isMobileDevice ? 5 : 9;
-  const shipTarget = isMobileDevice ? 4 : 7;
+  // The visible water plane sits at a fixed y=-6 everywhere; ground only looks like "sea" where
+  // the actual terrain dips BELOW that, not merely below 0 - at, say, -3 the real ground is still
+  // higher than the water surface and hides it entirely, so a ship forced to sit at y=-6 there
+  // would end up buried inside solid land instead of floating. -10 keeps a safe margin under -6.
+  const SEA_MAX = -10;
+  // Trimmed down from 9/7 - each settlement is several houses (and often a tower or two) plus the
+  // roads connecting it to its neighbours, and that was adding enough extra meshes to visibly
+  // cost frame rate, especially (since desktop gets the larger of these two numbers) on desktop.
+  const settlementTarget = isMobileDevice ? 5 : 6;
+  const shipTarget = isMobileDevice ? 4 : 5;
   const ATTEMPTS = 1500; // generous - this runs once at load, rejection sampling just needs enough tries to actually hit the targets above
 
   function randomPoint(){
@@ -3020,7 +3052,7 @@ function populateWorld(){
   const settlements = [];
   for (let tries = 0; tries < ATTEMPTS && settlements.length < settlementTarget; tries++) {
     const p = randomPoint();
-    const h = terrainHeight(p.x, p.z);
+    const h = meshGroundHeight(p.x, p.z); // the ACTUAL rendered surface, not the smooth analytic field - see the comment by meshGroundHeight() above
     if (h < LAND_MIN || h > LAND_MAX) continue;
     if (tooCloseToRunway(p.x, p.z)) continue;
     if (settlements.some(s => Math.hypot(p.x - s.x, p.z - s.z) < MIN_SETTLEMENT_SPACING)) continue;
@@ -3030,7 +3062,7 @@ function populateWorld(){
   const ships = [];
   for (let tries = 0; tries < ATTEMPTS && ships.length < shipTarget; tries++) {
     const p = randomPoint();
-    if (terrainHeight(p.x, p.z) > SEA_MAX) continue;
+    if (meshGroundHeight(p.x, p.z) > SEA_MAX) continue;
     if (ships.some(s => Math.hypot(p.x - s.x, p.z - s.z) < MIN_SHIP_SPACING)) continue;
     ships.push(p);
   }
@@ -3045,7 +3077,7 @@ function populateWorld(){
   function landSpot(candidateFn, tries){
     for (let t = 0; t < (tries || 5); t++) {
       const p = candidateFn();
-      if (terrainHeight(p.x, p.z) >= 8) return p;
+      if (meshGroundHeight(p.x, p.z) >= 8) return p;
     }
     return null; // gave up - better to place one fewer building than to float it over water
   }
@@ -3057,7 +3089,7 @@ function populateWorld(){
     const STEP = 8;
     let last = 0;
     for (let d = STEP; d <= maxDist; d += STEP) {
-      if (terrainHeight(ox + dirx * d, oz + dirz * d) < 3) break;
+      if (meshGroundHeight(ox + dirx * d, oz + dirz * d) < 3) break;
       last = d;
     }
     return last;
@@ -3135,19 +3167,19 @@ function populateWorld(){
     const samples = 5;
     for (let i = 1; i < samples; i++) {
       const t = i / samples;
-      if (terrainHeight(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t) < -50) return false;
+      if (meshGroundHeight(x1 + (x2 - x1) * t, z1 + (z2 - z1) * t) < -50) return false;
     }
     return true;
   }
-  // Up to 2 nearest neighbours per settlement, not just 1 - a real road network has more than
-  // one route out of most towns, and this also makes an actual crossing (for the interchange
-  // below) far more likely to occur with only a handful of settlements to work with.
+  // One nearest neighbour per settlement - the guaranteed-interchange fallback further below
+  // already builds a deliberate crossing when nothing naturally intersects, so a denser 2-per-
+  // settlement network isn't needed to get one; it was mostly just adding extra road meshes.
   settlements.forEach((s, i) => {
     const candidates = settlements
       .map((o, j) => ({ j, d: Math.hypot(s.x - o.x, s.z - o.z) }))
       .filter(c => c.j !== i && c.d < MAX_ROAD_LEN)
       .sort((a, b) => a.d - b.d)
-      .slice(0, 2);
+      .slice(0, 1);
     candidates.forEach(({ j: nearest }) => {
       const key = roadKey(i, nearest);
       if (connected.has(key)) return;
@@ -3175,7 +3207,7 @@ function populateWorld(){
   function buildOverpass(road, crossPoint){
     const dx = road.x2 - road.x1, dz = road.z2 - road.z1, len = Math.hypot(dx, dz);
     const ux = dx / len, uz = dz / len;
-    const baseY = groundY(crossPoint.x, crossPoint.z);
+    const baseY = meshGroundHeight(crossPoint.x, crossPoint.z);
     const deckY = baseY + 6.5;
     const DECK_HALF = 26, RAMP_LEN = 55;
     // Flat deck centred on the crossing
@@ -3190,7 +3222,7 @@ function populateWorld(){
     [-1, 1].forEach(side => {
       const nearX = crossPoint.x + ux * side * DECK_HALF, nearZ = crossPoint.z + uz * side * DECK_HALF;
       const farX = crossPoint.x + ux * side * (DECK_HALF + RAMP_LEN), farZ = crossPoint.z + uz * side * (DECK_HALF + RAMP_LEN);
-      const farGroundY = groundY(farX, farZ);
+      const farGroundY = meshGroundHeight(farX, farZ);
       const rampLen = Math.hypot(farX - nearX, farZ - nearZ);
       const rampGeo = new THREE.PlaneGeometry(7, rampLen);
       rampGeo.rotateX(-Math.PI / 2);
@@ -3265,7 +3297,6 @@ populateWorld();
 ===================================================================== */
 const CUSTOM_OBJECTS_KEY = 'flightSimCustomObjectsV1';
 const MAX_CUSTOM_OBJECTS = 40;
-const BUILD_TYPES = ['hangar', 'shed', 'tower', 'tree', 'house', 'plane'];
 const PLANE_COLORS = [0xd94f4f, 0x4f7fd9, 0xe0c34c, 0xffffff, 0x8a5fd9, 0x5fd98a];
 
 function loadCustomObjects(){
@@ -3296,7 +3327,7 @@ function spawnCustomObject(rec){
   else if (rec.type === 'house') obj = buildHouse(rec.x, rec.z);
   else if (rec.type === 'plane') {
     obj = buildDecorativePlane(rec.color != null ? rec.color : 0xffffff, { gear: true });
-    obj.position.set(rec.x, terrainHeight(rec.x, rec.z), rec.z);
+    obj.position.set(rec.x, meshGroundHeight(rec.x, rec.z), rec.z);
     obj.rotation.y = rec.rotY || 0;
     scene.add(obj);
   }
@@ -3494,8 +3525,13 @@ function showMissionComplete(vsAbs, onRunway){
   if (detailEl) detailEl.textContent = `${missionCargo} ${grade} at ${missionDestination.name} \u2022 time ${formatMissionTime(missionElapsed)}${aheadOfSchedule ? ' ⚡ ahead of schedule!' : ''}${weatherBonus ? ' 🌬 weather bonus - counted double!' : ''}`;
   if (el) { el.style.display = 'block'; el.style.opacity = '1'; setTimeout(() => { el.style.transition = 'opacity 1s ease'; el.style.opacity = '0'; }, 3500); setTimeout(() => { el.style.display = 'none'; el.style.transition = 'none'; }, 4500); }
 
+  // Captured now, not read live inside the closures below: safeShowAtcExchange can display the
+  // tower/pilot lines on a delay (so the exchange reads as back-and-forth radio chatter), and this
+  // same function sets missionDestination to null a few lines down - without this, a tower line
+  // that fires after that reassignment crashes trying to read .name off null.
+  const deliveredToName = missionDestination.name;
   safeShowAtcExchange({
-    tower: c => `${ATC_CALLSIGN}, welcome to ${missionDestination.name}, mission complete, nice work.`,
+    tower: c => `${ATC_CALLSIGN}, welcome to ${deliveredToName}, mission complete, nice work.`,
     pilot: c => `Thanks for the help, ${ATC_CALLSIGN}.`,
   }, atcContext());
 
@@ -4516,14 +4552,12 @@ rebuildAirplaneModel(selectedAircraft);
 // Physics constants — defined BEFORE scratch objects
 const BASE_GRAVITY = 9.81;
 
-// Pre-allocated scratch objects reused every physics frame — avoids 4 GC allocations/frame
-// which on mobile (60fps) = 240 short-lived objects/s triggering frequent minor GCs and jank.
+// Pre-allocated scratch objects reused every physics frame — avoids GC allocations/frame
+// which on mobile (60fps) = short-lived objects/s triggering frequent minor GCs and jank.
 const _scratchEuler   = new THREE.Euler(0,0,0,'YXZ');
-const _scratchQuat    = new THREE.Quaternion();
 const _scratchForward = new THREE.Vector3();
 const _scratchUp      = new THREE.Vector3();
 const _scratchGravity = new THREE.Vector3(0,-BASE_GRAVITY,0);
-const _scratchDir     = new THREE.Vector3(); // reused for the velocity-direction alignment blend below
 scene.add(airplane);
 
 /* =====================================================================
@@ -4559,7 +4593,6 @@ const STATE = {
 };
 
 const quat = new THREE.Quaternion();
-const eulerOrder = 'YXZ';
 
 // Initial orientation: nose pointing +Z? We'll define forward as -Z in local space to match model built along Z with nose at -Z.
 airplane.position.copy(STATE.position);
@@ -4588,7 +4621,6 @@ function updateFuel(dt){
   STATE.fuel = Math.max(0, STATE.fuel - burnPctPerSec * dt);
 }
 function DRAG_COEFF(){ return (acConfig && acConfig.drag) ? acConfig.drag : 0.04; }
-function LIFT_COEFF(){ return (acConfig && acConfig.lift) ? acConfig.lift : 0.095; }
 function STALL_SPEED(){ return (acConfig && acConfig.stallSpeed) ? acConfig.stallSpeed : 18; }
 // How far above bare terrain height the aircraft's "on the ground" resting position actually
 // is (accounts for gear/fuselage height) - shared between the normal physics ground-check and
@@ -5028,7 +5060,6 @@ function buildHeadingCard(container){
   const cx=75, cy=75, rOuter=72, rTickIn=62, rLabel=52;
   const svg = svgEl('svg',{viewBox:'0 0 150 150', width:'100%', height:'100%'});
   svg.style.position='absolute'; svg.style.inset='0';
-  const dirs = ['N','','','E','','','S','','','W','','',''];
   for (let deg=0; deg<360; deg+=10){
     const rad = (deg-90)*Math.PI/180;
     const major = (deg % 30 === 0);
@@ -5258,7 +5289,6 @@ function updateEngineSound(){
 const MUSIC_SCALE = [0, 2, 4, 7, 9, 12, 14]; // major pentatonic + octave/9th, in semitones
 const MUSIC_ROOTS = [-12, -7, -5, -2, 0];     // slowly wandering root notes (semitones from A3)
 let musicRootIdx = 2;
-let musicTimer = null;
 
 function noteFreq(semitonesFromA4){
   return 440 * Math.pow(2, semitonesFromA4 / 12);
@@ -5334,17 +5364,9 @@ function scheduleMusicNote(){
     playPadNote(freq, duration, gainScale);
   }
   const nextDelay = (1800 + Math.random()*2600);
-  musicTimer = setTimeout(scheduleMusicNote, nextDelay);
+  setTimeout(scheduleMusicNote, nextDelay);
 }
 
-function toggleMusic(){
-  musicEnabled = !musicEnabled;
-  updateAudioButtonUI();
-}
-function toggleEngine(){
-  engineEnabled = !engineEnabled;
-  updateAudioButtonUI();
-}
 function updateAudioButtonUI(){
   const btn = document.getElementById('audio-toggle-btn');
   if (btn) btn.textContent = (musicEnabled || engineEnabled) ? '🔊' : '🔇';
@@ -5762,8 +5784,6 @@ function updatePhysics(dt){
   if (!isFinite(thrustAccel)) thrustAccel = 0;
 
   // ---- Speed integration along forward axis (simplified point-mass with alignment) ----
-  // Project current velocity onto forward to get airspeed-ish scalar, blend toward forward-aligned flight
-  let velAlongForward = STATE.velocity.dot(forward);
   let airspeed = STATE.velocity.length();
   STATE.speed = airspeed;
 
@@ -5791,7 +5811,7 @@ function updatePhysics(dt){
   // again in atcCurrentPhase(), and again in updateAirplaneLights(). All of those now read
   // STATE.groundY instead (set at the bottom of this function) rather than calling terrainHeight
   // themselves - same numbers, a fraction of the cost.
-  const groundElevHere = terrainHeight(STATE.position.x, STATE.position.z);
+  const groundElevHere = meshGroundHeight(STATE.position.x, STATE.position.z); // the ACTUAL rendered ground under the aircraft - see meshGroundHeight()'s comment above for why this isn't terrainHeight() anymore
   STATE.groundY = groundElevHere; // shared for the rest of this frame - see the comment above
 
   const groundClearance = STATE.position.y - groundElevHere;
@@ -5877,7 +5897,7 @@ function updatePhysics(dt){
       let s;
       if (aoa >= 0) s = (aoa <= aoaStall) ? aoa / aoaStall : Math.max(0.5, 1 - 0.5 * (aoa - aoaStall) / (aoaStall * 0.5));
       else s = Math.max(aoa / aoaStall, -0.6); // some negative lift for a push-over, bounded
-      effectiveLift = BASE_GRAVITY * (vNow / effectiveStallSpeed) * (vNow / effectiveStallSpeed) * s * speedbrakeLiftMult;
+      effectiveLift = BASE_GRAVITY * (horizSpeedForLift / effectiveStallSpeed) * (horizSpeedForLift / effectiveStallSpeed) * s * speedbrakeLiftMult;
     }
   }
   // Structural / flight-control g limit: without it a small stick input at high speed would produce 10+ g
@@ -5891,7 +5911,7 @@ function updatePhysics(dt){
 
   // Induced drag: the price of lift. Small at cruise, large when slow - this is what makes slow flight need power.
   const kInd = (acConfig && acConfig.induced) || 0;
-  if (kInd > 0 && vNow > 1) forwardAccel -= kInd * effectiveLift * effectiveLift / Math.max(vNow * vNow, 100);
+  if (kInd > 0 && horizSpeedForLift > 1) forwardAccel -= kInd * effectiveLift * effectiveLift / Math.max(horizSpeedForLift * horizSpeedForLift, 100);
 
   // Ground effect: a small cushion within ~12 m of the surface.
   if (!STATE.onGround && groundClearance < 12) {
@@ -6100,7 +6120,6 @@ function updatePhysics(dt){
 
     // ---- Landing detection: score + smoke on touchdown ----
   if(!prevOnGround && STATE.onGround && !STATE.crashed){
-    justLanded = true;
     STATE.rolloutIdle = true;
     // Use the impact values captured at the moment of touchdown (above), not STATE.verticalSpeed/
     // STATE.speed - those two fields are only refreshed at the very end of this function, so at
