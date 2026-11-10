@@ -619,6 +619,82 @@
     #atc-radio { bottom:var(--sb); width:min(380px, calc(100vw - 300px)); }
     .atc-line { font-size:11px; padding:4px 8px; }
   }
+
+  /* =====================================================================
+     ACTION BUTTONS MOVED TO THE BOTTOM (touch layouts)
+     Two rows hug the bottom edge:
+        row 1 (lowest)  : FLAP / TRIM / SPD BRK / WHEEL BRK / TOW   (#secondary-controls)
+        row 2 (above it): SOUND / CAM / RESET / BUILD / MENU         (#util-bar)
+     Everything that used to sit at the bottom (joystick, throttle/yaw, speed + altitude dials,
+     radio subtitles) is lifted by the height of the two rows via --dock-h. The top of the screen
+     is now free for the instruments and the mission banner. Desktop is untouched.
+     ===================================================================== */
+  #util-bar { display:contents; }
+  #audio-toggle-btn { position:fixed; z-index:12; }          /* was absolute inside #hud - same spot on desktop */
+  @media (hover:hover) and (pointer:fine) { .util-touch { display:none !important; } }
+  #touch-controls:not(.active) ~ #util-bar .util-touch { display:none; }
+  #mission-banner { width:max-content; }                      /* let it use the freed top strip instead of wrapping into 4 lines */
+
+  @media (hover:none), (pointer:coarse) {
+    :root {
+      --bar-h:34px; --bar-gap:5px; --bar-b:max(10px, env(safe-area-inset-bottom));
+      --dock-w:min(520px, calc(100vw - 380px));
+      --dock-h:calc(var(--bar-b) + var(--bar-h) * 2 + var(--bar-gap));
+    }
+    #secondary-controls {
+      top:auto; right:auto; left:50%; bottom:var(--bar-b); width:var(--dock-w);
+      transform:translateX(-50%); gap:4px;
+    }
+    #util-bar {
+      position:fixed; z-index:31; left:50%; width:var(--dock-w); transform:translateX(-50%);
+      bottom:calc(var(--bar-b) + var(--bar-h) + var(--bar-gap));
+      display:flex; gap:4px; pointer-events:none;
+    }
+    #util-bar > * { position:static !important; top:auto !important; right:auto !important; left:auto !important; }
+    #secondary-controls .touch-btn.small,
+    #util-bar > .touch-btn,
+    #util-bar > #audio-toggle-btn {
+      flex:1 1 0; min-width:0; box-sizing:border-box; height:var(--bar-h); margin:0;
+      padding:0 1px; line-height:1.2; letter-spacing:0.2px; font-size:9px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
+    }
+    #util-bar > .touch-btn, #util-bar > #audio-toggle-btn { pointer-events:auto; }
+    #util-bar > #audio-toggle-btn {
+      background:rgba(10,30,40,0.5); border:1px solid rgba(95,252,255,0.5); border-radius:8px;
+      color:#baffef; font-size:16px; cursor:pointer; width:auto;
+      box-shadow:0 0 10px rgba(95,252,255,0.15); touch-action:none;
+    }
+    #util-bar > #audio-toggle-btn:active { background:rgba(95,252,255,0.35); box-shadow:0 0 20px rgba(95,252,255,0.7); }
+    /* RESET / MENU: warm border so they read as "careful" buttons */
+    #util-bar > .util-warn { border-color:rgba(255,159,59,0.6); }
+    #util-bar > .util-warn:active { background:rgba(255,159,59,0.35); box-shadow:0 0 18px rgba(255,159,59,0.7); }
+
+    #atc-radio { bottom:calc(var(--dock-h) + 8px); width:min(560px, var(--dock-w)); }
+  }
+
+  /* ---------- PORTRAIT phones ---------- */
+  @media (hover:none) and (max-width:480px), (pointer:coarse) and (max-width:480px) {
+    :root { --bar-h:32px; --bar-gap:4px; --dock-w:calc(100vw - 16px); --ctl-b:calc(var(--dock-h) + 28px); }
+    #secondary-controls .touch-btn.small { font-size:7.5px; letter-spacing:0.2px; }
+    #joystick-base  { bottom:var(--ctl-b); }
+    #right-controls { bottom:var(--ctl-b); }
+    #speed-gauge, #alt-gauge { bottom:calc(var(--ctl-b) + 110px + 8px); width:90px; height:90px; }
+    #atc-radio { bottom:calc(var(--ctl-b) + 110px + 8px + 90px + 6px); width:min(560px, 86vw); }
+    /* freed corner: minimap goes where the CAM/RESET/MENU/BUILD column used to start, left column tucks up a little */
+    #minimap { top:152px; right:10px; }
+    #throttle-gauge { top:46px; }
+    #systems-panel  { top:152px; }
+    #rwy-nav-panel  { top:238px; }
+    #approach-guidance { top:302px; }
+  }
+
+  /* ---------- LANDSCAPE phones ---------- */
+  @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+    :root { --dock-w:min(520px, calc(100vw - 300px)); --bar-b:max(8px, env(safe-area-inset-bottom)); }
+    #atc-radio { bottom:calc(var(--dock-h) + 6px); width:min(380px, var(--dock-w)); }
+    #minimap { right:var(--sr); }
+    #mission-banner { max-width:calc(100vw - 320px) !important; }   /* stay clear of the left status panel / minimap */
+  }
 </style>
 </head>
 <body>
@@ -776,7 +852,6 @@
   <div id="fuel-out-warning">&#9650; FUEL EXHAUSTED &#9650;</div>
 
   <div id="camera-indicator">CAM: <span id="cam-mode">CHASE</span> [C]</div>
-  <button id="audio-toggle-btn" title="Toggle sound">🔊</button>
   <div id="autoland-indicator">AUTOLAND [L]</div>
   <!-- ATC radio chatter: short, realistic tower/pilot exchanges that appear like radio
        subtitles every so often during flight. Purely atmospheric - no gameplay effect. -->
@@ -829,10 +904,6 @@
     </div>
   </div>
 
-  <div class="touch-btn" id="cam-toggle-btn">CAM<br>&#128247;</div>
-  <div class="touch-btn" id="reset-touch-btn">RESET<br>&#8635;</div>
-  <div class="touch-btn" id="menu-touch-btn">MENU<br>&#9776;</div>
-
   <div id="secondary-controls">
     <div class="touch-btn small" id="flaps-down-touch-btn">FLAP<br>▼</div>
     <div class="touch-btn small" id="flaps-up-touch-btn">FLAP<br>▲</div>
@@ -845,6 +916,20 @@
   </div>
 </div>
 
+<!-- Bottom action bar: sound / camera / reset / build / menu.
+     These used to float in the top corners; on touch screens they now live in a row at the bottom,
+     directly above the flap/trim row (#secondary-controls). On desktop this wrapper is display:contents,
+     so the sound and BUILD buttons keep their original positions there. RESET and MENU sit in the
+     middle / far end of the row, away from the joystick, so they are not hit by accident.
+     (Same element ids as before - all the JS bindings are untouched.) -->
+<div id="util-bar">
+  <button id="audio-toggle-btn" title="Toggle sound">🔊</button>
+  <div class="touch-btn util-touch" id="cam-toggle-btn">CAM<br>&#128247;</div>
+  <div class="touch-btn util-touch util-warn" id="reset-touch-btn">RESET<br>&#8635;</div>
+  <div class="touch-btn" id="build-toggle-btn" style="position:fixed;top:272px;right:14px;pointer-events:auto;">BUILD<br>&#128736;</div>
+  <div class="touch-btn util-touch util-warn" id="menu-touch-btn">MENU<br>&#9776;</div>
+</div>
+
 <!-- Build mode toggle + palette - NOT confined to #touch-controls (unlike the buttons above)
      since picking from six object types genuinely needs mouse/touch clicking on any device, not
      just a keyboard shortcut - desktop players get N/M/K as a convenience (see the keydown
@@ -853,7 +938,6 @@
      exact same builder functions the procedural airports already use, just placed by the player
      instead of the airport-generation code, so a placed hangar/tree/plane is pixel-for-pixel the
      same quality as the "real" ones. -->
-<div class="touch-btn" id="build-toggle-btn" style="position:fixed;top:272px;right:14px;pointer-events:auto;">BUILD<br>&#128736;</div>
 <div id="build-panel" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);
   z-index:60;background:rgba(5,20,30,0.88);border:1px solid rgba(127,216,255,0.4);border-radius:10px;
   padding:10px 14px;text-align:center;font-family:'Courier New',monospace;color:#cdeeff;pointer-events:auto;">
